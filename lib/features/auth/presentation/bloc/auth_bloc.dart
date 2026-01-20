@@ -26,7 +26,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         username: event.username,
         password: event.password,
       );
-      emit(state.copyWith(status: AuthStatus.authenticated, user: lr.user));
+      // نخزن التوكن فقط داخل AuthState. بيانات المستخدم تُجلب من auth/profile.
+      emit(state.copyWith(status: AuthStatus.authenticated, token: lr.token));
     } catch (e) {
       emit(state.copyWith(status: AuthStatus.failure, error: e.toString()));
     }

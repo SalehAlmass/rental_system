@@ -8,16 +8,18 @@ import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientSearchDelegate.dart';
 
 class ClientsView extends StatelessWidget {
-  const ClientsView({super.key});
+  const ClientsView({super.key, this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'العملاء',
-        onIconPressed: () {
+        onIconPressed: showBackButton ? () {
           Navigator.pop(context);
-        },
+        } : null,
         icon: (){
           final clients =
               context.read<ClientsBloc>().state.items;
@@ -28,6 +30,7 @@ class ClientsView extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'clients_fab', // Unique hero tag to avoid conflicts
         icon: const Icon(Icons.add),
         label: const Text('إضافة عميل'),
         onPressed: () => _openCreateDialog(context),

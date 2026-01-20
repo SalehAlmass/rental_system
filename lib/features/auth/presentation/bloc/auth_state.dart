@@ -2,30 +2,32 @@ part of 'auth_bloc.dart';
 
 enum AuthStatus { initial, loading, authenticated, registerSuccess, failure }
 
+/// AuthState صار مسؤول فقط عن حالة الجلسة + التوكن.
+/// بيانات المستخدم (مثل username/role) يتم جلبها من auth/profile عبر ProfileCubit.
 class AuthState extends Equatable {
-  const AuthState({required this.status, this.user, this.error});
+  const AuthState({required this.status, this.token, this.error});
 
   const AuthState.initial()
-    : status = AuthStatus.initial,
-      user = null,
-      error = null;
+      : status = AuthStatus.initial,
+        token = null,
+        error = null;
 
   final AuthStatus status;
-  final Map<String, dynamic>? user;
+  final String? token;
   final String? error;
-  
+
   AuthState copyWith({
     AuthStatus? status,
-    Map<String, dynamic>? user,
+    String? token,
     String? error,
   }) {
     return AuthState(
       status: status ?? this.status,
-      user: user ?? this.user,
+      token: token ?? this.token,
       error: error,
     );
   }
 
   @override
-  List<Object?> get props => [status, user, error];
+  List<Object?> get props => [status, token, error];
 }

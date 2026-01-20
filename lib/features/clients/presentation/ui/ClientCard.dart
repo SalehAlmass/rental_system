@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
+import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
 
 class ClientCard extends StatelessWidget {
   const ClientCard({required this.client, super.key});
@@ -17,6 +18,15 @@ class ClientCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
+        onTap: () {
+          // Navigate to client details page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ClientDetailsPage(client: client),
+            ),
+          );
+        },
         leading: const CircleAvatar(child: Icon(Icons.person)),
         title: Text(client.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Padding(

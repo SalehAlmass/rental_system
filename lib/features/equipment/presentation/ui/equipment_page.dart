@@ -6,6 +6,7 @@ import 'package:rental_app/core/widgets/equipment_search_delegate.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
+import 'package:rental_app/features/equipment/presentation/ui/equipment_details_page.dart';
 
 // Import validation functions
 String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
@@ -79,7 +80,9 @@ class EquipmentPage extends StatelessWidget {
         create: (ctx) =>
             EquipmentBloc(ctx.read<EquipmentRepository>())
               ..add(EquipmentRequested()),
-        child: const _EquipmentView(),
+        child: _EquipmentView(
+          showBackButton: Navigator.canPop(context),
+        ),
       ),
     );
   }
@@ -88,16 +91,18 @@ class EquipmentPage extends StatelessWidget {
 /* -------------------- VIEW -------------------- */
 
 class _EquipmentView extends StatelessWidget {
-  const _EquipmentView();
+  const _EquipmentView({this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'المعدات',
-        onIconPressed: () {
+        onIconPressed: showBackButton ? () {
           Navigator.pop(context);
-        },
+        } : null,
         icon: () async {
         final items = context.read<EquipmentBloc>().state.items; // أو state.equipment حسب عندك
         await showSearch(
@@ -107,6 +112,7 @@ class _EquipmentView extends StatelessWidget {
       },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'equipment_fab', // Unique hero tag to avoid conflicts
         icon: const Icon(Icons.add),
         label: const Text('إضافة معدة'),
         onPressed: () => _openDialog(context),
@@ -214,6 +220,14 @@ class _EquipmentCard extends StatelessWidget {
               ),
             ],
           ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EquipmentDetailsPage(equipment: equipment),
+              ),
+            );
+          },
         ),
       ),
     );

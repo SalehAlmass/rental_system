@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
-import 'package:rental_app/features/auth/presentation/ui/CreateUserPage.dart';
 import 'package:rental_app/features/auth/presentation/ui/ForgotPasswordPage.dart';
 
 class LoginPage extends StatefulWidget {
@@ -202,31 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              // زر إنشاء مستخدم يظهر فقط للـ admin
-                              Builder(
-                                builder: (context) {
-                                  final authState = context
-                                      .read<AuthBloc>()
-                                      .state;
-                                  final isAdmin =
-                                      authState.user?['role'] == 'admin';
-
-                                  return isAdmin
-                                      ? TextButton(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const CreateUserPage(),
-                                              ),
-                                            );
-                                          },
-                                          child: const Text('إنشاء مستخدم؟'),
-                                        )
-                                      : const SizedBox.shrink();
-                                },
-                              ),
+                              // إنشاء المستخدم يتم من داخل لوحة التحكم (للـ admin) بعد تحميل Profile.
                               TextButton(
                                 onPressed: () {
                                   Navigator.push(

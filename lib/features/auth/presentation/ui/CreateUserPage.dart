@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 
 class CreateUserPage extends StatefulWidget {
   const CreateUserPage({super.key});
@@ -15,17 +16,28 @@ class _CreateUserPageState extends State<CreateUserPage> {
   final _formKey = GlobalKey<FormState>();
   String _role = 'employee';
 
+  bool _checkedPermission = false;
+
   @override
   void initState() {
     super.initState();
-    final auth = context.read<AuthBloc>().state;
-    if (auth.user?['role'] != 'admin') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('غير مصرح لك بالدخول')),
-        );
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureAdmin());
+  }
+
+  void _ensureAdmin() {
+    final pstate = context.read<ProfileCubit>().state;
+    bool isAdmin = false;
+    if (pstate is ProfileLoaded) {
+      isAdmin = pstate.user['role']?.toString() == 'admin';
+    }
+
+    setState(() => _checkedPermission = true);
+
+    if (!isAdmin) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('غير مصرح لك بالدخول')),
+      );
     }
   }
 
@@ -36,14 +48,52 @@ class _CreateUserPageState extends State<CreateUserPage> {
     super.dispose();
   }
 
+  String? _validateUsername(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'الرجاء إدخال اسم المستخدم';
+    }
+    if (RegExp(r'^\d+$').hasMatch(value)) {
+      return 'اسم المستخدم لا يمكن أن يكون أرقام فقط';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'الرجاء إدخال كلمة المرور';
+    }
+    if (value.length < 5) {
+      return 'كلمة المرور يجب أن تكون على الأقل 5 أحرف';
+    }
+    return null;
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    context.read<AuthBloc>().add(
+          RegisterSubmitted(
+            username: _userCtrl.text.trim(),
+            password: _passCtrl.text.trim(),
+            role: _role,
+          ),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pstate = context.watch<ProfileCubit>().state;
+    final isReady = pstate is ProfileLoaded;
+
+    if (!isReady && !_checkedPermission) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue,
         title: const Center(
-          child: Text('إنشاء مستخدم جديد',
-              style: TextStyle(color: Colors.white)),
+          child: Text('إنشاء مستخدم جديد', style: TextStyle(color: Colors.white)),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -65,11 +115,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon( 
-                    Icons.person_add,
-                    size: 100,
-                    color: Colors.white,
-                  ),
+                  const Icon(Icons.person_add, size: 100, color: Colors.white),
                   const SizedBox(height: 24),
                   const Text(
                     'نظام التأجير',
@@ -80,27 +126,22 @@ class _CreateUserPageState extends State<CreateUserPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // بطاقة إنشاء مستخدم
                   Card(
                     elevation: 12,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: BlocConsumer<AuthBloc, AuthState>(
                         listener: (context, state) {
-                          if (state.status == AuthStatus.failure &&
-                              state.error != null) {
+                          if (state.status == AuthStatus.failure && state.error != null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(state.error!)));
+                              SnackBar(content: Text(state.error!)),
+                            );
                           }
 
-                          if (state.status == AuthStatus.initial) {
-                            // بعد التسجيل بنجاح نعتبر الحالة initial
+                          if (state.status == AuthStatus.registerSuccess) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('تم إنشاء المستخدم بنجاح')),
+                              const SnackBar(content: Text('تم إنشاء المستخدم بنجاح')),
                             );
                             Navigator.pop(context);
                           }
@@ -115,16 +156,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
                               children: [
                                 TextFormField(
                                   controller: _userCtrl,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'الرجاء إدخال اسم المستخدم';
-                                    }
-                                    // Check if the field contains only numbers (not allowed for username)
-                                    if (RegExp(r'^\d+$').hasMatch(value)) {
-                                      return 'اسم المستخدم لا يمكن أن يكون أرقام فقط';
-                                    }
-                                    return null;
-                                  },
+                                  validator: _validateUsername,
                                   decoration: const InputDecoration(
                                     labelText: 'اسم المستخدم',
                                     prefixIcon: Icon(Icons.person),
@@ -134,15 +166,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
                                 const SizedBox(height: 16),
                                 TextFormField(
                                   controller: _passCtrl,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'الرجاء إدخال كلمة المرور';
-                                    }
-                                    if (value.length < 5) {
-                                      return 'كلمة المرور يجب أن تكون على الأقل 5 أحرف';
-                                    }
-                                    return null;
-                                  },
+                                  validator: _validatePassword,
                                   obscureText: true,
                                   decoration: const InputDecoration(
                                     labelText: 'كلمة المرور',
@@ -154,40 +178,22 @@ class _CreateUserPageState extends State<CreateUserPage> {
                                 DropdownButtonFormField<String>(
                                   value: _role,
                                   items: const [
-                                    DropdownMenuItem(
-                                        value: 'employee', child: Text('موظف')),
-                                    DropdownMenuItem(
-                                        value: 'admin', child: Text('مدير')),
+                                    DropdownMenuItem(value: 'employee', child: Text('موظف')),
+                                    DropdownMenuItem(value: 'admin', child: Text('مدير')),
                                   ],
-                                  onChanged: (v) => setState(() => _role = v!),
-                                  decoration:
-                                      const InputDecoration(labelText: 'الصلاحية'),
+                                  onChanged: loading ? null : (v) => setState(() => _role = v ?? 'employee'),
+                                  decoration: const InputDecoration(labelText: 'الصلاحية'),
                                 ),
                                 const SizedBox(height: 24),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     backgroundColor: Colors.blueAccent,
                                   ),
-                                  onPressed: loading
-                                      ? null
-                                      : () {
-                                        if (_formKey.currentState!.validate()) {
-                                          context.read<AuthBloc>().add(
-                                                RegisterSubmitted(
-                                                  username: _userCtrl.text.trim(),
-                                                  password: _passCtrl.text.trim(),
-                                                  role: _role,
-                                                ),
-                                              );
-                                        }
-                                      },
+                                  onPressed: loading ? null : _submit,
                                   child: AnimatedSwitcher(
-                                    duration:
-                                        const Duration(milliseconds: 300),
+                                    duration: const Duration(milliseconds: 250),
                                     child: loading
                                         ? const SizedBox(
                                             height: 24,
@@ -199,9 +205,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
                                           )
                                         : const Text(
                                             'إنشاء المستخدم',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold),
+                                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                           ),
                                   ),
                                 ),

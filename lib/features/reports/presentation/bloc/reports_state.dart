@@ -1,36 +1,61 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/report_dashboard.dart';
+import '../../domain/entities/payment_report.dart';
 
 enum ReportsStatus { initial, loading, success, failure }
 
 class ReportsState extends Equatable {
   const ReportsState({
-    required this.status,
-    this.data,
-    this.error,
+    required this.dashboardStatus,
+    required this.paymentsStatus,
+    this.dashboard,
+    this.payments,
+    this.dashboardError,
+    this.paymentsError,
   });
 
   const ReportsState.initial()
-      : status = ReportsStatus.initial,
-        data = null,
-        error = null;
+      : dashboardStatus = ReportsStatus.initial,
+        paymentsStatus = ReportsStatus.initial,
+        dashboard = null,
+        payments = null,
+        dashboardError = null,
+        paymentsError = null;
 
-  final ReportsStatus status;
-  final ReportDashboard? data;
-  final String? error;
+  final ReportsStatus dashboardStatus;
+  final ReportsStatus paymentsStatus;
+  final ReportDashboard? dashboard;
+  final PaymentsReport? payments;
+  final String? dashboardError;
+  final String? paymentsError;
 
   ReportsState copyWith({
-    ReportsStatus? status,
-    ReportDashboard? data,
-    String? error,
+    ReportsStatus? dashboardStatus,
+    ReportsStatus? paymentsStatus,
+    ReportDashboard? dashboard,
+    PaymentsReport? payments,
+    bool resetDashboard = false,
+    bool resetPayments = false,
+    String? dashboardError,
+    String? paymentsError,
   }) {
     return ReportsState(
-      status: status ?? this.status,
-      data: data ?? this.data,
-      error: error,
+      dashboardStatus: dashboardStatus ?? this.dashboardStatus,
+      paymentsStatus: paymentsStatus ?? this.paymentsStatus,
+      dashboard: resetDashboard ? null : (dashboard ?? this.dashboard),
+      payments: resetPayments ? null : (payments ?? this.payments),
+      dashboardError: dashboardError ?? this.dashboardError,
+      paymentsError: paymentsError ?? this.paymentsError,
     );
   }
 
   @override
-  List<Object?> get props => [status, data, error];
+  List<Object?> get props => [
+        dashboardStatus,
+        paymentsStatus,
+        dashboard,
+        payments,
+        dashboardError,
+        paymentsError,
+      ];
 }

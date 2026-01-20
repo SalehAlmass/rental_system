@@ -9,6 +9,7 @@ import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
+import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
 
 // Import validation functions
 String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
@@ -63,7 +64,9 @@ class RentsPage extends StatelessWidget {
         create: (context) =>
             RentsBloc(context.read<RentsRepository>())
               ..add(RentsRequested()),
-        child: const _RentsView(),
+        child: _RentsView(
+          showBackButton: Navigator.canPop(context),
+        ),
       ),
     );
   }
@@ -72,7 +75,9 @@ class RentsPage extends StatelessWidget {
 /* -------------------- VIEW -------------------- */
 
 class _RentsView extends StatelessWidget {
-  const _RentsView();
+  const _RentsView({this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -80,11 +85,12 @@ class _RentsView extends StatelessWidget {
       appBar: CustomAppBar(
         title: 'العقود',
 
-         onIconPressed: () {
+         onIconPressed: showBackButton ? () {
           Navigator.pop(context);
-        } ,
+        } : null,
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'rents_fab', // Unique hero tag to avoid conflicts
         icon: const Icon(Icons.add),
         label: const Text('فتح عقد'),
         onPressed: () => _openDialog(context),
@@ -253,6 +259,14 @@ class _RentCard extends StatelessWidget {
                       ),
                     ],
                   ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RentDetailsPage(rent: rent),
+            ),
+          );
+        },
       ),
     );
   }

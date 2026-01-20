@@ -5,7 +5,9 @@ import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/storage/token_storage.dart';
 
 import 'features/auth/data/repositories/auth_repository_impl.dart';
+import 'features/auth/data/repositories/user_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/user_management_bloc.dart';
 import 'features/auth/presentation/ui/login_page.dart';
 
 import 'features/dashboard/data/repositories/dashboard_repository_impl.dart';
@@ -30,49 +32,83 @@ class AppRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiRepositoryProvider(
-      providers: [
-        RepositoryProvider.value(value: apiClient),
-        RepositoryProvider(create: (_) => AuthRepository(apiClient, tokenStorage)),
-        RepositoryProvider(create: (_) => DashboardRepository(apiClient)),
-      ],
-      child: MultiBlocProvider(
+    return RepositoryProvider.value(
+      value: apiClient,
+      child: MultiRepositoryProvider(
         providers: [
-          BlocProvider(create: (ctx) => AuthBloc(ctx.read<AuthRepository>())),
-          BlocProvider(create: (_) => ThemeBloc()),
-
-          // ✅ هذا المهم: DashboardBloc عالمي ويعمل fetch أول ما يفتح
-          BlocProvider(
-            create: (ctx) => DashboardBloc(ctx.read<DashboardRepository>())
-              ..add(DashboardRequested()),
+          RepositoryProvider<AuthRepository>(
+            create: (_) => AuthRepository(apiClient, tokenStorage),
+          ),
+          RepositoryProvider<DashboardRepository>(
+            create: (_) => DashboardRepository(apiClient),
+          ),
+          RepositoryProvider<UserRepository>(
+            create: (_) => UserRepositoryImpl(apiClient), // ⚡ نوع الأب مهم
           ),
         ],
-        child: BlocBuilder<ThemeBloc, ThemeState>(
-          builder: (context, themeState) {
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'Rental System',
-              themeMode: themeState.mode,
-              theme: ThemeData(
-                useMaterial3: true,
-                brightness: Brightness.light,
-                primarySwatch: Colors.blue,
-              ),
-              darkTheme: ThemeData(
-                useMaterial3: true,
-                brightness: Brightness.dark,
-                primarySwatch: Colors.blue,
-              ),
-              home: BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  if (state.status == AuthStatus.authenticated) {
-                    return const DashboardPage();
-                  }
-                  return const LoginPage();
-                },
-              ),
-            );
-          },
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<AuthBloc>(
+              create: (ctx) => AuthBloc(ctx.read<AuthRepository>()),
+            ),
+            BlocProvider<UserManagementBloc>(
+              create: (ctx) => UserManagementBloc(ctx.read<UserRepository>()),
+            ),
+            BlocProvider<ThemeBloc>(
+              create: (_) => ThemeBloc(),
+            ),
+            BlocProvider<DashboardBloc>(
+              create: (ctx) => DashboardBloc(ctx.read<DashboardRepository>())
+                ..add(DashboardRequested()),
+            ),
+          ],
+          child: BlocBuilder<ThemeBloc, ThemeState>(
+            builder: (context, themeState) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'Rental System',
+                themeMode: themeState.mode,
+                theme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
+                  scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+                  cardTheme: CardThemeData(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    margin: EdgeInsets.zero,
+                  ),
+                  appBarTheme: const AppBarTheme(
+                    centerTitle: true,
+                    elevation: 0,
+                  ),
+                  inputDecorationTheme: InputDecorationTheme(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+                darkTheme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: const Color(0xFF2563EB),
+                    brightness: Brightness.dark,
+                  ),
+                  cardTheme: CardThemeData(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    margin: EdgeInsets.zero,
+                  ),
+                  appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+                ),
+                home: BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) {
+                    if (state.status == AuthStatus.authenticated) {
+                      return const DashboardPage();
+                    }
+                    return const LoginPage();
+                  },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import 'package:rental_app/features/payments/domain/entities/models.dart';
 import 'package:rental_app/features/payments/presentation/bloc/payments_bloc.dart';
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
+import 'package:rental_app/features/payments/presentation/ui/payment_details_page.dart';
 
 // Import validation functions
 String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
@@ -77,7 +78,9 @@ class PaymentsPage extends StatelessWidget {
         create: (context) =>
             PaymentsBloc(context.read<PaymentsRepository>())
               ..add(const PaymentsRequested()),
-        child: const _PaymentsView(),
+        child: _PaymentsView(
+          showBackButton: Navigator.canPop(context),
+        ),
       ),
     );
   }
@@ -86,15 +89,17 @@ class PaymentsPage extends StatelessWidget {
 /* -------------------- VIEW -------------------- */
 
 class _PaymentsView extends StatelessWidget {
-  const _PaymentsView();
+  const _PaymentsView({this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(title: 'السندات',
-       onIconPressed: () {
+       onIconPressed: showBackButton ? () {
           Navigator.pop(context);
-        },
+        } : null,
               
        actions: [
          BlocBuilder<PaymentsBloc, PaymentsState>(
@@ -117,6 +122,7 @@ class _PaymentsView extends StatelessWidget {
           ),],
           ),         
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'payments_fab', // Unique hero tag to avoid conflicts
         icon: const Icon(Icons.add),
         label: const Text('إضافة سند'),
         onPressed: () => _openDialog(context),
@@ -216,6 +222,15 @@ class _PaymentCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
+        onTap: () {
+          // Navigate to payment details page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentDetailsPage(payment: payment),
+            ),
+          );
+        },
         leading: CircleAvatar(
           backgroundColor: isIn ? Colors.green : Colors.red,
           child: Icon(

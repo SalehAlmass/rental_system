@@ -1,258 +1,269 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/core/storage/token_storage.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
-import 'package:rental_app/features/auth/presentation/ui/CreateUserPage.dart';
+import 'package:rental_app/features/auth/presentation/ui/user_management_page.dart';
 import 'package:rental_app/features/clients/presentation/ui/clients_page.dart';
+import 'package:rental_app/features/dashboard/presentation/ui/dashboard_tab.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
-import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
-import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
-import 'package:rental_app/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
 import 'package:rental_app/theme/theme_bloc.dart';
 
-class DashboardPage extends StatelessWidget {
+import 'package:rental_app/features/dashboard/presentation/ui/DashboardDrawer%20.dart';
+import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
+
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/features/profile/profile_repository.dart';
+
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
+  State<DashboardPage> createState() => DashboardPageState();
+}
+
+class DashboardPageState extends State<DashboardPage> {
+  DashboardTab _currentTab = DashboardTab.home;
+
+  late final ProfileCubit _profileCubit;
+
+  final Map<DashboardTab, Map<String, bool>> _tabConfig = const {
+    DashboardTab.home: {'appBar': true, 'drawer': true},
+    DashboardTab.clients: {'appBar': false, 'drawer': false},
+    DashboardTab.equipment: {'appBar': false, 'drawer': false},
+    DashboardTab.rents: {'appBar': false, 'drawer': false},
+    DashboardTab.payments: {'appBar': false, 'drawer': false},
+    DashboardTab.reports: {'appBar': false, 'drawer': false},
+    DashboardTab.users: {'appBar': false, 'drawer': false},
+  };
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ننشئ ProfileCubit مرة واحدة فقط
+    final api = context.read<ApiClient>().dio;
+    _profileCubit = ProfileCubit(
+      repo: ProfileRepository(api),
+      storage: TokenStorage(),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _profileCubit.close();
+    super.dispose();
+  }
+
+  void _changeTab(DashboardTab tab) => setState(() => _currentTab = tab);
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        leading: IconButton(
-          tooltip: 'تبديل الوضع',
-          icon: BlocBuilder<ThemeBloc, ThemeState>(
-            builder: (context, state) {
-              return Icon(
-                state.mode == ThemeMode.light
-                    ? Icons.dark_mode
-                    : Icons.light_mode,
-              );
-            },
-          ),
-          onPressed: () => context.read<ThemeBloc>().add(ThemeToggled()),
-        ),
-        title: 'لوحة التحكم',
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ChangePasswordPage(),
-              ),
-            ),
-            icon: const Icon(Icons.lock_reset),
-          ),
-          IconButton(
-            onPressed: () => context.read<AuthBloc>().add(LogoutRequested()),
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
+    final authState = context.watch<AuthBloc>().state;
 
-      body: BlocBuilder<DashboardBloc, DashboardState>(
-        builder: (context, state) {
-          if (state.status == DashboardStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.status == DashboardStatus.failure) {
-            return Center(child: Text(state.error ?? 'حدث خطأ'));
-          }
-          final stats = state.stats;
-          if (stats == null)
-            return const Center(child: Text('لا توجد بيانات بعد'));
+    // لو لم يكن مسجل دخول، لا نعرض شيء (main/router يتكفل)
+    if (authState.status != AuthStatus.authenticated) {
+      return const SizedBox.shrink();
+    }
 
-          // 👇 هنا اترك تصميمك كما هو (نفس Grid و الأزرار...)
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
-                    return GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _statCard(
-                          'عدد العملاء',
-                          stats.clients.toString(),
-                          Icons.people,
-                          Colors.blueAccent,
+    final currentConfig = _tabConfig[_currentTab]!;
+
+    return BlocProvider.value(
+      value: _profileCubit,
+      child: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, pstate) {
+          final userName = (pstate is ProfileLoaded)
+              ? (pstate.user['username'] ?? 'مستخدم').toString()
+              : '...';
+
+          final isAdmin = (pstate is ProfileLoaded)
+              ? (pstate.user['role']?.toString() == 'admin')
+              : false;
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 900;
+
+              return Scaffold(
+                appBar: currentConfig['appBar']!
+                    ? CustomAppBar(
+                        title: 'لوحة التحكم',
+                        leading: Builder(
+                          builder: (context) => IconButton(
+                            icon: const Icon(Icons.menu),
+                            onPressed: () => Scaffold.of(context).openDrawer(),
+                          ),
                         ),
-                        _statCard(
-                          'عدد المعدات',
-                          stats.equipment.toString(),
-                          Icons.construction,
-                          Colors.orangeAccent,
-                        ),
-                        _statCard(
-                          'العقود المفتوحة',
-                          stats.openRents.toString(),
-                          Icons.description,
-                          Colors.green,
-                        ),
-                        _statCard(
-                          'الإيراد',
-                          stats.revenue.toStringAsFixed(2),
-                          Icons.attach_money,
-                          Colors.purpleAccent,
-                        ),
-                      ],
+                        actions: [
+                          // تبديل الوضع
+                          IconButton(
+                            tooltip: 'تبديل الوضع',
+                            icon: BlocBuilder<ThemeBloc, ThemeState>(
+                              builder: (context, state) {
+                                return Icon(
+                                  state.mode == ThemeMode.light
+                                      ? Icons.dark_mode
+                                      : Icons.light_mode,
+                                );
+                              },
+                            ),
+                            onPressed: () =>
+                                context.read<ThemeBloc>().add(ThemeToggled()),
+                          ),
+
+                          // تغيير كلمة المرور
+                          IconButton(
+                            tooltip: 'تغيير كلمة المرور',
+                            icon: const Icon(Icons.lock_reset),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ChangePasswordPage(),
+                                ),
+                              );
+                            },
+                          ),
+
+                          // تسجيل خروج
+                          IconButton(
+                            tooltip: 'تسجيل الخروج',
+                            icon: const Icon(Icons.logout),
+                            onPressed: () =>
+                                context.read<AuthBloc>().add(LogoutRequested()),
+                          ),
+                        ],
+                      )
+                    : null,
+
+                drawer: (!isWide && currentConfig['drawer']!)
+                    ? DashboardDrawer(isAdmin: isAdmin, userName: userName)
+                    : null,
+
+                body: isWide
+                    ? Row(
+                        children: [
+                          _buildRail(),
+                          const VerticalDivider(width: 1),
+                          Expanded(child: _buildBody(isAdmin, userName)),
+                        ],
+                      )
+                    : _buildBody(isAdmin, userName),
+
+                floatingActionButton: FloatingActionButton(
+                  heroTag: 'dashboard_fab',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ClientsPage()),
                     );
                   },
+                  child: const Icon(Icons.person),
                 ),
 
-                const SizedBox(height: 24),
-                _sectionTitle('الإدارة'),
-                const SizedBox(height: 12),
-                _actionButton(
-                  context,
-                  'إدارة العملاء',
-                  Icons.people,
-                  const ClientsPage(),
-                ),
-                const SizedBox(height: 12),
-                _actionButton(
-                  context,
-                  'إدارة المعدات',
-                  Icons.construction,
-                  const EquipmentPage(),
-                ),
-                const SizedBox(height: 12),
-                _actionButton(
-                  context,
-                  'إدارة العقود',
-                  Icons.description,
-                  const RentsPage(),
-                ),
-                const SizedBox(height: 12),
-                _actionButton(
-                  context,
-                  'إدارة السندات',
-                  Icons.payments,
-                  const PaymentsPage(),
-                ),
-                const SizedBox(height: 12),
-                _actionButton(
-                  context,
-                  'إدارة التقارير',
-                  Icons.report,
-                  const ReportsPage(),
-                ),
-                const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    final authState = context.read<AuthBloc>().state;
-                    final isAdmin = authState.user?['role'] == 'admin';
+                floatingActionButtonLocation: isWide
+                    ? FloatingActionButtonLocation.endFloat
+                    : FloatingActionButtonLocation.centerDocked,
 
-                    return isAdmin
-                        ? _actionButton(
-                            context,
-                            'إدارة المستخدمين',
-                            Icons.person,
-                            const CreateUserPage(),
-                          )
-                        : const SizedBox.shrink();
-                  },
-                ),
-              ],
-            ),
+                bottomNavigationBar: isWide ? null : _buildBottomNav(),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _statCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 20,
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
+  Widget _buildRail() {
+    final railTabs = [
+      DashboardTab.home,
+      DashboardTab.equipment,
+      DashboardTab.rents,
+      DashboardTab.payments,
+      DashboardTab.reports,
+    ];
+
+    final idx = railTabs.indexOf(_currentTab);
+
+    return NavigationRail(
+      selectedIndex: idx < 0 ? 0 : idx,
+      onDestinationSelected: (i) => _changeTab(railTabs[i]),
+      labelType: NavigationRailLabelType.all,
+      destinations: const [
+        NavigationRailDestination(
+          icon: Icon(Icons.home),
+          label: Text('الرئيسية'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.settings),
+          label: Text('المعدات'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.wallet),
+          label: Text('العقود'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.payment),
+          label: Text('المدفوعات'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.assessment),
+          label: Text('التقارير'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBody(bool isAdmin, String userName) {
+    switch (_currentTab) {
+      case DashboardTab.home:
+        return DashboardHome(isAdmin: isAdmin, userName: userName);
+      case DashboardTab.clients:
+        return const ClientsPage();
+      case DashboardTab.equipment:
+        return const EquipmentPage();
+      case DashboardTab.rents:
+        return const RentsPage();
+      case DashboardTab.payments:
+        return const PaymentsPage();
+      case DashboardTab.reports:
+        return const ReportsPage();
+      case DashboardTab.users:
+        return const UserManagementPage();
+    }
+  }
+
+  Widget _buildBottomNav() {
+    return BottomAppBar(
+      color: Colors.blue,
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      child: SizedBox(
+        height: 70,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _navItem(Icons.home, DashboardTab.home),
+            _navItem(Icons.settings, DashboardTab.equipment),
+            const SizedBox(width: 40),
+            _navItem(Icons.wallet, DashboardTab.rents),
+            _navItem(Icons.payment, DashboardTab.payments),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _actionButton(
-    BuildContext context,
-    String label,
-    IconData icon,
-    Widget page,
-  ) {
-    return SizedBox(
-      height: 50,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blueAccent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: () {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-          // ✅ لما ترجع من صفحة العملاء/المعدات/العقود/السندات يحدث الداشبورد
-          if (context.mounted) {
-            context.read<DashboardBloc>().add(DashboardRequested());
-          }
-        },
-
-        icon: Icon(icon, size: 24, color: Colors.white),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    return Center(
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
+  Widget _navItem(IconData icon, DashboardTab tab) {
+    final isActive = _currentTab == tab;
+    return IconButton(
+      icon: Icon(icon, color: isActive ? Colors.black : Colors.white),
+      onPressed: () => _changeTab(tab),
     );
   }
 }

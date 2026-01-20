@@ -15,7 +15,9 @@ class ClientsPage extends StatelessWidget {
       child: BlocProvider(
         create: (context) =>
             ClientsBloc(context.read<ClientsRepository>())..add(ClientsRequested()),
-        child: const ClientsView(),
+        child: ClientsView(
+          showBackButton: Navigator.canPop(context),
+        ),
       ),
     );
   }
