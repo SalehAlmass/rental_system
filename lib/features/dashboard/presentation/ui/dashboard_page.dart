@@ -7,14 +7,17 @@ import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
 import 'package:rental_app/features/auth/presentation/ui/user_management_page.dart';
 import 'package:rental_app/features/clients/presentation/ui/clients_page.dart';
+import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/dashboard_tab.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
 import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
+import 'package:rental_app/features/settings/presentation/about_page.dart';
+import 'package:rental_app/features/settings/presentation/settings_page.dart';
 import 'package:rental_app/theme/theme_bloc.dart';
 
-import 'package:rental_app/features/dashboard/presentation/ui/DashboardDrawer%20.dart';
+
 import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
 
 import 'package:rental_app/features/profile/profile_cubit.dart';
@@ -37,9 +40,7 @@ class DashboardPageState extends State<DashboardPage> {
     DashboardTab.clients: {'appBar': false, 'drawer': false},
     DashboardTab.equipment: {'appBar': false, 'drawer': false},
     DashboardTab.rents: {'appBar': false, 'drawer': false},
-    DashboardTab.payments: {'appBar': false, 'drawer': false},
-    DashboardTab.reports: {'appBar': false, 'drawer': false},
-    DashboardTab.users: {'appBar': false, 'drawer': false},
+    DashboardTab.settings: {'appBar': false, 'drawer': false},
   };
 
   @override
@@ -48,10 +49,15 @@ class DashboardPageState extends State<DashboardPage> {
 
     // ننشئ ProfileCubit مرة واحدة فقط
     final api = context.read<ApiClient>().dio;
+    final tokenStorage = context.read<TokenStorage>();
     _profileCubit = ProfileCubit(
       repo: ProfileRepository(api),
-      storage: TokenStorage(),
+      // IMPORTANT: use the same TokenStorage instance created in main.dart
+      storage: tokenStorage,
     )..load();
+
+    // حمّل بيانات الداشبورد بعد تسجيل الدخول
+    context.read<DashboardBloc>().add(DashboardRequested());
   }
 
   @override
@@ -71,7 +77,7 @@ class DashboardPageState extends State<DashboardPage> {
       return const SizedBox.shrink();
     }
 
-    final currentConfig = _tabConfig[_currentTab]!;
+    final currentConfig = _tabConfig[_currentTab] ?? {'appBar': true, 'drawer': true};
 
     return BlocProvider.value(
       value: _profileCubit,
@@ -90,15 +96,11 @@ class DashboardPageState extends State<DashboardPage> {
               final isWide = constraints.maxWidth >= 900;
 
               return Scaffold(
-                appBar: currentConfig['appBar']!
+                appBar: currentConfig['appBar'] == true
                     ? CustomAppBar(
                         title: 'لوحة التحكم',
-                        leading: Builder(
-                          builder: (context) => IconButton(
-                            icon: const Icon(Icons.menu),
-                            onPressed: () => Scaffold.of(context).openDrawer(),
-                          ),
-                        ),
+                        showShadow: true,
+                        centerTitle: true,
                         actions: [
                           // تبديل الوضع
                           IconButton(
@@ -141,9 +143,7 @@ class DashboardPageState extends State<DashboardPage> {
                       )
                     : null,
 
-                drawer: (!isWide && currentConfig['drawer']!)
-                    ? DashboardDrawer(isAdmin: isAdmin, userName: userName)
-                    : null,
+                // Drawer removed - all navigation moved to Settings page
 
                 body: isWide
                     ? Row(
@@ -184,8 +184,7 @@ class DashboardPageState extends State<DashboardPage> {
       DashboardTab.home,
       DashboardTab.equipment,
       DashboardTab.rents,
-      DashboardTab.payments,
-      DashboardTab.reports,
+      DashboardTab.settings,
     ];
 
     final idx = railTabs.indexOf(_currentTab);
@@ -208,13 +207,14 @@ class DashboardPageState extends State<DashboardPage> {
           label: Text('العقود'),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.payment),
-          label: Text('المدفوعات'),
+          icon: Icon(Icons.info),
+          label: Text('الإعدادات'),
         ),
-        NavigationRailDestination(
-          icon: Icon(Icons.assessment),
-          label: Text('التقارير'),
-        ),
+        
+        // NavigationRailDestination(
+        //   icon: Icon(Icons.assessment),
+        //   label: Text('التقارير'),
+        // ),
       ],
     );
   }
@@ -229,18 +229,23 @@ class DashboardPageState extends State<DashboardPage> {
         return const EquipmentPage();
       case DashboardTab.rents:
         return const RentsPage();
-      case DashboardTab.payments:
-        return const PaymentsPage();
-      case DashboardTab.reports:
-        return const ReportsPage();
-      case DashboardTab.users:
-        return const UserManagementPage();
+      case DashboardTab.settings:
+        return const SettingsPage();
+      // case DashboardTab.about:
+      //   return const AboutPage();
+      // case DashboardTab.users:
+      //   return const UserManagementPage();
+      // case DashboardTab.reports:
+      //   return const ReportsPage();
+      // case DashboardTab.settings:
+      //   return const SettingsPage();
+        
     }
   }
 
   Widget _buildBottomNav() {
     return BottomAppBar(
-      color: Colors.blue,
+      color: Theme.of(context).colorScheme.primary,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
       child: SizedBox(
@@ -252,7 +257,7 @@ class DashboardPageState extends State<DashboardPage> {
             _navItem(Icons.settings, DashboardTab.equipment),
             const SizedBox(width: 40),
             _navItem(Icons.wallet, DashboardTab.rents),
-            _navItem(Icons.payment, DashboardTab.payments),
+            _navItem(Icons.info, DashboardTab.settings),
           ],
         ),
       ),

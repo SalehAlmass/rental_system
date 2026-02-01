@@ -4,7 +4,5 @@ enum DashboardTab {
   clients,
   equipment,
   rents,
-  payments,
-  reports,
-  users,
+  settings,
 }

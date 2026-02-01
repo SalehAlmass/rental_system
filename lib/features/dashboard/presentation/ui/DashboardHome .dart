@@ -46,8 +46,8 @@ class DashboardHome extends StatelessWidget {
                       : w >= 800
                           ? 3
                           : w >= 500
-                              ? 4
-                              : 2;
+                              ? 2
+                              : 1;
 
                   return GridView.count(
                     crossAxisCount: crossAxisCount,

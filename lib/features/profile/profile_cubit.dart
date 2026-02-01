@@ -10,8 +10,7 @@ class ProfileLoading extends ProfileState {}
 
 class ProfileLoaded extends ProfileState {
   final Map<String, dynamic> user;
-  final bool fromCache;
-  ProfileLoaded(this.user, {this.fromCache = false});
+  ProfileLoaded(this.user);
 }
 
 class ProfileError extends ProfileState {
@@ -19,62 +18,22 @@ class ProfileError extends ProfileState {
   ProfileError(this.message);
 }
 
-/// يجلب profile من السيرفر (auth/profile) + يعرض cache أولاً من TokenStorage.
+/// يجلب profile من السيرفر (auth/profile) ويخزن البيانات في الstate.
 class ProfileCubit extends Cubit<ProfileState> {
   final ProfileRepository repo;
   final TokenStorage storage;
 
-  ProfileCubit({
-    required this.repo,
-    required this.storage,
-  }) : super(ProfileInitial());
+  ProfileCubit({required this.repo, required this.storage}) : super(ProfileInitial());
 
   Future<void> load() async {
-    // 1) اعرض الكاش بسرعة (إن وجد)
-    final cached = await storage.getProfileCache();
-    if (cached != null) {
-      emit(ProfileLoaded({
-        'username': cached['username'],
-        'role': cached['role'],
-      }, fromCache: true));
-    } else {
+    try {
       emit(ProfileLoading());
-    }
-
-    // 2) هات البيانات الحقيقية من السيرفر
-    try {
       final u = await repo.fetchProfile();
-
-      final username = (u['username'] ?? '').toString();
-      final role = (u['role'] ?? '').toString();
-
-      // خزّن الكاش (اختياري)
-      if (username.isNotEmpty && role.isNotEmpty) {
-        await storage.saveProfileCache(username: username, role: role);
-      }
-
-      emit(ProfileLoaded(u, fromCache: false));
-    } catch (e) {
-      // لو عندنا كاش معروض بالفعل لا نخرب الصفحة
-      if (state is ProfileLoaded) return;
-      emit(ProfileError(e.toString()));
-    }
-  }
-
-  Future<void> refresh() async {
-    try {
-      final u = await repo.fetchProfile();
-
-      final username = (u['username'] ?? '').toString();
-      final role = (u['role'] ?? '').toString();
-
-      if (username.isNotEmpty && role.isNotEmpty) {
-        await storage.saveProfileCache(username: username, role: role);
-      }
-
-      emit(ProfileLoaded(u, fromCache: false));
+      emit(ProfileLoaded(u));
     } catch (e) {
       emit(ProfileError(e.toString()));
     }
   }
+
+  Future<void> refresh() => load();
 }

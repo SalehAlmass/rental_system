@@ -10,8 +10,16 @@ class DashboardRepository {
   Future<DashboardStats> fetchStats() async {
     try {
       final res = await _api.dio.get('reports/dashboard');
-      final data = (res.data as Map).cast<String, dynamic>();
-      return DashboardStats.fromJson(data);
+
+      final map = (res.data as Map).cast<String, dynamic>();
+
+      // يدعم الشكل الجديد: { success, data: { ... } }
+      // ويدعم الشكل القديم: { clients, equipment, open_rents, revenue }
+      final payload = (map['data'] is Map)
+          ? (map['data'] as Map).cast<String, dynamic>()
+          : map;
+
+      return DashboardStats.fromJson(payload);
     } on DioException catch (e) {
       final msg = (e.response?.data is Map && (e.response?.data['error'] != null))
           ? e.response?.data['error'].toString()

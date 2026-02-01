@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:rental_app/features/rents/domain/entities/models.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:printing/printing.dart';
+import '../../../print/data/print_repository.dart';
+import '../../../print/pdf_service.dart';
+import '../../domain/entities/models.dart';
+
+// إذا فيه branchName
 
 class RentDetailsPage extends StatelessWidget {
   const RentDetailsPage({super.key, required this.rent});
@@ -51,13 +57,16 @@ class RentDetailsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Rent details card
               Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: _getStatusColor(rent.status).withOpacity(0.3), width: 2),
+                  side: BorderSide(
+                    color: _getStatusColor(rent.status).withValues(alpha: 0.3),
+                    width: 2,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -86,23 +95,41 @@ class RentDetailsPage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Rent information
                       _buildDetailItem('رقم العقد', rent.id.toString()),
                       const Divider(),
-                      _buildDetailItem('اسم العميل', rent.clientName ?? rent.clientId.toString()),
+                      _buildDetailItem(
+                        'اسم العميل',
+                        rent.clientName ?? rent.clientId.toString(),
+                      ),
                       const Divider(),
-                      _buildDetailItem('اسم المعدة', rent.equipmentName ?? rent.equipmentId.toString()),
+                      _buildDetailItem(
+                        'اسم المعدة',
+                        rent.equipmentName ?? rent.equipmentId.toString(),
+                      ),
                       const Divider(),
                       _buildDetailItem('تاريخ البدء', rent.startDatetime),
                       const Divider(),
-                      _buildDetailItem('تاريخ الانتهاء', rent.endDatetime ?? 'لم يتم تحديد تاريخ'),
+                      _buildDetailItem(
+                        'تاريخ الانتهاء',
+                        rent.endDatetime ?? 'لم يتم تحديد تاريخ',
+                      ),
                       const Divider(),
-                      _buildDetailItem('سعر الساعة', '${rent.rate?.toStringAsFixed(0) ?? '0'} ر.س'),
+                      _buildDetailItem(
+                        'سعر الساعة',
+                        '${rent.rate?.toStringAsFixed(0) ?? '0'} ر.س',
+                      ),
                       const Divider(),
-                      _buildDetailItem('عدد الساعات', '${rent.hours?.toStringAsFixed(0) ?? '0'} ساعات'),
+                      _buildDetailItem(
+                        'عدد الساعات',
+                        '${rent.hours?.toStringAsFixed(0) ?? '0'} ساعات',
+                      ),
                       const Divider(),
-                      _buildDetailItem('المبلغ الإجمالي', '${rent.totalAmount?.toStringAsFixed(0) ?? '0'} ر.س'),
+                      _buildDetailItem(
+                        'المبلغ الإجمالي',
+                        '${rent.totalAmount?.toStringAsFixed(0) ?? '0'} ر.س',
+                      ),
                       const Divider(),
                       _buildDetailItem('ملاحظات', rent.notes ?? '-'),
                       const Divider(),
@@ -111,9 +138,9 @@ class RentDetailsPage extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Action buttons
               Row(
                 children: [
@@ -129,11 +156,31 @@ class RentDetailsPage extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        // You can implement navigation to edit page here
+                      onPressed: () async {
+                        final repo = PrintRepository(context.read());
+                        final json = await repo.contract(rent.id);
+
+                        final rentData = (json['rent'] as Map)
+                            .cast<String, dynamic>();
+                        final items = (json['items'] as List)
+                            .map((e) => (e as Map).cast<String, dynamic>())
+                            .toList();
+                        final payments = (json['payments'] as List)
+                            .map((e) => (e as Map).cast<String, dynamic>())
+                            .toList();
+
+                        final pdf = PdfService('الفرع الرئيسي');
+                        final bytes = await pdf.buildRentContractPdf(
+                          rent: rentData,
+                          items: items,
+                          payments: payments,
+                        );
+
+                        await Printing.layoutPdf(onLayout: (_) async => bytes);
                       },
+
                       icon: const Icon(Icons.edit),
-                      label: const Text('تعديل'),
+                      label: const Text('طباعة'),
                     ),
                   ),
                 ],
@@ -165,10 +212,7 @@ class RentDetailsPage extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ),
         ],

@@ -8,6 +8,9 @@ import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dar
 import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
+import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
+import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
+import 'package:rental_app/features/settings/presentation/settings_page.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 class DashboardDrawer extends StatelessWidget {
@@ -95,6 +98,26 @@ class DashboardDrawer extends StatelessWidget {
               title: 'التقارير',
               icon: Icons.report,
               page: const ReportsPage(),
+            ),
+
+            _drawerItem(
+              context,
+              title: 'إغلاق الدوام',
+              icon: Icons.lock_clock,
+              page: const ShiftsPage(),
+            ),
+
+            _drawerItem(
+              context,
+              title: 'الإعدادات',
+              icon: Icons.settings,
+              page: const SettingsPage(),
+            ),
+            _drawerItem(
+              context,
+              title: 'إعدادات السيرفر (API)',
+              icon: Icons.link,
+              page: const ApiSettingsPage(),
             ),
 
             if (isAdmin)

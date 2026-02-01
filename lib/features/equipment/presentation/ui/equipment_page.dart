@@ -245,10 +245,12 @@ class _EquipmentCard extends StatelessWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
+            
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('حذف'),
           ),
+          
         ],
       ),
     );
@@ -449,16 +451,5 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
 
       Navigator.pop(context, true);
     }
-  }
-
-  Widget _numberField(TextEditingController c, String label) {
-    return TextField(
-      controller: c,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
   }
 }

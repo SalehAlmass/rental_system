@@ -11,6 +11,7 @@ dependencies:
   flutter_bloc:
   equatable:
   intl:
+  printing:
 
   # 🌐 Networking (API)
   dio: 
@@ -25,6 +26,9 @@ dependencies:
   pdf: 
   path_provider: 
   share_plus: 
+  url_launcher: 
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

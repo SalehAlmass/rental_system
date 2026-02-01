@@ -84,7 +84,6 @@ class _RentsView extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'العقود',
-
          onIconPressed: showBackButton ? () {
           Navigator.pop(context);
         } : null,

@@ -6,7 +6,9 @@ import '../bloc/user_management_bloc.dart';
 import '../../domain/entities/user_model.dart';
 
 class UserManagementPage extends StatefulWidget {
-  const UserManagementPage({super.key});
+  const UserManagementPage({super.key, this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   State<UserManagementPage> createState() => _UserManagementPageState();
@@ -36,7 +38,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return Scaffold(
           appBar: CustomAppBar(
             title: 'إدارة المستخدمين',
-            onIconPressed: Navigator.canPop(context) ? (){
+            onIconPressed: widget.showBackButton ? (){
               Navigator.of(context).pop();
             } : null,
             actions: [

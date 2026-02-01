@@ -7,20 +7,34 @@ class PaymentsRepository {
   PaymentsRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Payment>> list({bool showVoided = false}) async {
+  // تعديل: إضافة clientId كـ parameter اختياري
+  Future<List<Payment>> list({int? clientId, bool showVoided = false}) async {
     try {
-      final res = await _api.dio.get('payments', queryParameters: {'show_void': showVoided ? 1 : 0});
+      final res = await _api.dio.get(
+        'payments',
+        queryParameters: {
+          if (clientId != null) 'client_id': clientId,
+          'show_void': showVoided ? 1 : 0,
+        },
+      );
+
       dynamic raw = res.data;
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['payments'] ?? [];
       if (raw is! List) throw ApiFailure("Unexpected response: ${res.data}");
-      return raw.map((e) => Payment.fromJson((e as Map).cast<String, dynamic>())).toList();
+
+      return raw
+          .map((e) => Payment.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
     } on DioException catch (e) {
       final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to load payments');
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to load payments');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
 
+  // باقي الدوال كما هي
   Future<int> create({
     required String type, // in|out
     required double amount,
@@ -47,7 +61,9 @@ class PaymentsRepository {
       return id;
     } on DioException catch (e) {
       final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to create payment');
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to create payment');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
@@ -72,7 +88,9 @@ class PaymentsRepository {
       });
     } on DioException catch (e) {
       final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to update payment');
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to update payment');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
@@ -82,7 +100,9 @@ class PaymentsRepository {
       await _api.dio.post('payments/$id/void', data: {'reason': reason});
     } on DioException catch (e) {
       final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to void payment');
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to void payment');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
