@@ -87,30 +87,46 @@ class AppRoot extends StatelessWidget {
               theme: ThemeData(
                 useMaterial3: true,
                 colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF2563EB),
+                  seedColor: const Color(0xFF0F766E), // Professional teal green
                   brightness: Brightness.light,
                 ),
-                scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+                scaffoldBackgroundColor: const Color(0xFFF1F5F9), // Light gray background
                 cardTheme: CardThemeData(
-                  elevation: 0,
+                  elevation: 3,
                   color: Colors.white,
+                  shadowColor: Colors.black.withOpacity(0.1),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: Colors.grey.shade300, width: 0.5),
                   ),
-                  margin: EdgeInsets.zero,
+                  margin: const EdgeInsets.all(8),
                 ),
                 appBarTheme: const AppBarTheme(
                   centerTitle: true,
                   elevation: 0,
-                  backgroundColor: Color(0xFFEEF2FF),
-                  foregroundColor: Color(0xFF1E3A8A),
+                  backgroundColor: Color(0xFF0F766E), // Professional teal green
+                  foregroundColor: Colors.white,
+                  titleTextStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
                 inputDecorationTheme: InputDecorationTheme(
                   filled: true,
                   fillColor: const Color(0xFFF1F5F9),
+                  hoverColor: const Color(0xEFE1E5E9),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Color(0xFF0F766E), width: 2),
                   ),
                 ),
               ),
@@ -118,23 +134,47 @@ class AppRoot extends StatelessWidget {
               darkTheme: ThemeData(
                 useMaterial3: true,
                 colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF2563EB),
+                  seedColor: const Color(0xFF0D9488), // Lighter teal for dark mode
                   brightness: Brightness.dark,
                 ),
-                scaffoldBackgroundColor: const Color(0xFF020617),
+                scaffoldBackgroundColor: const Color(0xFF0F172A), // Dark blue-gray
                 cardTheme: CardThemeData(
-                  elevation: 0,
-                  color: const Color(0xFF020617),
+                  elevation: 3,
+                  color: Color(0xFF1E293B), // Darker card color
+                  shadowColor: Colors.black.withOpacity(0.25),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: Colors.grey.shade600, width: 0.5),
                   ),
-                  margin: EdgeInsets.zero,
+                  margin: const EdgeInsets.all(8),
                 ),
                 appBarTheme: const AppBarTheme(
                   centerTitle: true,
                   elevation: 0,
-                  backgroundColor: Color(0xFF020617),
+                  backgroundColor: Color(0xFF0D9488), // Teal for dark app bar
                   foregroundColor: Colors.white,
+                  titleTextStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                inputDecorationTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hoverColor: const Color(0xFF334155),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade500),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade500),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Color(0xFF0D9488), width: 2),
+                  ),
                 ),
               ),
 

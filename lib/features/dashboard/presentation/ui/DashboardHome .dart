@@ -60,25 +60,21 @@ class DashboardHome extends StatelessWidget {
                         title: 'عدد العملاء',
                         value: stats.clients.toString(),
                         icon: Icons.people,
-                        color: Colors.blue,
                       ),
                       StatCard(
                         title: 'عدد المعدات',
                         value: stats.equipment.toString(),
                         icon: Icons.construction,
-                        color: Colors.orange,
                       ),
                       StatCard(
                         title: 'العقود المفتوحة',
                         value: stats.openRents.toString(),
                         icon: Icons.description,
-                        color: Colors.green,
                       ),
                       StatCard(
                         title: 'الإيراد',
                         value: stats.revenue.toStringAsFixed(2),
                         icon: Icons.attach_money,
-                        color: Colors.purple,
                       ),
                     ],
                   );
@@ -96,16 +92,14 @@ class DashboardHome extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2196F3), Color(0xFF21CBF3)],
-        ),
+        color: Theme.of(context).colorScheme.primary,
       ),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 28,
             backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: Colors.blue),
+            child: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -114,7 +108,7 @@ class DashboardHome extends StatelessWidget {
               children: [
                 Text(
                   'مرحباً، $userName 👋',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

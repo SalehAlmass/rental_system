@@ -34,7 +34,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final colorScheme = theme.colorScheme;
     
     final bgColor = backgroundColor ?? colorScheme.primary;
-    final fgColor = foregroundColor ?? colorScheme.onPrimary;
+    final fgColor = foregroundColor ?? colorScheme.onSecondary;
     
     return Container(
       decoration: showShadow

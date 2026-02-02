@@ -4,13 +4,11 @@ class StatCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final Color color;
 
   const StatCard({
     required this.title,
     required this.value,
     required this.icon,
-    required this.color,
   });
 
   @override
@@ -18,18 +16,19 @@ class StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 32),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 32),
           const SizedBox(height: 12),
           Text(
             title,
             style: TextStyle(
-              color: color,
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -38,7 +37,7 @@ class StatCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: color,
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 22,
               fontWeight: FontWeight.bold,
             ),

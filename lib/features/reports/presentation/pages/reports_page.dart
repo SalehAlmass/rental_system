@@ -20,8 +20,9 @@ class ReportsPage extends StatelessWidget {
     return RepositoryProvider(
       create: (_) => ReportsRepository(context.read<ApiClient>()),
       child: BlocProvider(
-        create: (ctx) => ReportsBloc(ctx.read<ReportsRepository>())
-          ..add(const ReportsRefreshAllRequested(revenueGroup: 'day')),
+        create: (ctx) =>
+            ReportsBloc(ctx.read<ReportsRepository>())
+              ..add(const ReportsRefreshAllRequested(revenueGroup: 'day')),
         child: _ReportsTabs(showBackButton: Navigator.canPop(context)),
       ),
     );
@@ -66,8 +67,12 @@ class _ReportsTabsState extends State<_ReportsTabs> {
     final from = _from == null ? null : _fmt.format(_from!);
     final to = _to == null ? null : _fmt.format(_to!);
     context.read<ReportsBloc>().add(
-          ReportsRefreshAllRequested(from: from, to: to, revenueGroup: _revenueGroup),
-        );
+      ReportsRefreshAllRequested(
+        from: from,
+        to: to,
+        revenueGroup: _revenueGroup,
+      ),
+    );
   }
 
   @override
@@ -77,7 +82,9 @@ class _ReportsTabsState extends State<_ReportsTabs> {
       child: Scaffold(
         appBar: CustomAppBar(
           title: 'التقارير الذكية',
-          onIconPressed: widget.showBackButton ? () => Navigator.pop(context) : null,
+          onIconPressed: widget.showBackButton
+              ? () => Navigator.pop(context)
+              : null,
         ),
         body: Column(
           children: [
@@ -229,7 +236,8 @@ class _DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.dashboardStatus != n.dashboardStatus || p.dashboard != n.dashboard,
+      buildWhen: (p, n) =>
+          p.dashboardStatus != n.dashboardStatus || p.dashboard != n.dashboard,
       builder: (context, state) {
         if (state.dashboardStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -243,10 +251,26 @@ class _DashboardTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            _StatTile(title: 'عدد العملاء', value: d.clients.toString(), icon: Icons.people_alt),
-            _StatTile(title: 'عدد المعدات', value: d.equipment.toString(), icon: Icons.construction),
-            _StatTile(title: 'العقود المفتوحة', value: d.openContracts.toString(), icon: Icons.assignment),
-            _StatTile(title: 'إيراد الفترة', value: '${d.revenue.toStringAsFixed(0)} ر.س', icon: Icons.attach_money),
+            _StatTile(
+              title: 'عدد العملاء',
+              value: d.clients.toString(),
+              icon: Icons.people_alt,
+            ),
+            _StatTile(
+              title: 'عدد المعدات',
+              value: d.equipment.toString(),
+              icon: Icons.construction,
+            ),
+            _StatTile(
+              title: 'العقود المفتوحة',
+              value: d.openContracts.toString(),
+              icon: Icons.assignment,
+            ),
+            _StatTile(
+              title: 'إيراد الفترة',
+              value: '${d.revenue.toStringAsFixed(0)} ر.س',
+              icon: Icons.attach_money,
+            ),
           ],
         );
       },
@@ -255,7 +279,11 @@ class _DashboardTab extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.title, required this.value, required this.icon});
+  const _StatTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
   final String title;
   final String value;
   final IconData icon;
@@ -280,7 +308,9 @@ class _EquipmentProfitTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.equipmentProfitStatus != n.equipmentProfitStatus || p.equipmentProfit != n.equipmentProfit,
+      buildWhen: (p, n) =>
+          p.equipmentProfitStatus != n.equipmentProfitStatus ||
+          p.equipmentProfit != n.equipmentProfit,
       builder: (context, state) {
         if (state.equipmentProfitStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -299,8 +329,13 @@ class _EquipmentProfitTab extends StatelessWidget {
             final r = rows[i];
             return Card(
               child: ListTile(
-                title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('ربح: ${r.profit.toStringAsFixed(0)} | صيانة: ${r.cost.toStringAsFixed(0)}'),
+                title: Text(
+                  r.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'ربح: ${r.profit.toStringAsFixed(0)} | صيانة: ${r.cost.toStringAsFixed(0)}',
+                ),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -331,7 +366,9 @@ class _TopEquipmentTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.topEquipmentStatus != n.topEquipmentStatus || p.topEquipment != n.topEquipment,
+      buildWhen: (p, n) =>
+          p.topEquipmentStatus != n.topEquipmentStatus ||
+          p.topEquipment != n.topEquipment,
       builder: (context, state) {
         if (state.topEquipmentStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -351,7 +388,10 @@ class _TopEquipmentTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${i + 1}')),
-                title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  r.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('عدد مرات التأجير: ${r.rentalsCount}'),
               ),
             );
@@ -369,7 +409,9 @@ class _TopClientsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.topClientsStatus != n.topClientsStatus || p.topClients != n.topClients,
+      buildWhen: (p, n) =>
+          p.topClientsStatus != n.topClientsStatus ||
+          p.topClients != n.topClients,
       builder: (context, state) {
         if (state.topClientsStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -389,7 +431,10 @@ class _TopClientsTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${i + 1}')),
-                title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  r.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('عدد العقود: ${r.contractsCount}'),
                 trailing: Text('${r.totalAmount.toStringAsFixed(0)} ر.س'),
               ),
@@ -408,7 +453,9 @@ class _LateClientsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.lateClientsStatus != n.lateClientsStatus || p.lateClients != n.lateClients,
+      buildWhen: (p, n) =>
+          p.lateClientsStatus != n.lateClientsStatus ||
+          p.lateClients != n.lateClients,
       builder: (context, state) {
         if (state.lateClientsStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -428,7 +475,10 @@ class _LateClientsTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${i + 1}')),
-                title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  r.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('عدد مرات التأخير: ${r.lateContractsCount}'),
               ),
             );
@@ -446,7 +496,10 @@ class _RevenueTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.revenueStatus != n.revenueStatus || p.revenue != n.revenue || p.revenueGroup != n.revenueGroup,
+      buildWhen: (p, n) =>
+          p.revenueStatus != n.revenueStatus ||
+          p.revenue != n.revenue ||
+          p.revenueGroup != n.revenueGroup,
       builder: (context, state) {
         if (state.revenueStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -465,7 +518,10 @@ class _RevenueTab extends StatelessWidget {
             return Card(
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
-                title: Text(r.period, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  r.period,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 trailing: Text('${r.revenue.toStringAsFixed(0)} ر.س'),
               ),
             );
@@ -483,7 +539,9 @@ class _RevenueByUserTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.revenueByUserStatus != n.revenueByUserStatus || p.revenueByUser != n.revenueByUser,
+      buildWhen: (p, n) =>
+          p.revenueByUserStatus != n.revenueByUserStatus ||
+          p.revenueByUser != n.revenueByUser,
       builder: (context, state) {
         if (state.revenueByUserStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -503,7 +561,10 @@ class _RevenueByUserTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: CircleAvatar(child: Text('${i + 1}')),
-                title: Text(r.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  r.fullName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('سندات قبض: ${r.receiptsCount}'),
                 trailing: Text('${r.revenue.toStringAsFixed(0)} ر.س'),
               ),
@@ -522,7 +583,8 @@ class _PaymentsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ReportsBloc, ReportsState>(
-      buildWhen: (p, n) => p.paymentsStatus != n.paymentsStatus || p.payments != n.payments,
+      buildWhen: (p, n) =>
+          p.paymentsStatus != n.paymentsStatus || p.payments != n.payments,
       builder: (context, state) {
         if (state.paymentsStatus == ReportsStatus.loading) {
           return const Center(child: CircularProgressIndicator());
@@ -566,13 +628,26 @@ class _TotalsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ملخص السندات', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'ملخص السندات',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _MiniStat(label: 'دخل', value: report.totals.totalIn.toStringAsFixed(2))),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'دخل',
+                    value: report.totals.totalIn.toStringAsFixed(2),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _MiniStat(label: 'صرف', value: report.totals.totalOut.toStringAsFixed(2))),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'صرف',
+                    value: report.totals.totalOut.toStringAsFixed(2),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
@@ -584,9 +659,15 @@ class _TotalsCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('الصافي', style: Theme.of(context).textTheme.labelLarge),
+                        Text(
+                          'الصافي',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                         const SizedBox(height: 6),
-                        Text(report.totals.net.toStringAsFixed(2), style: Theme.of(context).textTheme.titleLarge),
+                        Text(
+                          report.totals.net.toStringAsFixed(2),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                       ],
                     ),
                   ),
@@ -651,7 +732,11 @@ class _ExportBar extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () async {
-              final pdf = await ReportExport.toPaymentsPdf(report);
+              final pdf = await ReportExport.toPaymentsPdf(
+                report,
+                branchName: 'الخير لتأجير المعدات - فرع شحير',
+                logoAssetPath: 'assets/images/logo.png',
+              );
               await ReportExport.shareBytesAsFile(
                 fileName: 'vouchers_report.pdf',
                 mime: 'application/pdf',
@@ -677,8 +762,12 @@ class _PaymentRowTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: CircleAvatar(child: Icon(isIn ? Icons.arrow_downward : Icons.arrow_upward)),
-        title: Text('${row.amount.toStringAsFixed(2)}  (${isIn ? 'قبض' : 'صرف'})'),
+        leading: CircleAvatar(
+          child: Icon(isIn ? Icons.arrow_downward : Icons.arrow_upward),
+        ),
+        title: Text(
+          '${row.amount.toStringAsFixed(2)}  (${isIn ? 'قبض' : 'صرف'})',
+        ),
         subtitle: Text('${row.clientName ?? '-'} • ${row.createdAt}'),
         trailing: row.rentNo != null ? Text('#${row.rentNo}') : null,
       ),
@@ -700,7 +789,9 @@ class _ErrorView extends StatelessWidget {
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed: () => context.read<ReportsBloc>().add(const ReportsRefreshAllRequested(revenueGroup: 'day')),
+              onPressed: () => context.read<ReportsBloc>().add(
+                const ReportsRefreshAllRequested(revenueGroup: 'day'),
+              ),
               icon: const Icon(Icons.refresh),
               label: const Text('تحديث'),
             ),

@@ -145,15 +145,7 @@ class DashboardPageState extends State<DashboardPage> {
 
                 // Drawer removed - all navigation moved to Settings page
 
-                body: isWide
-                    ? Row(
-                        children: [
-                          _buildRail(),
-                          const VerticalDivider(width: 1),
-                          Expanded(child: _buildBody(isAdmin, userName)),
-                        ],
-                      )
-                    : _buildBody(isAdmin, userName),
+                body: _buildBody(isAdmin, userName),
 
                 floatingActionButton: FloatingActionButton(
                   heroTag: 'dashboard_fab',
@@ -166,11 +158,9 @@ class DashboardPageState extends State<DashboardPage> {
                   child: const Icon(Icons.person),
                 ),
 
-                floatingActionButtonLocation: isWide
-                    ? FloatingActionButtonLocation.endFloat
-                    : FloatingActionButtonLocation.centerDocked,
+                floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-                bottomNavigationBar: isWide ? null : _buildBottomNav(),
+                bottomNavigationBar: _buildBottomNav(),
               );
             },
           );
@@ -190,25 +180,34 @@ class DashboardPageState extends State<DashboardPage> {
     final idx = railTabs.indexOf(_currentTab);
 
     return NavigationRail(
+      backgroundColor: Theme.of(context).colorScheme.onBackground,      
       selectedIndex: idx < 0 ? 0 : idx,
       onDestinationSelected: (i) => _changeTab(railTabs[i]),
       labelType: NavigationRailLabelType.all,
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.home),
-          label: Text('الرئيسية'),
+          icon: Icon(Icons.home,
+          color: Colors.white,),
+          label: Text('الرئيسية',
+          style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.settings),
-          label: Text('المعدات'),
+          icon: Icon(Icons.settings,
+          color: Colors.white,),
+          label: Text('المعدات',
+          style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.wallet),
-          label: Text('العقود'),
+          icon: Icon(Icons.wallet,
+          color: Colors.white,),
+          label: Text('العقود',
+          style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.info),
-          label: Text('الإعدادات'),
+          icon: Icon(Icons.info,
+          color: Colors.white,),
+          label: Text('الإعدادات',
+          style: TextStyle(color: Colors.white)),
         ),
         
         // NavigationRailDestination(
@@ -244,31 +243,42 @@ class DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildBottomNav() {
-    return BottomAppBar(
-      color: Theme.of(context).colorScheme.primary,
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: SizedBox(
-        height: 70,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _navItem(Icons.home, DashboardTab.home),
-            _navItem(Icons.settings, DashboardTab.equipment),
-            const SizedBox(width: 40),
-            _navItem(Icons.wallet, DashboardTab.rents),
-            _navItem(Icons.info, DashboardTab.settings),
-          ],
-        ),
-      ),
-    );
-  }
+    final navTabs = [
+      DashboardTab.home,
+      DashboardTab.equipment,
+      DashboardTab.rents,
+      DashboardTab.settings,
+    ];
 
-  Widget _navItem(IconData icon, DashboardTab tab) {
-    final isActive = _currentTab == tab;
-    return IconButton(
-      icon: Icon(icon, color: isActive ? Colors.black : Colors.white),
-      onPressed: () => _changeTab(tab),
+    final idx = navTabs.indexOf(_currentTab);
+
+    return NavigationBar(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      indicatorColor: Theme.of(context).colorScheme.primary,
+      selectedIndex: idx < 0 ? 0 : idx,
+      onDestinationSelected: (index) => _changeTab(navTabs[index]),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: 'الرئيسية',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.construction_outlined),
+          selectedIcon: Icon(Icons.construction),
+          label: 'المعدات',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.wallet_outlined),
+          selectedIcon: Icon(Icons.wallet),
+          label: 'العقود',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.info_outlined),
+          selectedIcon: Icon(Icons.info),
+          label: 'الإعدادات',
+        ),
+      ],
     );
   }
 }
