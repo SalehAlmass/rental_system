@@ -104,7 +104,7 @@ class LateClientRow {
   // الاسم الأساسي الموجود
   final int lateContractsCount;
 
-  /// Backward compatible alias (older UI code expects `lateCount`).
+  /// Backward-compatible alias used by some UI widgets.
   int get lateCount => lateContractsCount;
 
   const LateClientRow({

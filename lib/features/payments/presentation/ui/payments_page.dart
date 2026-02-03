@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
@@ -261,6 +262,36 @@ class _PaymentCard extends StatelessWidget {
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  IconButton(
+                    tooltip: 'طباعة السند',
+                    icon: const Icon(Icons.print),
+                    onPressed: () async {
+                      try {
+                        await PdfService().printPaymentVoucher(payment: payment);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل الطباعة: $e')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'مشاركة PDF',
+                    icon: const Icon(Icons.share),
+                    onPressed: () async {
+                      try {
+                        await PdfService().sharePaymentVoucher(payment: payment);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل المشاركة: $e')),
+                          );
+                        }
+                      }
+                    },
+                  ),
                   IconButton(
                     tooltip: 'تعديل',
                     icon: const Icon(Icons.edit),

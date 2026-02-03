@@ -22,6 +22,7 @@ import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.d
 
 import 'package:rental_app/features/profile/profile_cubit.dart';
 import 'package:rental_app/features/profile/profile_repository.dart';
+import 'package:rental_app/features/backup/data/backup_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -34,6 +35,7 @@ class DashboardPageState extends State<DashboardPage> {
   DashboardTab _currentTab = DashboardTab.home;
 
   late final ProfileCubit _profileCubit;
+  bool _checkedAutoBackup = false;
 
   final Map<DashboardTab, Map<String, bool>> _tabConfig = const {
     DashboardTab.home: {'appBar': true, 'drawer': true},
@@ -90,6 +92,13 @@ class DashboardPageState extends State<DashboardPage> {
           final isAdmin = (pstate is ProfileLoaded)
               ? (pstate.user['role']?.toString() == 'admin')
               : false;
+
+          // ✅ نسخ احتياطي تلقائي (مرة واحدة في الجلسة) للمشرف
+          if (isAdmin && !_checkedAutoBackup) {
+            _checkedAutoBackup = true;
+            // لا ننتظر هنا حتى لا نعلق UI
+            _tryAutoBackup(context);
+          }
 
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -167,6 +176,44 @@ class DashboardPageState extends State<DashboardPage> {
         },
       ),
     );
+  }
+
+  Future<void> _tryAutoBackup(BuildContext context) async {
+    try {
+      final repo = BackupRepository(context.read<ApiClient>());
+      final items = await repo.list();
+      if (items.isEmpty) {
+        await repo.create();
+        return;
+      }
+
+      // createdAt format: 'YYYY-MM-DD HH:MM:SS'
+      DateTime? parsed(String s) {
+        try {
+          final normalized = s.replaceAll(' ', 'T');
+          return DateTime.tryParse(normalized);
+        } catch (_) {
+          return null;
+        }
+      }
+
+      final latest = items
+          .map((e) => parsed(e.createdAt))
+          .whereType<DateTime>()
+          .fold<DateTime?>(null, (a, b) => (a == null || b.isAfter(a)) ? b : a);
+
+      if (latest == null) {
+        await repo.create();
+        return;
+      }
+
+      final diff = DateTime.now().difference(latest);
+      if (diff.inHours >= 24) {
+        await repo.create();
+      }
+    } catch (_) {
+      // نتجاهل الأخطاء حتى لا نعطل التطبيق
+    }
   }
 
   Widget _buildRail() {

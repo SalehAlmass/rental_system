@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppSettingsStorage {
   static const _kThemeMode = 'app_theme_mode'; // 'light'|'dark'
   static const _kBranchName = 'branch_name';
+  static const _kLastAutoBackupAt = 'last_auto_backup_at'; // ISO8601
 
   Future<String> getBranchName() async {
     final sp = await SharedPreferences.getInstance();
@@ -26,5 +27,15 @@ class AppSettingsStorage {
     final sp = await SharedPreferences.getInstance();
     if (mode != 'light' && mode != 'dark') mode = 'light';
     await sp.setString(_kThemeMode, mode);
+  }
+
+  Future<String?> getLastAutoBackupAt() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString(_kLastAutoBackupAt);
+  }
+
+  Future<void> setLastAutoBackupAt(String iso) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kLastAutoBackupAt, iso);
   }
 }

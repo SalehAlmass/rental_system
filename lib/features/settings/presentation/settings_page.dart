@@ -12,6 +12,7 @@ import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
+import 'package:rental_app/features/backup/presentation/backup_page.dart';
 
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
@@ -81,6 +82,13 @@ class SettingsPage extends StatelessWidget {
             title: 'إغلاق الدوام',
             subtitle: 'إدارة شفتات الموظفين',
             onTap: () => _push(context, const ShiftsPage()),
+          ),
+          _tile(
+            context,
+            icon: Icons.backup_outlined,
+            title: 'النسخ الاحتياطي',
+            subtitle: 'إنشاء واستعادة نسخة قاعدة البيانات',
+            onTap: () => _push(context, const BackupPage()),
           ),
 
           const Divider(height: 28),

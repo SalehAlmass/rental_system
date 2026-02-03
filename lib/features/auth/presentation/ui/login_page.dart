@@ -89,25 +89,47 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.login, size: 100, color: Colors.white),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: const Icon(Icons.login, size: 80, color: Colors.white),
+                  ),
                   const SizedBox(height: 24),
                   const Text(
                     'نظام التأجير',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2),
+                          blurRadius: 4,
+                          color: Colors.black26,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'مرحباً بعودتك',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
                     ),
                   ),
                   const SizedBox(height: 32),
 
                   Card(
-                    elevation: 12,
+                    elevation: 16,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(32),
                       child: BlocConsumer<AuthBloc, AuthState>(
                         listener: (context, state) {
                           if (state.status == AuthStatus.failure &&
@@ -131,93 +153,132 @@ class _LoginPageState extends State<LoginPage> {
                                     TextFormField(
                                       controller: _userCtrl,
                                       validator: _validateUsername,
-                                      decoration: const InputDecoration(
+                                      decoration: InputDecoration(
                                         labelText: 'اسم المستخدم',
-                                        prefixIcon: Icon(Icons.person),
-                                        border: OutlineInputBorder(),
+                                        prefixIcon: const Icon(Icons.person, color: Colors.grey),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
                                       ),
                                     ),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 20),
                                     TextFormField(
                                       controller: _passCtrl,
                                       obscureText: _obscure,
                                       validator: _validatePassword,
                                       decoration: InputDecoration(
                                         labelText: 'كلمة المرور',
-                                        prefixIcon: const Icon(Icons.lock),
-                                        border: const OutlineInputBorder(),
+                                        prefixIcon: const Icon(Icons.lock, color: Colors.grey),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: Colors.grey.shade300),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                                        ),
                                         suffixIcon: IconButton(
                                           icon: Icon(
                                             _obscure
                                                 ? Icons.visibility
                                                 : Icons.visibility_off,
+                                            color: Colors.grey,
                                           ),
                                           onPressed: () =>
                                               setState(() => _obscure = !_obscure),
                                         ),
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                              AnimatedScale(
+                                scale: loading ? 0.95 : 1.0,
+                                duration: const Duration(milliseconds: 200),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 18,
+                                      horizontal: 24,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 4,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  onPressed: loading
+                                      ? null
+                                      : () {
+                                        if (_formKey.currentState!.validate()) {
+                                          context.read<AuthBloc>().add(
+                                            LoginSubmitted(
+                                              username: _userCtrl.text.trim(),
+                                              password: _passCtrl.text.trim(),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: loading
+                                        ? const SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 3,
+                                            ),
+                                          )
+                                        : const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.login, size: 20),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'تسجيل الدخول',
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                   ),
-                                  backgroundColor: Colors.blueAccent,
-                                ),
-                                onPressed: loading
-                                    ? null
-                                    : () {
-                                      if (_formKey.currentState!.validate()) {
-                                        context.read<AuthBloc>().add(
-                                          LoginSubmitted(
-                                            username: _userCtrl.text.trim(),
-                                            password: _passCtrl.text.trim(),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: loading
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 3,
-                                          ),
-                                        )
-                                      : const Text(
-                                          'تسجيل الدخول',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
                                 ),
                               ),
                               const SizedBox(height: 16),
                               // إنشاء المستخدم يتم من داخل لوحة التحكم (للـ admin) بعد تحميل Profile.
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ForgotPasswordPage(),
+                              Center(
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const ForgotPasswordPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'نسيت كلمة المرور؟',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                      decoration: TextDecoration.underline,
                                     ),
-                                  );
-                                },
-                                child: const Text(
-                                  'نسيت كلمة المرور؟',
-                                  style: TextStyle(fontSize: 16),
+                                  ),
                                 ),
                               ),
                             ],

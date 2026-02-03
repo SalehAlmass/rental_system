@@ -182,7 +182,8 @@ class ClientDetailsPage extends StatelessWidget {
 
     try {
       final rents = await rentsRepo.list(clientId: client.id);
-      final payments = await paymentsRepo.list(showVoided: true);
+      // ✅ اجلب سندات العميل فقط (بدل كل السندات)
+      final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
       final pdf = PdfService();
       await pdf.printClientStatement(client: client, rents: rents, payments: payments);
@@ -199,7 +200,8 @@ class ClientDetailsPage extends StatelessWidget {
 
     try {
       final rents = await rentsRepo.list(clientId: client.id);
-      final payments = await paymentsRepo.list(showVoided: true);
+      // ✅ اجلب سندات العميل فقط (بدل كل السندات)
+      final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
       final pdf = PdfService();
       await pdf.shareClientStatement(client: client, rents: rents, payments: payments);
