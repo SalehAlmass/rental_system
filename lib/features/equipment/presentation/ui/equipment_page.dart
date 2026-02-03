@@ -7,6 +7,7 @@ import 'package:rental_app/features/equipment/data/repositories/equipment_reposi
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_details_page.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
 
 // Import validation functions
 String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
@@ -117,7 +118,8 @@ class _EquipmentView extends StatelessWidget {
         label: const Text('إضافة معدة'),
         onPressed: () => _openDialog(context),
       ),
-      body: BlocConsumer<EquipmentBloc, EquipmentState>(
+      body: PageEntrance(
+        child: BlocConsumer<EquipmentBloc, EquipmentState>(
         listener: (context, state) {
           if (state.error != null) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -143,6 +145,7 @@ class _EquipmentView extends StatelessWidget {
             },
           );
         },
+        ),
       ),
     );
   }

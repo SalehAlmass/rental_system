@@ -154,7 +154,25 @@ class DashboardPageState extends State<DashboardPage> {
 
                 // Drawer removed - all navigation moved to Settings page
 
-                body: _buildBody(isAdmin, userName),
+                body: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, anim) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0.02, 0.02),
+                      end: Offset.zero,
+                    ).animate(anim);
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(_currentTab),
+                    child: _buildBody(isAdmin, userName),
+                  ),
+                ),
 
                 floatingActionButton: FloatingActionButton(
                   heroTag: 'dashboard_fab',

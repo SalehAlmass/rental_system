@@ -4,26 +4,34 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/failure.dart';
 
 class BackupItem {
-  final String name; // ✅ توحيد الاسم
+  final String name; // backup_*.sql
+  /// Size in bytes
   final int size;
   final String createdAt;
+  /// full | def | log
+  final String type;
 
   const BackupItem({
     required this.name,
     required this.size,
     required this.createdAt,
+    required this.type,
   });
 
   factory BackupItem.fromJson(Map<String, dynamic> json) {
     final rawName = (json['name'] ?? json['file'] ?? '').toString();
     return BackupItem(
       name: rawName,
+      // API returns size in bytes (int)
       size: (json['size'] is num)
           ? (json['size'] as num).toInt()
           : int.tryParse('${json['size']}') ?? 0,
       createdAt: (json['created_at'] ?? json['createdAt'] ?? '').toString(),
+      type: (json['type'] ?? 'full').toString(),
     );
   }
+
+  double get sizeKb => size / 1024.0;
 }
 
 class BackupRepository {
@@ -48,9 +56,10 @@ class BackupRepository {
     }
   }
 
-  Future<void> create() async {
+  /// type: full | def | log
+  Future<void> create({String type = 'full'}) async {
     try {
-      await _api.dio.post('backup/create');
+      await _api.dio.post('backup/create', data: {'type': type});
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)

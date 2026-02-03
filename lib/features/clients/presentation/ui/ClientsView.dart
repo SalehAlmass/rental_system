@@ -6,6 +6,7 @@ import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart'
 import 'package:rental_app/features/clients/presentation/ui/ClientCard.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientSearchDelegate.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
 
 class ClientsView extends StatelessWidget {
   const ClientsView({super.key, this.showBackButton = true});
@@ -35,7 +36,8 @@ class ClientsView extends StatelessWidget {
         label: const Text('إضافة عميل'),
         onPressed: () => _openCreateDialog(context),
       ),
-      body: BlocConsumer<ClientsBloc, ClientsState>(
+      body: PageEntrance(
+        child: BlocConsumer<ClientsBloc, ClientsState>(
         listener: (context, state) {
           if (state.error != null) {
             ScaffoldMessenger.of(
@@ -64,6 +66,7 @@ class ClientsView extends StatelessWidget {
             ),
           );
         },
+        ),
       ),
     );
   }

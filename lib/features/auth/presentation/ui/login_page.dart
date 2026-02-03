@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
 import 'package:rental_app/features/auth/presentation/ui/ForgotPasswordPage.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -86,16 +87,23 @@ class _LoginPageState extends State<LoginPage> {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
+              child: PageEntrance(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.9, end: 1),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutBack,
+                    builder: (context, v, child) => Transform.scale(scale: v, child: child),
+                    child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(20),
                     child: const Icon(Icons.login, size: 80, color: Colors.white),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -287,7 +295,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

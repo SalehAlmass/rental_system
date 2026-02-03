@@ -11,6 +11,7 @@ import 'package:rental_app/features/payments/presentation/bloc/payments_bloc.dar
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/payments/presentation/ui/payment_details_page.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
 
 // Import validation functions
 String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
@@ -128,7 +129,8 @@ class _PaymentsView extends StatelessWidget {
         label: const Text('إضافة سند'),
         onPressed: () => _openDialog(context),
       ),
-      body: BlocConsumer<PaymentsBloc, PaymentsState>(
+      body: PageEntrance(
+        child: BlocConsumer<PaymentsBloc, PaymentsState>(
         listener: (context, state) {
           if (state.error != null) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -153,6 +155,7 @@ class _PaymentsView extends StatelessWidget {
             },
           );
         },
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/StatCard.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
 
 class DashboardHome extends StatelessWidget {
   final bool isAdmin;
@@ -29,60 +30,62 @@ class DashboardHome extends StatelessWidget {
           return const Center(child: Text('لا توجد بيانات'));
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            context.read<DashboardBloc>().add(DashboardRequested());
-          },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildHeader(context, userName, isAdmin),
-              const SizedBox(height: 24),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final w = constraints.maxWidth;
-                  final crossAxisCount = w >= 1100
-                      ? 4
-                      : w >= 800
-                          ? 3
-                          : w >= 500
-                              ? 2
-                              : 1;
+	        return PageEntrance(
+	          child: RefreshIndicator(
+	            onRefresh: () async {
+	              context.read<DashboardBloc>().add(DashboardRequested());
+	            },
+	            child: ListView(
+	              padding: const EdgeInsets.all(16),
+	              children: [
+	                _buildHeader(context, userName, isAdmin),
+	                const SizedBox(height: 24),
+	                LayoutBuilder(
+	                  builder: (context, constraints) {
+	                    final w = constraints.maxWidth;
+	                    final crossAxisCount = w >= 1100
+	                        ? 4
+	                        : w >= 800
+	                            ? 3
+	                            : w >= 500
+	                                ? 2
+	                                : 1;
 
-                  return GridView.count(
-                    crossAxisCount: crossAxisCount,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      StatCard(
-                        title: 'عدد العملاء',
-                        value: stats.clients.toString(),
-                        icon: Icons.people,
-                      ),
-                      StatCard(
-                        title: 'عدد المعدات',
-                        value: stats.equipment.toString(),
-                        icon: Icons.construction,
-                      ),
-                      StatCard(
-                        title: 'العقود المفتوحة',
-                        value: stats.openRents.toString(),
-                        icon: Icons.description,
-                      ),
-                      StatCard(
-                        title: 'الإيراد',
-                        value: stats.revenue.toStringAsFixed(2),
-                        icon: Icons.attach_money,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        );
+	                    return GridView.count(
+	                      crossAxisCount: crossAxisCount,
+	                      shrinkWrap: true,
+	                      physics: const NeverScrollableScrollPhysics(),
+	                      crossAxisSpacing: 16,
+	                      mainAxisSpacing: 16,
+	                      children: [
+	                        StatCard(
+	                          title: 'عدد العملاء',
+	                          value: stats.clients.toString(),
+	                          icon: Icons.people,
+	                        ),
+	                        StatCard(
+	                          title: 'عدد المعدات',
+	                          value: stats.equipment.toString(),
+	                          icon: Icons.construction,
+	                        ),
+	                        StatCard(
+	                          title: 'العقود المفتوحة',
+	                          value: stats.openRents.toString(),
+	                          icon: Icons.description,
+	                        ),
+	                        StatCard(
+	                          title: 'الإيراد',
+	                          value: stats.revenue.toStringAsFixed(2),
+	                          icon: Icons.attach_money,
+	                        ),
+	                      ],
+	                    );
+	                  },
+	                ),
+	              ],
+	            ),
+	          ),
+	        );
       },
     );
   }

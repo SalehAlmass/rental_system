@@ -129,6 +129,15 @@ class AppRoot extends StatelessWidget {
                     borderSide: BorderSide(color: Color(0xFF0F766E), width: 2),
                   ),
                 ),
+                pageTransitionsTheme: const PageTransitionsTheme(
+                  builders: {
+                    TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                    TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+                    TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                    TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+                  },
+                ),
               ),
 
               darkTheme: ThemeData(
@@ -175,6 +184,15 @@ class AppRoot extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Color(0xFF0D9488), width: 2),
                   ),
+                ),
+                pageTransitionsTheme: const PageTransitionsTheme(
+                  builders: {
+                    TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                    TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+                    TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                    TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+                  },
                 ),
               ),
 
