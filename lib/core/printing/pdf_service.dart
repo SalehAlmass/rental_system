@@ -164,127 +164,137 @@ class PdfService {
   }
 
   Future<Uint8List> _buildClientStatementPdf({
-    required Client client,
-    required List<Rent> rents,
-    required List<Payment> payments,
-    String? from,
-    String? to,
-  }) async {
-    final branch = await _settings.getBranchName();
-    final theme = await _buildArabicTheme();
-    final logo = await _tryLoadLogo();
-    final doc = pw.Document();
+  required Client client,
+  required List<Rent> rents,
+  required List<Payment> payments,
+  String? from,
+  String? to,
+}) async {
+  final branch = await _settings.getBranchName();
+  final theme = await _buildArabicTheme();
+  final logo = await _tryLoadLogo();
+  final doc = pw.Document();
 
-    final totalRents = rents.fold<double>(
-      0,
-      (a, r) => a + (r.totalAmount ?? 0),
-    );
-    final totalPaid = payments
-        .where(
-          (p) => (p.type ?? '').toLowerCase() == 'in' && (p.isVoid ?? 0) == 0,
-        )
-        .fold<double>(0, (a, p) => a + (p.amount ?? 0));
-    final balance = totalRents - totalPaid;
+  final totalRents = rents.fold<double>(
+    0,
+    (a, r) => a + (r.totalAmount ?? 0),
+  );
 
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        theme: theme,
-        margin: const pw.EdgeInsets.fromLTRB(24, 24, 24, 24),
-        header: (ctx) => _header(
-          ctx,
-          title: 'كشف حساب عميل',
-          branchName: branch,
-          logo: logo,
-        ),
-        footer: (ctx) => _footer(ctx, from: from, to: to),
-        build: (_) {
-          return [
-            pw.Directionality(
-              textDirection: pw.TextDirection.rtl,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+  final totalPaid = payments
+      .where(
+        (p) => (p.type ?? '').toLowerCase() == 'in' && (p.isVoid ?? 0) == 0,
+      )
+      .fold<double>(0, (a, p) => a + (p.amount ?? 0));
+
+  final balance = totalRents - totalPaid;
+
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      theme: theme,
+      margin: const pw.EdgeInsets.all(24),
+      header: (ctx) => _header(
+        ctx,
+        title: 'كشف حساب عميل',
+        branchName: branch,
+        logo: logo,
+      ),
+      footer: (ctx) => _footer(ctx, from: from, to: to),
+      build: (_) => [
+        pw.Directionality(
+          textDirection: pw.TextDirection.rtl,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              _kv('اسم العميل', client.name),
+              _kv('رقم العميل', client.id.toString()),
+              if (from != null || to != null)
+                _kv('الفترة', '${from ?? '-'}  ➜  ${to ?? '-'}'),
+
+              pw.SizedBox(height: 10),
+
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  _kv('اسم العميل', client.name),
-                  _kv('رقم العميل', client.id.toString()),
-                  if (from != null || to != null)
-                    _kv('الفترة', '${from ?? '-'}  ➜  ${to ?? '-'}'),
-                  pw.SizedBox(height: 10),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'إجمالي المستحقات: ${totalRents.toStringAsFixed(2)} ر.س',
-                      ),
-                      pw.Text(
-                        'إجمالي المدفوع: ${totalPaid.toStringAsFixed(2)} ر.س',
-                      ),
-                      pw.Text('الرصيد: ${balance.toStringAsFixed(2)} ر.س'),
-                    ],
-                  ),
-                  pw.SizedBox(height: 12),
-                  pw.Text(
-                    'العقود',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Table.fromTextArray(
-                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    headers: const [
-                      '#',
-                      'المعدة',
-                      'البداية',
-                      'النهاية',
-                      'الإجمالي',
-                    ],
-                    data: [
-                      for (final r in rents)
-                        [
-                          r.id.toString(),
-                          (r.equipmentName ?? r.equipmentId.toString()),
-                          r.startDatetime,
-                          (r.endDatetime ?? '-'),
-                          ((r.totalAmount ?? 0).toStringAsFixed(2)),
-                        ],
-                    ],
-                  ),
-                  pw.SizedBox(height: 12),
-                  pw.Text(
-                    'المدفوعات',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Table.fromTextArray(
-                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    headers: const [
-                      '#',
-                      'التاريخ',
-                      'النوع',
-                      'المبلغ',
-                      'الطريقة',
-                      'ملاحظة',
-                    ],
-                    data: [
-                      for (final p in payments)
-                        [
-                          (p.id ?? 0).toString(),
-                          (p.createdAt ?? '-'),
-                          ((p.type ?? '') == 'in' ? 'قبض' : 'صرف'),
-                          ((p.amount ?? 0).toStringAsFixed(2)),
-                          (p.method ?? '-'),
-                          (p.notes ?? '-'),
-                        ],
-                    ],
-                  ),
+                  pw.Text('إجمالي المستحقات: ${totalRents.toStringAsFixed(2)} ر.س'),
+                  pw.Text('إجمالي المدفوع: ${totalPaid.toStringAsFixed(2)} ر.س'),
+                  pw.Text('الرصيد: ${balance.toStringAsFixed(2)} ر.س'),
                 ],
               ),
-            ),
-          ];
-        },
-      ),
-    );
 
-    return doc.save();
-  }
+              pw.SizedBox(height: 16),
 
+              /// ================= العقود =================
+              pw.Text(
+                'العقود',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+
+              pw.Table.fromTextArray(
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellAlignment: pw.Alignment.centerRight,
+                headers: const [
+                  'الإجمالي',
+                  'النهاية',
+                  'البداية',
+                  'المعدة',
+                  '#',
+                ],
+                data: [
+                  for (final r in rents)
+                    [
+                      (r.totalAmount ?? 0).toStringAsFixed(2),
+                      (r.endDatetime ?? '-'),
+                      (r.startDatetime ?? '-'),
+                      (r.equipmentName ?? r.equipmentId.toString()),
+                      r.id.toString(),
+                    ],
+                ],
+              ),
+
+              pw.SizedBox(height: 16),
+
+              /// ================= المدفوعات =================
+              pw.Text(
+                'المدفوعات',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+
+              pw.Table.fromTextArray(
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellAlignment: pw.Alignment.centerRight,
+                headers: const [
+                  'ملاحظة',
+                  'الطريقة',
+                  'المبلغ',
+                  'النوع',
+                  'التاريخ',
+                  '#',
+                ],
+                data: [
+                  for (final p in payments)
+                    [
+                      (p.notes ?? '-'),
+                      (p.method ?? '-'),
+                      (p.amount ?? 0).toStringAsFixed(2),
+                      ((p.type ?? '') == 'in' ? 'قبض' : 'صرف'),
+                      (p.createdAt ?? '-'),
+                      (p.id ?? 0).toString(),
+                    ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return doc.save();
+}
+
+  
+  
   Future<Uint8List> _buildPaymentVoucherPdf({required Payment payment}) async {
     final branch = await _settings.getBranchName();
     final theme = await _buildArabicTheme();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/failure.dart';
 import '../data/backup_repository.dart';
 
 class BackupPage extends StatefulWidget {
@@ -14,12 +15,11 @@ class BackupPage extends StatefulWidget {
 class _BackupPageState extends State<BackupPage> {
   late final BackupRepository repo;
 
-  bool loading = false;
-  bool creating = false;
-  List<BackupItem> items = const [];
+  bool loading = true;
   String? error;
+  List<BackupItem> items = const [];
 
-  String backupType = 'full';
+  String backupType = 'full'; // full | def | log
 
   @override
   void initState() {
@@ -29,258 +29,245 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
     setState(() {
       loading = true;
       error = null;
     });
 
     try {
-      final res = await repo.list();
-      if (!mounted) return;
-      setState(() => items = res);
+      final list = await repo.list();
+      setState(() {
+        items = list;
+        loading = false;
+      });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => error = e.toString());
-    } finally {
-      if (!mounted) return;
-      setState(() => loading = false);
+      setState(() {
+        error = e.toString();
+        loading = false;
+      });
     }
+  }
+
+  String _fmtSize(int bytes) {
+    if (bytes <= 0) return '0 KB';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    final mb = kb / 1024;
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   Future<void> _createBackup() async {
-    if (!mounted) return;
-    setState(() {
-      creating = true;
-      error = null;
-    });
-
     try {
       await repo.create(type: backupType);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ تم إنشاء النسخة')),
+      );
       await _load();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ تم إنشاء النسخة الاحتياطية')),
-      );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => error = e.toString());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ فشل إنشاء النسخة: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() => creating = false);
+      _showError(e);
     }
   }
 
-  Future<void> _confirmRestore(BackupItem item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('تأكيد الاسترجاع'),
-        content: Text(
-          'هل تريد استرجاع النسخة:\n${item.name}\n\nسيتم استبدال البيانات الحالية.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('استرجاع'),
-          ),
-        ],
-      ),
+  Future<void> _restoreBackup(String file) async {
+    final ok = await _confirm(
+      title: 'استرجاع نسخة',
+      body: 'سيتم استرجاع النسخة:\n$file\n\nهل تريد المتابعة؟',
+      confirmText: 'استرجاع',
     );
-
-    if (ok != true || !mounted) return;
-
-    setState(() {
-      loading = true;
-      error = null;
-    });
+    if (!ok) return;
 
     try {
-      await repo.restore(name: item.name);
-      await _load();
-
+      await repo.restore(file: file);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ تم الاسترجاع بنجاح')),
       );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => error = e.toString());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ فشل الاسترجاع: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() => loading = false);
+      _showError(e);
     }
   }
 
-  String _formatSize(int bytes) {
-    if (bytes <= 0) return '0 KB';
-    final kb = bytes / 1024;
-    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
-    return '${(kb / 1024).toStringAsFixed(2)} MB';
+  Future<void> _deleteBackup(String file) async {
+    final ok = await _confirm(
+      title: 'حذف نسخة',
+      body: 'هل تريد حذف النسخة:\n$file ؟',
+      confirmText: 'حذف',
+      danger: true,
+    );
+    if (!ok) return;
+
+    try {
+      await repo.delete(file: file);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🗑️ تم حذف النسخة')),
+      );
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await _confirm(
+      title: 'حذف جميع النسخ',
+      body: 'سيتم حذف جميع النسخ الاحتياطية.\nهل أنت متأكد؟',
+      confirmText: 'حذف الكل',
+      danger: true,
+    );
+    if (!ok) return;
+
+    try {
+      await repo.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🗑️ تم حذف جميع النسخ')),
+      );
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  void _showError(Object e) {
+    final msg = (e is ApiFailure) ? e.message : e.toString();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('خطأ'),
+        content: Text(msg),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً')),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String body,
+    required String confirmText,
+    bool danger = false,
+  }) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(
+            style: danger
+                ? FilledButton.styleFrom(backgroundColor: Colors.red)
+                : null,
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+    return res == true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('النسخ الاحتياطي'),
-        actions: [
-          IconButton(
-            onPressed: loading ? null : _load,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
-          _buildCreateCard(cs),
-          const SizedBox(height: 16),
-          _buildHeader(loading),
-          if (error != null) ...[
-            const SizedBox(height: 10),
-            Text('حدث خطأ: $error', style: TextStyle(color: cs.error)),
-          ],
-          const SizedBox(height: 10),
-          if (!loading && items.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('لا توجد نسخ بعد'),
+          // Toolbar
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: backupType,
+                    decoration: const InputDecoration(
+                      labelText: 'نوع النسخة',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'full', child: Text('Full (كامل)')),
+                      DropdownMenuItem(value: 'def', child: Text('Def (هيكل فقط)')),
+                      DropdownMenuItem(value: 'log', child: Text('Log (سجل)')),
+                    ],
+                    onChanged: (v) => setState(() => backupType = v ?? 'full'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: loading ? null : _createBackup,
+                  icon: const Icon(Icons.add),
+                  label: const Text('إنشاء'),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: loading ? null : _clearAll,
+                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                  label: const Text('حذف الكل'),
+                ),
+              ],
+            ),
+          ),
+
+          if (loading) const Expanded(child: Center(child: CircularProgressIndicator())),
+          if (!loading && error != null)
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          for (int i = 0; i < items.length; i++)
-            _AnimatedBackupTile(
-              index: i,
-              item: items[i],
-              subtitle:
-                  '${_formatSize(items[i].size)} • ${items[i].createdAt} • ${items[i].type.toUpperCase()}',
-              onRestore: loading ? null : () => _confirmRestore(items[i]),
+
+          if (!loading && error == null)
+            Expanded(
+              child: items.isEmpty
+                  ? const Center(child: Text('لا توجد نسخ احتياطية'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final b = items[i];
+                        return Card(
+                          child: ListTile(
+                            title: Text(b.file, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${_fmtSize(b.size)} • ${b.createdAt}'),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (v) async {
+                                if (v == 'restore') await _restoreBackup(b.file);
+                                if (v == 'delete') await _deleteBackup(b.file);
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(value: 'restore', child: Text('استرجاع')),
+                                PopupMenuItem(value: 'delete', child: Text('حذف')),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool loading) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text('النسخ المتوفرة', style: TextStyle(fontWeight: FontWeight.bold)),
-        if (loading)
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCreateCard(ColorScheme cs) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'نسخة احتياطية يدوية',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'يمكنك إنشاء نسخة جديدة أو استرجاع أي نسخة سابقة.',
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: backupType,
-              decoration: const InputDecoration(
-                labelText: 'نوع النسخة',
-                isDense: true,
-              ),
-              items: const [
-                DropdownMenuItem(value: 'full', child: Text('Full (كامل)')),
-                DropdownMenuItem(value: 'def', child: Text('Def (تعريف فقط)')),
-                DropdownMenuItem(value: 'log', child: Text('Log (بيانات فقط)')),
-              ],
-              onChanged: creating ? null : (v) => setState(() => backupType = v!),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: creating ? null : _createBackup,
-                icon: creating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cloud_upload),
-                label: const Text('إنشاء نسخة الآن'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AnimatedBackupTile extends StatelessWidget {
-  const _AnimatedBackupTile({
-    required this.index,
-    required this.item,
-    required this.subtitle,
-    required this.onRestore,
-  });
-
-  final int index;
-  final BackupItem item;
-  final String subtitle;
-  final VoidCallback? onRestore;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 300 + index * 40),
-      builder: (context, t, child) {
-        return Opacity(
-          opacity: t,
-          child: Transform.translate(
-            offset: Offset(0, (1 - t) * 10),
-            child: child,
-          ),
-        );
-      },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.storage)),
-          title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(subtitle),
-          trailing: OutlinedButton.icon(
-            onPressed: onRestore,
-            icon: const Icon(Icons.restore),
-            label: const Text('استرجاع'),
-          ),
-        ),
       ),
     );
   }

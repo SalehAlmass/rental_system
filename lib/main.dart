@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/storage/token_storage.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/features/profile/profile_repository.dart';
 
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/data/repositories/user_repository.dart';
@@ -56,6 +58,12 @@ class AppRoot extends StatelessWidget {
       ],
       child: MultiBlocProvider(
         providers: [
+          BlocProvider<ProfileCubit>(
+            create: (ctx) => ProfileCubit(
+              repo: ProfileRepository(ctx.read<ApiClient>().dio),
+              storage: ctx.read<TokenStorage>(), // إذا عندك TokenStorage كمزوّد
+            )..load(),
+          ),
           BlocProvider<AuthBloc>(
             create: (ctx) => AuthBloc(ctx.read<AuthRepository>()),
           ),
@@ -90,7 +98,9 @@ class AppRoot extends StatelessWidget {
                   seedColor: const Color(0xFF0F766E), // Professional teal green
                   brightness: Brightness.light,
                 ),
-                scaffoldBackgroundColor: const Color(0xFFF1F5F9), // Light gray background
+                scaffoldBackgroundColor: const Color(
+                  0xFFF1F5F9,
+                ), // Light gray background
                 cardTheme: CardThemeData(
                   elevation: 3,
                   color: Colors.white,
@@ -143,10 +153,14 @@ class AppRoot extends StatelessWidget {
               darkTheme: ThemeData(
                 useMaterial3: true,
                 colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF0D9488), // Lighter teal for dark mode
+                  seedColor: const Color(
+                    0xFF0D9488,
+                  ), // Lighter teal for dark mode
                   brightness: Brightness.dark,
                 ),
-                scaffoldBackgroundColor: const Color(0xFF0F172A), // Dark blue-gray
+                scaffoldBackgroundColor: const Color(
+                  0xFF0F172A,
+                ), // Dark blue-gray
                 cardTheme: CardThemeData(
                   elevation: 3,
                   color: Color(0xFF1E293B), // Darker card color

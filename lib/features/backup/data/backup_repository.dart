@@ -4,34 +4,24 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/failure.dart';
 
 class BackupItem {
-  final String name; // backup_*.sql
-  /// Size in bytes
-  final int size;
+  final String file; // اسم الملف
+  final int size;    // bytes
   final String createdAt;
-  /// full | def | log
-  final String type;
 
-  const BackupItem({
-    required this.name,
-    required this.size,
-    required this.createdAt,
-    required this.type,
-  });
+  const BackupItem({required this.file, required this.size, required this.createdAt});
 
   factory BackupItem.fromJson(Map<String, dynamic> json) {
-    final rawName = (json['name'] ?? json['file'] ?? '').toString();
+    // API عندك يرجع: name, size_bytes, modified_at (أو created_at حسب نسختك)
+    final name = (json['file'] ?? json['name'] ?? '').toString();
+    final sizeBytes = (json['size'] ?? json['size_bytes'] ?? 0);
+    final created = (json['created_at'] ?? json['modified_at'] ?? json['createdAt'] ?? '').toString();
+
     return BackupItem(
-      name: rawName,
-      // API returns size in bytes (int)
-      size: (json['size'] is num)
-          ? (json['size'] as num).toInt()
-          : int.tryParse('${json['size']}') ?? 0,
-      createdAt: (json['created_at'] ?? json['createdAt'] ?? '').toString(),
-      type: (json['type'] ?? 'full').toString(),
+      file: name,
+      size: (sizeBytes is num) ? sizeBytes.toInt() : int.tryParse(sizeBytes.toString()) ?? 0,
+      createdAt: created,
     );
   }
-
-  double get sizeKb => size / 1024.0;
 }
 
 class BackupRepository {
@@ -44,9 +34,7 @@ class BackupRepository {
       dynamic raw = res.data;
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['backups'] ?? [];
       if (raw is! List) return const [];
-      return raw
-          .map((e) => BackupItem.fromJson((e as Map).cast<String, dynamic>()))
-          .toList();
+      return raw.map((e) => BackupItem.fromJson((e as Map).cast<String, dynamic>())).toList();
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)
@@ -56,7 +44,6 @@ class BackupRepository {
     }
   }
 
-  /// type: full | def | log
   Future<void> create({String type = 'full'}) async {
     try {
       await _api.dio.post('backup/create', data: {'type': type});
@@ -69,15 +56,44 @@ class BackupRepository {
     }
   }
 
-  Future<void> restore({required String name}) async {
+  Future<void> restore({required String file}) async {
     try {
-      // ✅ أهم تعديل: name وليس file
-      await _api.dio.post('backup/restore', data: {'name': name});
+      // API عندك يتوقع key اسمها "name"
+      await _api.dio.post('backup/restore', data: {'name': file});
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)
           ? data['error'].toString()
           : (e.message ?? 'Backup restore failed');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  // ✅ حذف نسخة واحدة
+  Future<void> delete({required String file}) async {
+    try {
+      await _api.dio.delete(
+        'backup/delete',
+        queryParameters: {'name': file},
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Backup delete failed');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  // ✅ حذف جميع النسخ
+  Future<void> clear() async {
+    try {
+      await _api.dio.delete('backup/clear');
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Backup clear failed');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }

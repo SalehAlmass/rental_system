@@ -113,7 +113,6 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _push(context, const ApiSettingsPage()),
           ),
 
-          if (isAdmin) ...[
             const Divider(height: 28),
             _header(context, 'الإدارة'),
             _tile(
@@ -123,7 +122,7 @@ class SettingsPage extends StatelessWidget {
               subtitle: 'إضافة/تعديل/تعطيل المستخدمين',
               onTap: () => _push(context, const UserManagementPage()),
             ),
-          ],
+  
 
           const Divider(height: 28),
 

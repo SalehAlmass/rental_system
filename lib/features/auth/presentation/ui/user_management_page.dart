@@ -46,7 +46,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 icon: const Icon(Icons.manage_accounts_outlined , 
                   color: Colors.white, size: 28),
                 onPressed: () => Navigator.of(context).push(
-                 MaterialPageRoute(builder: (context) => CreateUserPage())
+                 MaterialPageRoute(builder: (context) => const CreateUserPage())
                 ),
               ),
             ],
