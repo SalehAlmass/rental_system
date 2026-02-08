@@ -7,13 +7,42 @@ class RentsRepository {
   RentsRepository(this._api);
   final ApiClient _api;
 
-  // تعديل: إضافة clientId كـ parameter اختياري
-  Future<List<Rent>> list({int? clientId}) async {
+  /// List rents.
+  ///
+  /// Supported (optional) filters:
+  /// - [clientId]
+  /// - [status] : open | closed | cancelled
+  /// - [limit]
+  Future<Rent> get(int id) async {
+  try {
+    final res = await _api.dio.get('rents/$id');
+
+    final raw = res.data;
+    final data = (raw is Map)
+        ? (raw['data'] ?? raw['rent'] ?? raw)
+        : raw;
+
+    if (data is! Map) {
+      throw ApiFailure('بيانات العقد غير صالحة');
+    }
+
+    return Rent.fromJson(data.cast<String, dynamic>());
+  } on DioException catch (e) {
+    final msg = (e.response?.data is Map && e.response?.data['error'] != null)
+        ? e.response!.data['error'].toString()
+        : (e.message ?? 'فشل جلب العقد');
+    throw ApiFailure(msg, statusCode: e.response?.statusCode);
+  }
+}
+
+  Future<List<Rent>> list({int? clientId, String? status, int? limit}) async {
     try {
       final res = await _api.dio.get(
         'rents',
         queryParameters: {
           if (clientId != null) 'client_id': clientId,
+          if (status != null && status.isNotEmpty) 'status': status,
+          if (limit != null && limit > 0) 'limit': limit,
         },
       );
 
@@ -75,9 +104,13 @@ class RentsRepository {
     }
   }
 
-  Future<void> closeRent({required int rentId, required String endDatetime}) async {
+  /// Close a rent and return calculated totals from the backend.
+  Future<Map<String, dynamic>> closeRent({required int rentId, required String endDatetime}) async {
     try {
-      await _api.dio.post('rents/$rentId/close', data: {'end_datetime': endDatetime});
+      final res = await _api.dio.post('rents/$rentId/close', data: {'end_datetime': endDatetime});
+      final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : <String, dynamic>{};
+      final payload = (data['data'] is Map) ? (data['data'] as Map).cast<String, dynamic>() : <String, dynamic>{};
+      return payload;
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)

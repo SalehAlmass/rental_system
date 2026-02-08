@@ -21,7 +21,7 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Allow changing baseUrl from Settings without rebuilding the app.
+            // Allow changing baseUrl from Settings without rebuilding the app.
           // We override per-request to keep it simple.
           final baseUrl = await _baseUrlStorage.getBaseUrl();
           options.baseUrl = baseUrl;

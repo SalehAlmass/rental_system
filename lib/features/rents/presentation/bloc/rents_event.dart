@@ -6,7 +6,15 @@ sealed class RentsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class RentsRequested extends RentsEvent {}
+class RentsRequested extends RentsEvent {
+  const RentsRequested({this.status});
+
+  /// open | closed | cancelled | null (all)
+  final String? status;
+
+  @override
+  List<Object?> get props => [status];
+}
 
 class RentOpened extends RentsEvent {
   const RentOpened({

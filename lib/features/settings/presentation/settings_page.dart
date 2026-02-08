@@ -1,39 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:rental_app/features/auth/presentation/ui/user_management_page.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
 
+import 'package:rental_app/features/auth/presentation/ui/user_management_page.dart';
+
+import 'package:rental_app/features/backup/presentation/backup_page.dart';
 import 'package:rental_app/features/clients/presentation/ui/clients_page.dart';
+import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
-import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
-import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
-import 'package:rental_app/features/backup/presentation/backup_page.dart';
-
+import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
-
-import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 
 import 'package:rental_app/theme/theme_bloc.dart';
 
-
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  final bool isAdmin;
+
+  const SettingsPage({
+    super.key,
+    required this.isAdmin,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final authState = context.watch<AuthBloc>().state;
-
-    // Extract isAdmin from AuthState based on the actual structure
-    final bool isAdmin = false; // Placeholder - adjust based on actual AuthState structure
-
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'الإعدادات',
         centerTitle: true,
         showShadow: true,
@@ -69,30 +68,42 @@ class SettingsPage extends StatelessWidget {
             subtitle: 'سندات القبض والصرف',
             onTap: () => _push(context, const PaymentsPage()),
           ),
-          _tile(
-            context,
-            icon: Icons.assessment,
-            title: 'التقارير',
-            subtitle: 'عرض التقارير والإحصائيات',
-            onTap: () => _push(context, const ReportsPage()),
-          ),
-          _tile(
-            context,
-            icon: Icons.lock_clock,
-            title: 'إغلاق الدوام',
-            subtitle: 'إدارة شفتات الموظفين',
-            onTap: () => _push(context, const ShiftsPage()),
-          ),
-          _tile(
-            context,
-            icon: Icons.backup_outlined,
-            title: 'النسخ الاحتياطي',
-            subtitle: 'إنشاء واستعادة نسخة قاعدة البيانات',
-            onTap: () => _push(context, const BackupPage()),
-          ),
+
+          // ───── عناصر الأدمن فقط ─────
+          if (isAdmin) ...[
+            const Divider(height: 28),
+            _header(context, 'لوحة الإدارة'),
+            _tile(
+              context,
+              icon: Icons.assessment,
+              title: 'التقارير',
+              subtitle: 'عرض التقارير والإحصائيات',
+              onTap: () => _push(context, const ReportsPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.lock_clock,
+              title: 'إغلاق الدوام',
+              subtitle: 'إدارة شفتات الموظفين',
+              onTap: () => _push(context, const ShiftsPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.backup_outlined,
+              title: 'النسخ الاحتياطي',
+              subtitle: 'إنشاء واستعادة نسخة قاعدة البيانات',
+              onTap: () => _push(context, const BackupPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.supervised_user_circle,
+              title: 'إدارة المستخدمين',
+              subtitle: 'إضافة / تعديل / تعطيل المستخدمين',
+              onTap: () => _push(context, const UserManagementPage()),
+            ),
+          ],
 
           const Divider(height: 28),
-
           _header(context, 'عام'),
           _tile(
             context,
@@ -103,7 +114,6 @@ class SettingsPage extends StatelessWidget {
           ),
 
           const Divider(height: 28),
-
           _header(context, 'الاتصال بالسيرفر'),
           _tile(
             context,
@@ -113,19 +123,7 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _push(context, const ApiSettingsPage()),
           ),
 
-            const Divider(height: 28),
-            _header(context, 'الإدارة'),
-            _tile(
-              context,
-              icon: Icons.supervised_user_circle,
-              title: 'إدارة المستخدمين',
-              subtitle: 'إضافة/تعديل/تعطيل المستخدمين',
-              onTap: () => _push(context, const UserManagementPage()),
-            ),
-  
-
           const Divider(height: 28),
-
           _header(context, 'الحساب'),
           _tile(
             context,
@@ -144,7 +142,6 @@ class SettingsPage extends StatelessWidget {
           ),
 
           const Divider(height: 28),
-
           _header(context, 'المظهر'),
           BlocBuilder<ThemeBloc, ThemeState>(
             builder: (context, themeState) {
@@ -156,9 +153,11 @@ class SettingsPage extends StatelessWidget {
                 subtitle: isDark ? 'مفعّل' : 'غير مفعّل',
                 trailing: Switch(
                   value: isDark,
-                  onChanged: (_) => context.read<ThemeBloc>().add(ThemeToggled()),
+                  onChanged: (_) =>
+                      context.read<ThemeBloc>().add(ThemeToggled()),
                 ),
-                onTap: () => context.read<ThemeBloc>().add(ThemeToggled()),
+                onTap: () =>
+                    context.read<ThemeBloc>().add(ThemeToggled()),
               );
             },
           ),
@@ -168,6 +167,8 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+
+  // ───────────────── helpers ─────────────────
 
   Widget _header(BuildContext context, String title) {
     return Padding(
@@ -201,13 +202,15 @@ class SettingsPage extends StatelessWidget {
   }
 
   Future<void> _push(BuildContext context, Widget page) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
     if (!context.mounted) return;
     context.read<DashboardBloc>().add(DashboardRequested());
   }
 
   void _logout(BuildContext context) {
-    // ✅ لا تعتمد على pop فقط
     context.read<AuthBloc>().add(LogoutRequested());
   }
 }

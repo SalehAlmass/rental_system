@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/StatCard.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
+import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
 
 class DashboardHome extends StatelessWidget {
   final bool isAdmin;
@@ -82,6 +83,18 @@ class DashboardHome extends StatelessWidget {
 	                    );
 	                  },
 	                ),
+
+                const SizedBox(height: 24),
+
+                Text(
+                  'آخر 10 عقود',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (state.recentRents.isEmpty)
+                  const Text('لا توجد عقود لعرضها')
+                else
+                  ...state.recentRents.map((r) => _RentCard(rent: r)).toList(),
 	              ],
 	            ),
 	          ),
@@ -133,6 +146,41 @@ class DashboardHome extends StatelessWidget {
             icon: const Icon(Icons.refresh, color: Colors.white),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RentCard extends StatelessWidget {
+  const _RentCard({required this.rent});
+  final dynamic rent;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (rent.status ?? '').toString();
+    final statusLabel = status == 'closed'
+        ? 'مغلق'
+        : status == 'cancelled'
+            ? 'ملغي'
+            : 'مفتوح';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        leading: CircleAvatar(
+          child: Text('#${rent.id}'),
+        ),
+        title: Text('${rent.clientName ?? rent.clientId} • ${rent.equipmentName ?? rent.equipmentId}'),
+        subtitle: Text('الحالة: $statusLabel   |   البداية: ${rent.startDatetime ?? '-'}'),
+        trailing: Text('${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.س'),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: rent.id)),
+          );
+        },
       ),
     );
   }

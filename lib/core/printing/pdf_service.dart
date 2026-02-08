@@ -182,7 +182,7 @@ class PdfService {
 
   final totalPaid = payments
       .where(
-        (p) => (p.type ?? '').toLowerCase() == 'in' && (p.isVoid ?? 0) == 0,
+        (p) => (p.type ?? '').toLowerCase() == 'in' && !p.isVoid,
       )
       .fold<double>(0, (a, p) => a + (p.amount ?? 0));
 

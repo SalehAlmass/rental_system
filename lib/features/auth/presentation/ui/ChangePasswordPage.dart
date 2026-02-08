@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 
 class ChangePasswordPage extends StatefulWidget {
@@ -26,6 +27,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: CustomAppBar(
+        title: 'تغيير كلمة المرور',
+        onIconPressed: () => Navigator.pop(context),
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

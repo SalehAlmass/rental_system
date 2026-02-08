@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import 'package:rental_app/features/dashboard/domain/entities/models.dart';
+import 'package:rental_app/features/rents/domain/entities/models.dart';
 
 part 'dashboard_event.dart';
 part 'dashboard_state.dart';
@@ -17,7 +18,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     emit(state.copyWith(status: DashboardStatus.loading));
     try {
       final stats = await _repo.fetchStats();
-      emit(state.copyWith(status: DashboardStatus.success, stats: stats));
+      final recent = await _repo.fetchRecentRents(limit: 10);
+      emit(state.copyWith(
+        status: DashboardStatus.success,
+        stats: stats,
+        recentRents: recent,
+      ));
     } catch (e) {
       emit(state.copyWith(status: DashboardStatus.failure, error: e.toString()));
     }

@@ -294,7 +294,7 @@ class DashboardPageState extends State<DashboardPage> {
       case DashboardTab.rents:
         return const RentsPage();
       case DashboardTab.settings:
-        return const SettingsPage();
+        return SettingsPage(isAdmin: isAdmin);
       // case DashboardTab.about:
       //   return const AboutPage();
       // case DashboardTab.users:

@@ -18,9 +18,9 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
   final RentsRepository _repo;
 
   Future<void> _onRequested(RentsRequested event, Emitter<RentsState> emit) async {
-    emit(state.copyWith(status: RentsStatus.loading, error: null));
+    emit(state.copyWith(status: RentsStatus.loading, error: null, filterStatus: event.status));
     try {
-      final items = await _repo.list();
+      final items = await _repo.list(status: event.status);
       emit(state.copyWith(status: RentsStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(status: RentsStatus.failure, error: e.toString()));
@@ -37,7 +37,7 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         hourlyRate: event.hourlyRate,
         notes: event.notes,
       );
-      final items = await _repo.list();
+      final items = await _repo.list(status: state.filterStatus);
       emit(state.copyWith(working: false, status: RentsStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));
@@ -48,7 +48,7 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.closeRent(rentId: event.rentId, endDatetime: event.endDatetime);
-      final items = await _repo.list();
+      final items = await _repo.list(status: state.filterStatus);
       emit(state.copyWith(working: false, status: RentsStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));
@@ -59,7 +59,7 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.cancelRent(rentId: event.rentId, reason: event.reason);
-      final items = await _repo.list();
+      final items = await _repo.list(status: state.filterStatus);
       emit(state.copyWith(working: false, status: RentsStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));
@@ -70,7 +70,7 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.updateNotes(rentId: event.rentId, notes: event.notes);
-      final items = await _repo.list();
+      final items = await _repo.list(status: state.filterStatus);
       emit(state.copyWith(working: false, status: RentsStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));

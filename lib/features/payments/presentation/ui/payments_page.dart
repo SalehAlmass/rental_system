@@ -3,58 +3,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/core/widgets/page_entrance.dart';
+
 import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
 import 'package:rental_app/features/payments/domain/entities/models.dart';
 import 'package:rental_app/features/payments/presentation/bloc/payments_bloc.dart';
+import 'package:rental_app/features/payments/presentation/ui/payment_details_page.dart';
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
-import 'package:rental_app/features/payments/presentation/ui/payment_details_page.dart';
-import 'package:rental_app/core/widgets/page_entrance.dart';
 
-// Import validation functions
-String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
-  if (isRequired && (value == null || value.isEmpty)) {
-    return 'الرجاء إدخال قيمة';
-  }
-  
-  if (value != null && value.isNotEmpty) {
-    if (isNumber && !RegExp(r'^\\d+(\\.\\d+)?$').hasMatch(value)) {
-      return 'الرجاء إدخال أرقام فقط';
-    }
-    
-    if (!isNumber && RegExp(r'^\\d+$').hasMatch(value)) {
-      return 'الحقل لا يمكن أن يكون أرقام فقط';
-    }
-    
-    if (minLength > 0 && value.length < minLength) {
-      return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
-    }
-  }
-  
-  return null;
-}
+/* -------------------- VALIDATION -------------------- */
 
 String? validateAmount(String? value) {
-  if (value == null || value.isEmpty) {
-    return 'الرجاء إدخال المبلغ';
-  }
-  
-  final numValue = double.tryParse(value);
-  if (numValue == null || numValue <= 0) {
-    return 'الرجاء إدخال مبلغ صحيح';
-  }
-  
+  if (value == null || value.trim().isEmpty) return 'الرجاء إدخال المبلغ';
+  final v = double.tryParse(value.trim());
+  if (v == null || v <= 0) return 'الرجاء إدخال مبلغ صحيح';
   return null;
-}
-
-String? validateReference(String? value) {
-  return validateField(value, isNumber: false, isRequired: false);
-}
-
-String? validateNotes(String? value) {
-  return validateField(value, isNumber: false, isRequired: false);
 }
 
 /* -------------------- PAGE -------------------- */
@@ -66,23 +32,13 @@ class PaymentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider(
-          create: (_) => PaymentsRepository(context.read<ApiClient>()),
-        ),
-        RepositoryProvider(
-          create: (_) => ClientsRepository(context.read<ApiClient>()),
-        ),
-        RepositoryProvider(
-          create: (_) => RentsRepository(context.read<ApiClient>()),
-        ),
+        RepositoryProvider(create: (_) => PaymentsRepository(context.read<ApiClient>())),
+        RepositoryProvider(create: (_) => ClientsRepository(context.read<ApiClient>())),
+        RepositoryProvider(create: (_) => RentsRepository(context.read<ApiClient>())),
       ],
       child: BlocProvider(
-        create: (context) =>
-            PaymentsBloc(context.read<PaymentsRepository>())
-              ..add(const PaymentsRequested()),
-        child: _PaymentsView(
-          showBackButton: Navigator.canPop(context),
-        ),
+        create: (context) => PaymentsBloc(context.read<PaymentsRepository>())..add(const PaymentsRequested()),
+        child: _PaymentsView(showBackButton: Navigator.canPop(context)),
       ),
     );
   }
@@ -91,76 +47,68 @@ class PaymentsPage extends StatelessWidget {
 /* -------------------- VIEW -------------------- */
 
 class _PaymentsView extends StatelessWidget {
-  const _PaymentsView({this.showBackButton = true});
-
+  const _PaymentsView({required this.showBackButton});
   final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(title: 'السندات',
-       onIconPressed: showBackButton ? () {
-          Navigator.pop(context);
-        } : null,
-              
-       actions: [
-         BlocBuilder<PaymentsBloc, PaymentsState>(
-            builder: (context, state) {
-              return IconButton(
-                tooltip: state.showVoided ? 'إخفاء الملغية' : 'إظهار الملغية',
-                icon: Icon(
-                  state.showVoided
-                      ? Icons.visibility
-                      : Icons.visibility_off,
-                ),
-                color: Colors.white,
-                onPressed: () {
-                  context.read<PaymentsBloc>().add(
-                        PaymentsRequested(showVoided: !state.showVoided),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight + 48),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomAppBar(
+                title: 'السندات',
+                onIconPressed: showBackButton ? () => Navigator.pop(context) : null,
+                actions: [
+                  BlocBuilder<PaymentsBloc, PaymentsState>(
+                    builder: (context, state) {
+                      return IconButton(
+                        tooltip: state.showVoided ? 'إخفاء الملغية' : 'إظهار الملغية',
+                        icon: Icon(state.showVoided ? Icons.visibility : Icons.visibility_off),
+                        color: Colors.white,
+                        onPressed: () {
+                          context.read<PaymentsBloc>().add(PaymentsRequested(showVoided: !state.showVoided));
+                        },
                       );
-                },
-              );
-            },
-          ),],
-          ),         
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'payments_fab', // Unique hero tag to avoid conflicts
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة سند'),
-        onPressed: () => _openDialog(context),
-      ),
-      body: PageEntrance(
-        child: BlocConsumer<PaymentsBloc, PaymentsState>(
-        listener: (context, state) {
-          if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error!)),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state.status == PaymentsStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state.items.isEmpty) {
-            return const Center(child: Text('لا توجد سندات'));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: state.items.length,
-            itemBuilder: (context, index) {
-              return _PaymentCard(payment: state.items[index]);
-            },
-          );
-        },
+                    },
+                  ),
+                ],
+              ),
+              Material(
+                color: Theme.of(context).colorScheme.primary,
+                child: const TabBar(
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  tabs: [
+                    Tab(text: 'سندات العقود'),
+                    Tab(text: 'سندات عامة'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'payments_fab',
+          icon: const Icon(Icons.add),
+          label: const Text('إضافة سند'),
+          onPressed: () => _openDialog(context),
+        ),
+        body: PageEntrance(
+          child: TabBarView(
+            children: [
+              _PaymentsList(scope: _PaymentsScope.rent, onEdit: (p) => _openDialog(context, edit: p)),
+              _PaymentsList(scope: _PaymentsScope.general, onEdit: (p) => _openDialog(context, edit: p)),
+            ],
+          ),
         ),
       ),
     );
   }
-
-  /* -------------------- HELPERS -------------------- */
 
   Future<void> _openDialog(BuildContext context, {Payment? edit}) async {
     final ok = await showDialog<bool>(
@@ -177,9 +125,7 @@ class _PaymentsView extends StatelessWidget {
 
     if (ok == true && context.mounted) {
       context.read<PaymentsBloc>().add(
-            PaymentsRequested(
-              showVoided: context.read<PaymentsBloc>().state.showVoided,
-            ),
+            PaymentsRequested(showVoided: context.read<PaymentsBloc>().state.showVoided),
           );
     }
   }
@@ -191,10 +137,7 @@ class _PaymentsView extends StatelessWidget {
         title: const Text('تأكيد الإلغاء'),
         content: Text('هل تريد إلغاء السند رقم #${p.id}؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('تراجع')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -210,40 +153,75 @@ class _PaymentsView extends StatelessWidget {
   }
 }
 
-/* -------------------- CARD -------------------- */
+/* -------------------- LIST -------------------- */
 
-class _PaymentCard extends StatelessWidget {
-  const _PaymentCard({required this.payment});
+enum _PaymentsScope { rent, general }
 
-  final Payment payment;
+class _PaymentsList extends StatelessWidget {
+  const _PaymentsList({required this.scope, required this.onEdit});
+
+  final _PaymentsScope scope;
+  final void Function(Payment p) onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final isIn = payment.type == 'in';
+    return BlocConsumer<PaymentsBloc, PaymentsState>(
+      listener: (context, state) {
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!)));
+        }
+      },
+      builder: (context, state) {
+        if (state.status == PaymentsStatus.loading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final items = state.items.where((p) {
+          final hasRent = (p.rentId != null) && (p.rentId != 0);
+          return scope == _PaymentsScope.rent ? hasRent : !hasRent;
+        }).toList();
+
+        if (items.isEmpty) {
+          return Center(child: Text(scope == _PaymentsScope.rent ? 'لا توجد سندات عقود' : 'لا توجد سندات عامة'));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: items.length,
+          itemBuilder: (context, index) => _PaymentCard(payment: items[index], onEdit: onEdit),
+        );
+      },
+    );
+  }
+}
+
+/* -------------------- CARD -------------------- */
+
+class _PaymentCard extends StatelessWidget {
+  const _PaymentCard({required this.payment, required this.onEdit});
+  final Payment payment;
+  final void Function(Payment p) onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final isIn = (payment.type ?? '').toLowerCase() == 'in';
+    final isVoided = payment.isVoid;
 
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        onTap: () {
-          // Navigate to payment details page
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentDetailsPage(payment: payment),
-            ),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PaymentDetailsPage(payment: payment)),
+        ),
         leading: CircleAvatar(
           backgroundColor: isIn ? Colors.green : Colors.red,
-          child: Icon(
-            isIn ? Icons.arrow_downward : Icons.arrow_upward,
-            color: Colors.white,
-          ),
+          child: Icon(isIn ? Icons.arrow_downward : Icons.arrow_upward, color: Colors.white),
         ),
         title: Text(
-          '#${payment.id} • ${payment.amount.toStringAsFixed(0)} ر.س',
+          '#${payment.id} • ${(payment.amount ?? 0).toStringAsFixed(0)} ر.س',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Padding(
@@ -251,17 +229,15 @@ class _PaymentCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(isIn ? 'دخل' : 'صرف'),
+              Text(isIn ? 'قبض' : 'صرف'),
               Text('العميل: ${payment.clientName ?? '-'}'),
               Text('العقد: ${payment.rentNo ?? '-'}'),
+              if (!isVoided && isIn && (payment.rentId ?? 0) != 0) const Text('الحالة: مسدد', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
         ),
-        trailing: payment.isVoid
-            ? const Chip(
-                label: Text('ملغي'),
-                backgroundColor: Colors.grey,
-              )
+        trailing: isVoided
+            ? const Chip(label: Text('ملغي'), backgroundColor: Colors.grey)
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -273,9 +249,7 @@ class _PaymentCard extends StatelessWidget {
                         await PdfService().printPaymentVoucher(payment: payment);
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('فشل الطباعة: $e')),
-                          );
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
                         }
                       }
                     },
@@ -288,9 +262,7 @@ class _PaymentCard extends StatelessWidget {
                         await PdfService().sharePaymentVoucher(payment: payment);
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('فشل المشاركة: $e')),
-                          );
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل المشاركة: $e')));
                         }
                       }
                     },
@@ -298,21 +270,14 @@ class _PaymentCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'تعديل',
                     icon: const Icon(Icons.edit),
-                    color: Theme.of(context).colorScheme.primary,
-                    onPressed: () {
-                      context
-                          .findAncestorWidgetOfExactType<_PaymentsView>()!
-                          ._openDialog(context, edit: payment);
-                    },
+                    onPressed: () => onEdit(payment),
                   ),
                   IconButton(
                     tooltip: 'إلغاء السند',
                     icon: const Icon(Icons.block),
                     color: Colors.red,
                     onPressed: () {
-                      context
-                          .findAncestorWidgetOfExactType<_PaymentsView>()!
-                          ._confirmVoid(context, payment);
+                      context.findAncestorWidgetOfExactType<_PaymentsView>()!._confirmVoid(context, payment);
                     },
                   ),
                 ],
@@ -322,7 +287,7 @@ class _PaymentCard extends StatelessWidget {
   }
 }
 
-/* -------------------- DIALOG (كما هو تقريبًا) -------------------- */
+/* -------------------- DIALOG -------------------- */
 
 class _PaymentDialog extends StatefulWidget {
   const _PaymentDialog({
@@ -344,6 +309,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   final _ref = TextEditingController();
   final _notes = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   String _type = 'in';
   String _method = 'cash';
   int? _clientId;
@@ -361,10 +327,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     super.initState();
     final p = widget.edit;
     if (p != null) {
-      _amount.text = p.amount.toString();
+      _amount.text = (p.amount ?? 0).toString();
       _ref.text = p.referenceNo ?? '';
       _notes.text = p.notes ?? '';
-      _type = p.type;
+      _type = p.type ?? 'in';
       _method = p.method ?? 'cash';
       _clientId = p.clientId;
       _rentId = p.rentId;
@@ -380,7 +346,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       _clients = c;
       _rents = r;
       _clientId ??= _clients.isNotEmpty ? _clients.first.id : null;
-      _rentId ??= null; // اختياري
+      _rentId ??= null;
       _loading = false;
     });
   }
@@ -411,23 +377,26 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                         value: _type,
                         decoration: const InputDecoration(labelText: 'النوع'),
                         items: const [
-                          DropdownMenuItem(value: 'in', child: Text('دخل')),
+                          DropdownMenuItem(value: 'in', child: Text('قبض')),
                           DropdownMenuItem(value: 'out', child: Text('صرف')),
                         ],
                         onChanged: (v) => setState(() => _type = v ?? 'in'),
                       ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _amount,
                       validator: validateAmount,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'المبلغ', border: OutlineInputBorder()),
                     ),
+                    const SizedBox(height: 10),
                     DropdownButtonFormField<int>(
                       value: _clientId,
                       decoration: const InputDecoration(labelText: 'العميل (اختياري)'),
                       items: _clients.map((c) => DropdownMenuItem(value: c.id, child: Text('${c.id} - ${c.name}'))).toList(),
                       onChanged: (v) => setState(() => _clientId = v),
                     ),
+                    const SizedBox(height: 10),
                     DropdownButtonFormField<int?>(
                       value: _rentId,
                       decoration: const InputDecoration(labelText: 'العقد (اختياري)'),
@@ -437,6 +406,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       ],
                       onChanged: (v) => setState(() => _rentId = v),
                     ),
+                    const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       value: _method,
                       decoration: const InputDecoration(labelText: 'طريقة الدفع'),
@@ -447,15 +417,15 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       ],
                       onChanged: (v) => setState(() => _method = v ?? 'cash'),
                     ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _ref,
-                      validator: validateReference,
-                      decoration: const InputDecoration(labelText: 'رقم مرجعي', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'رقم مرجعي (اختياري)', border: OutlineInputBorder()),
                     ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _notes,
-                      validator: validateNotes,
-                      decoration: const InputDecoration(labelText: 'ملاحظات', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)', border: OutlineInputBorder()),
                     ),
                   ],
                 ),
@@ -481,39 +451,41 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               onPressed: disabled
                   ? null
                   : () {
-                      if (_formKey.currentState!.validate()) {
-                        final amt = double.tryParse(_amount.text.trim()) ?? 0;
-                        setState(() => _localSubmitting = true);
+                      if (!_formKey.currentState!.validate()) return;
 
-                        _submitted = true;
-                        if (editing) {
-                          context.read<PaymentsBloc>().add(
-                                PaymentUpdated(
-                                  id: widget.edit!.id,
-                                  amount: amt,
-                                  clientId: _clientId,
-                                  rentId: _rentId,
-                                  method: _method,
-                                  referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
-                                  notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-                                ),
-                              );
-                        } else {
-                          context.read<PaymentsBloc>().add(
-                                PaymentCreated(
-                                  type: _type,
-                                  amount: amt,
-                                  clientId: _clientId,
-                                  rentId: _rentId,
-                                  method: _method,
-                                  referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
-                                  notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-                                ),
-                              );
-                        }
+                      final amt = double.tryParse(_amount.text.trim()) ?? 0;
+                      setState(() => _localSubmitting = true);
+                      _submitted = true;
+
+                      if (editing) {
+                        context.read<PaymentsBloc>().add(
+                              PaymentUpdated(
+                                id: widget.edit!.id,
+                                amount: amt,
+                                clientId: _clientId,
+                                rentId: _rentId,
+                                method: _method,
+                                referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
+                                notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+                              ),
+                            );
+                      } else {
+                        context.read<PaymentsBloc>().add(
+                              PaymentCreated(
+                                type: _type,
+                                amount: amt,
+                                clientId: _clientId,
+                                rentId: _rentId,
+                                method: _method,
+                                referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
+                                notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+                              ),
+                            );
                       }
                     },
-              child: disabled ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('حفظ'),
+              child: disabled
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('حفظ'),
             );
           },
         ),
