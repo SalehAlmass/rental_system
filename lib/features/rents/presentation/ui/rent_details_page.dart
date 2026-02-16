@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:dio/dio.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../payments/data/repositories/payments_repository_impl.dart';
@@ -50,7 +49,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   /// ✅ Endpoint: GET rents/{id}/financials
-  /// يرجع rent + total/paid/remaining/is_fully_paid
+  /// يرجع: {success:true, data:{ rent, total_amount, paid_amount, remaining_amount, is_paid, paid_at }}
   Future<void> _fetchFinancials() async {
     final res = await _api.dio.get('rents/${widget.rentId}/financials');
 
@@ -77,13 +76,13 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
     final total = numToDouble(raw['total_amount']);
     final paid = numToDouble(raw['paid_amount']);
-    final remaining = numToDouble(raw['remaining']);
-    final isFullyPaidServer = (raw['is_fully_paid'] == true);
+    final remaining = numToDouble(raw['remaining_amount'] ?? raw['remaining']);
+    final isPaidServer = (raw['is_paid'] == true) || (raw['is_fully_paid'] == true);
 
     // ✅ أهم سطر: لا تسمح يظهر FullyPaid إذا العقد OPEN حتى لو السيرفر غلط
     final status = (rent.status ?? '').toLowerCase();
     final isOpen = status == 'open';
-    final fullyPaidSafe = isOpen ? false : isFullyPaidServer;
+    final fullyPaidSafe = isOpen ? false : isPaidServer;
 
     setState(() {
       _rent = rent;
@@ -152,6 +151,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         // اسمح بالدفع بدون سقف إذا total/remaining غير منطقي
         unlimitedWhenOpen: isOpen && (_total <= 0.0001),
         onPay: (amount, method, notes) async {
+          final idemKey = 'rent_${rent.id}_${DateTime.now().microsecondsSinceEpoch}';
           await _paymentsRepo.create(
             type: 'in',
             amount: amount,
@@ -159,6 +159,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
             rentId: rent.id,
             method: method,
             notes: notes,
+            idempotencyKey: idemKey,
           );
         },
       ),
@@ -194,9 +195,9 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                           _kv('بداية', rent.startDatetime ?? '-'),
                           _kv('نهاية', rent.endDatetime ?? '-'),
                           const Divider(height: 18),
-                          _kv('الإجمالي', '${_total.toStringAsFixed(2)} ر.س'),
-                          _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.س'),
-                          _kv('المتبقي', '${_remaining.toStringAsFixed(2)} ر.س'),
+	                          _kv('الإجمالي', isOpen && _total <= 0.0001 ? 'غير نهائي (العقد جاري)' : '${_total.toStringAsFixed(2)} ر.س'),
+	                          _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.س'),
+	                          _kv('المتبقي', isOpen && _total <= 0.0001 ? '-' : '${_remaining.toStringAsFixed(2)} ر.س'),
                         ],
                       ),
                     ),

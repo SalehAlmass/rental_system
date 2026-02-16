@@ -43,6 +43,7 @@ class PaymentsRepository {
     String method = 'cash',
     String? referenceNo,
     String? notes,
+    String? idempotencyKey,
   }) async {
     try {
       final res = await _api.dio.post('payments', data: {
@@ -53,6 +54,8 @@ class PaymentsRepository {
         'method': method,
         'reference_no': referenceNo,
         'notes': notes,
+        if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+          'idempotency_key': idempotencyKey,
       });
       final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : {};
       final rawId = data['id'];

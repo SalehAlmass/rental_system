@@ -18,6 +18,8 @@ import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
+import 'package:rental_app/features/hr/presentation/ui/attendance_page.dart';
+import 'package:rental_app/features/hr/presentation/ui/payroll_page.dart';
 
 import 'package:rental_app/theme/theme_bloc.dart';
 
@@ -69,6 +71,14 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _push(context, const PaymentsPage()),
           ),
 
+          _tile(
+            context,
+            icon: Icons.fingerprint,
+            title: 'الحضور والانصراف',
+            subtitle: 'بصمة دخول/خروج + ساعات الدوام',
+            onTap: () => _push(context, const AttendancePage()),
+          ),
+
           // ───── عناصر الأدمن فقط ─────
           if (isAdmin) ...[
             const Divider(height: 28),
@@ -86,6 +96,13 @@ class SettingsPage extends StatelessWidget {
               title: 'إغلاق الدوام',
               subtitle: 'إدارة شفتات الموظفين',
               onTap: () => _push(context, const ShiftsPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.account_balance_wallet,
+              title: 'الرواتب',
+              subtitle: 'حساب ساعات ورواتب الموظفين',
+              onTap: () => _push(context, const PayrollPage()),
             ),
             _tile(
               context,
