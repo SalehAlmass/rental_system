@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-
 import '../../../core/network/api_client.dart';
 
 class AttendanceLog {
@@ -19,14 +18,16 @@ class AttendanceLog {
     this.note,
   });
 
-  factory AttendanceLog.fromJson(Map<String, dynamic> j) => AttendanceLog(
-        id: (j['id'] as num).toInt(),
-        userId: (j['user_id'] as num).toInt(),
-        type: (j['type'] ?? '').toString(),
-        ts: DateTime.tryParse((j['ts'] ?? '').toString()) ?? DateTime.now(),
-        method: j['method']?.toString(),
-        note: j['note']?.toString(),
-      );
+  factory AttendanceLog.fromJson(Map<String, dynamic> json) {
+    return AttendanceLog(
+      id: int.tryParse('${json['id']}') ?? 0,
+      userId: int.tryParse('${json['user_id']}') ?? 0,
+      type: json['type']?.toString() ?? '',
+      ts: DateTime.tryParse(json['ts']?.toString() ?? '') ?? DateTime.now(),
+      method: json['method']?.toString(),
+      note: json['note']?.toString(),
+    );
+  }
 }
 
 class AttendanceMe {
@@ -34,7 +35,11 @@ class AttendanceMe {
   final double workedHours;
   final List<AttendanceLog> logs;
 
-  AttendanceMe({required this.inDuty, required this.workedHours, required this.logs});
+  AttendanceMe({
+    required this.inDuty,
+    required this.workedHours,
+    required this.logs,
+  });
 }
 
 class PayrollItem {
@@ -58,16 +63,24 @@ class PayrollItem {
     this.monthlySalary,
   });
 
-  factory PayrollItem.fromJson(Map<String, dynamic> j) => PayrollItem(
-        userId: (j['user_id'] as num).toInt(),
-        username: (j['username'] ?? '').toString(),
-        role: (j['role'] ?? '').toString(),
-        workedHours: (j['worked_hours'] is num) ? (j['worked_hours'] as num).toDouble() : double.tryParse('${j['worked_hours']}') ?? 0,
-        amount: (j['amount'] is num) ? (j['amount'] as num).toDouble() : double.tryParse('${j['amount']}') ?? 0,
-        salaryType: j['salary_type']?.toString(),
-        hourlyRate: (j['hourly_rate'] is num) ? (j['hourly_rate'] as num).toDouble() : double.tryParse('${j['hourly_rate']}'),
-        monthlySalary: (j['monthly_salary'] is num) ? (j['monthly_salary'] as num).toDouble() : double.tryParse('${j['monthly_salary']}'),
-      );
+  factory PayrollItem.fromJson(Map<String, dynamic> json) {
+    double? parseDouble(dynamic val) {
+      if (val == null) return null;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString());
+    }
+
+    return PayrollItem(
+      userId: int.tryParse('${json['user_id']}') ?? 0,
+      username: json['username']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
+      workedHours: parseDouble(json['worked_hours']) ?? 0.0,
+      amount: parseDouble(json['amount']) ?? 0.0,
+      salaryType: json['salary_type']?.toString(),
+      hourlyRate: parseDouble(json['hourly_rate']),
+      monthlySalary: parseDouble(json['monthly_salary']),
+    );
+  }
 }
 
 class HrMe {
@@ -77,25 +90,25 @@ class HrMe {
 
   HrMe({this.userId, this.username, this.role});
 
-  factory HrMe.fromJson(Map<String, dynamic> j) => HrMe(
-        userId: j['user_id'] is num ? (j['user_id'] as num).toInt() : int.tryParse('${j['user_id']}'),
-        username: j['username']?.toString(),
-        role: j['role']?.toString(),
-      );
+  factory HrMe.fromJson(Map<String, dynamic> json) {
+    return HrMe(
+      userId: json['user_id'] is num
+          ? (json['user_id'] as num).toInt()
+          : int.tryParse('${json['user_id']}'),
+      username: json['username']?.toString(),
+      role: json['role']?.toString(),
+    );
+  }
 }
 
-// ملاحظة: لا تضع هنا دوال top-level تعتمد على متغيرات غير موجودة.
-// تم نقل me() داخل HrRepository.
-
 class HrRepository {
-  HrRepository(this._api);
-
   final ApiClient _api;
+
+  HrRepository(this._api);
 
   Dio get _dio => _api.dio;
 
-  /// ✅ مصدر الحقيقة لصلاحيات المستخدم من السيرفر.
-  /// في هذا المشروع يوجد endpoint جاهز: GET auth/profile
+  /// جلب بيانات المستخدم الحالي من السيرفر
   Future<HrMe> me() async {
     final res = await _dio.get('auth/profile');
     dynamic raw = res.data;
@@ -112,38 +125,56 @@ class HrRepository {
     return HrMe.fromJson(mapped);
   }
 
+  /// جلب بيانات الحضور والانصراف الخاصة بالمستخدم الحالي
   Future<AttendanceMe> getMyAttendance({DateTime? from, DateTime? to}) async {
-    final q = <String, dynamic>{};
-    if (from != null) q['from'] = from.toIso8601String().substring(0, 10);
-    if (to != null) q['to'] = to.toIso8601String().substring(0, 10);
-    final res = await _dio.get('attendance/me', queryParameters: q);
+    final query = <String, dynamic>{};
+    if (from != null) query['from'] = from.toIso8601String().substring(0, 10);
+    if (to != null) query['to'] = to.toIso8601String().substring(0, 10);
+
+    final res = await _dio.get('attendance/me', queryParameters: query);
     final raw = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    final logs = (raw['logs'] as List? ?? []).whereType<Map>().map((e) => AttendanceLog.fromJson(e.cast<String, dynamic>())).toList();
+
+    final logs = (raw['logs'] as List? ?? [])
+        .whereType<Map>()
+        .map((e) => AttendanceLog.fromJson(e.cast<String, dynamic>()))
+        .toList();
+
+    double parseWorkedHours(dynamic val) {
+      if (val is num) return val.toDouble();
+      return double.tryParse('$val') ?? 0.0;
+    }
+
     return AttendanceMe(
       inDuty: raw['in_duty'] == true,
-      workedHours: (raw['worked_hours'] is num) ? (raw['worked_hours'] as num).toDouble() : double.tryParse('${raw['worked_hours']}') ?? 0,
+      workedHours: parseWorkedHours(raw['worked_hours']),
       logs: logs,
     );
   }
 
+  /// تسجيل حضور (Check In)
   Future<void> checkIn({required String method}) async {
     await _dio.post('attendance/checkin', data: {'method': method});
   }
 
+  /// تسجيل انصراف (Check Out)
   Future<void> checkOut({required String method}) async {
     await _dio.post('attendance/checkout', data: {'method': method});
   }
 
+  /// ملخص الرواتب الشهري
   Future<List<PayrollItem>> payrollSummary({required String month}) async {
     final res = await _dio.get('payroll/summary', queryParameters: {'month': month});
     final raw = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+
     final items = (raw['items'] as List? ?? [])
         .whereType<Map>()
         .map((e) => PayrollItem.fromJson(e.cast<String, dynamic>()))
         .toList();
+
     return items;
   }
 
+  /// تحديث إعدادات الرواتب لمستخدم محدد
   Future<void> updatePayrollSettings({
     required int userId,
     String? salaryType,
