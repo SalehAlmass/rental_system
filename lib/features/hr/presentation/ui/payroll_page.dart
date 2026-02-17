@@ -110,10 +110,11 @@ class _PayrollPageState extends State<PayrollPage> {
                                     leading: const Icon(Icons.person),
                                     title: Text(it.username),
                                     subtitle: Text(
-                                      'ساعات: ${it.workedHours.toStringAsFixed(2)} • نوع: ${it.salaryType ?? '-'}',
+                                      'ساعات: ${it.workedHours.toStringAsFixed(2)} • غياب: ${it.absentDays ?? 0} • تأخير: ${it.lateMinutes ?? 0}د\n'
+                                      'خصومات: ${(it.deductions ?? 0).toStringAsFixed(2)} • نوع: ${it.salaryType ?? '-'}',
                                     ),
                                     trailing: Text(
-                                      '${it.amount.toStringAsFixed(2)} ر.س',
+                                      '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.س',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onTap: () => _openEdit(it),
