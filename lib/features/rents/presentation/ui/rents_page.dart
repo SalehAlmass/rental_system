@@ -84,21 +84,31 @@ class _RentsViewState extends State<_RentsView> {
   }
 
   Future<void> _fetchCollectionAgenda() async {
+    // نتحقق من وجود الـ endpoint أولاً
     setState(() => _loadingAgenda = true);
     try {
       final api = context.read<ApiClient>();
       final res = await api.dio.get('rents/collection-agenda', queryParameters: {'sort': _collectionSort});
+      
+      if (!mounted) return;
+      
       dynamic raw = res.data;
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['agenda'] ?? [];
       if (raw is! List) raw = [];
       final items = raw.whereType<Map>().map((e) => _CollectionAgendaItem.fromJson(e.cast<String, dynamic>())).toList();
+      
       if (!mounted) return;
-      setState(() => _agendaItems = items);
-    } catch (_) {
+      setState(() {
+        _agendaItems = items;
+        _loadingAgenda = false;
+      });
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _agendaItems = const []);
-    } finally {
-      if (mounted) setState(() => _loadingAgenda = false);
+      // الـ endpoint غير موجود - نعرض رسالة فارغة
+      setState(() {
+        _agendaItems = const [];
+        _loadingAgenda = false;
+      });
     }
   }
 
@@ -351,6 +361,7 @@ class _RentsViewState extends State<_RentsView> {
                     height: 108,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
                       children: [
                         _StatCard(
                           title: 'كل العقود',
@@ -898,7 +909,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       width: 160,
       margin: const EdgeInsetsDirectional.only(end: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: tone.withOpacity(0.09),
         borderRadius: BorderRadius.circular(22),
@@ -906,23 +917,42 @@ class _StatCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: tone),
-          const Spacer(),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: tone,
+          Icon(icon, color: tone, size: 22),
+          const SizedBox(height: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: tone,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(title, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 2),
+          Flexible(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: tone),
+            const SizedBox(height: 2),
+            Flexible(
+              child: Text(
+                subtitle!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: tone,
+                  fontSize: 10,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ],

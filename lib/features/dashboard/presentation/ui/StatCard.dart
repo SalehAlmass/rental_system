@@ -36,6 +36,7 @@ class StatCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
+            constraints: const BoxConstraints(minHeight: 120),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: tone.withOpacity(0.10),
@@ -51,6 +52,7 @@ class StatCard extends StatelessWidget {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
@@ -84,35 +86,45 @@ class StatCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                SizedBox(height: compact ? 18 : 24),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: tone,
-                    fontSize: compact ? 20 : 24,
-                    fontWeight: FontWeight.bold,
+                SizedBox(height: compact ? 14 : 18),
+                Flexible(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: compact ? 20 : 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: tone,
-                    fontSize: compact ? 14 : 16,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 4),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: compact ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(
-                      color: tone.withOpacity(0.85),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: tone.withOpacity(0.85),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],
