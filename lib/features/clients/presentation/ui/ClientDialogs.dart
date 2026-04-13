@@ -4,25 +4,30 @@ import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart';
 
 // Global validation functions that can be reused across the app
-String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
+String? validateField(
+  String? value, {
+  bool isNumber = false,
+  bool isRequired = true,
+  int minLength = 0,
+}) {
   if (isRequired && (value == null || value.isEmpty)) {
     return 'الرجاء إدخال قيمة';
   }
-  
+
   if (value != null && value.isNotEmpty) {
     if (isNumber && !RegExp(r'^\d+$').hasMatch(value)) {
       return 'الرجاء إدخال أرقام فقط';
     }
-    
+
     if (!isNumber && RegExp(r'^\d+$').hasMatch(value)) {
       return 'الحقل لا يمكن أن يكون أرقام فقط';
     }
-    
+
     if (minLength > 0 && value.length < minLength) {
       return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
     }
   }
-  
+
   return null;
 }
 
@@ -34,15 +39,15 @@ String? validatePhone(String? value) {
   if (value == null || value.isEmpty) {
     return 'الرجاء إدخال رقم الجوال';
   }
-  
+
   if (!RegExp(r'^\d+$').hasMatch(value)) {
     return 'الرجاء إدخال أرقام فقط';
   }
-  
-  if (value.length < 10) {
-    return 'رقم الجوال يجب أن يكون 10 أرقام على الأقل';
+
+  if (value.length != 9) {
+    return 'رقم الجوال يجب أن يكون 9 أرقام';
   }
-  
+
   return null;
 }
 
@@ -50,21 +55,22 @@ String? validateNationalId(String? value) {
   if (value == null || value.isEmpty) {
     return 'الرجاء إدخال رقم الهوية';
   }
-  
+
   if (!RegExp(r'^\d+$').hasMatch(value)) {
     return 'الرجاء إدخال أرقام فقط';
   }
-  
-  if (value.length != 10) {
-    return 'رقم الهوية يجب أن يتكون من 10 أرقام';
+
+  if (value.length < 9) {
+    return 'رقم الهوية يجب أن يتكون من 9 أرقام على الأقل';
   }
-  
+
   return null;
 }
 
 String? validateAddress(String? value) {
   return validateField(value, isNumber: false, isRequired: false);
 }
+
 class CreateClientDialog extends StatefulWidget {
   const CreateClientDialog({super.key});
 
@@ -100,27 +106,39 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
               TextFormField(
                 controller: _name,
                 validator: validateName,
-                decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'الاسم',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _phone,
                 validator: validatePhone,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الجوال', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'الجوال',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nid,
                 validator: validateNationalId,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'رقم الهوية', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'رقم الهوية',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _addr,
                 validator: validateAddress,
-                decoration: const InputDecoration(labelText: 'العنوان', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'العنوان',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ],
           ),
@@ -143,7 +161,7 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
             }
           },
           child: const Text('حفظ'),
-        )
+        ),
       ],
     );
   }
@@ -197,27 +215,39 @@ class _EditClientDialogState extends State<EditClientDialog> {
               TextFormField(
                 controller: _name,
                 validator: validateName,
-                decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'الاسم',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _phone,
                 validator: validatePhone,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الجوال', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'الجوال',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nid,
                 validator: validateNationalId,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'رقم الهوية', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'رقم الهوية',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _addr,
                 validator: validateAddress,
-                decoration: const InputDecoration(labelText: 'العنوان', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'العنوان',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ],
           ),
@@ -248,25 +278,22 @@ class _EditClientDialogState extends State<EditClientDialog> {
               onPressed: state.creating
                   ? null
                   : () {
-                    if (_formKey.currentState!.validate()) {
-                      bloc.add(
-                        ClientUpdated(
-                          id: widget.client.id,
-                          name: _name.text.trim(),
-                          phone: _phone.text.trim(),
-                          nationalId: _nid.text.trim(),
-                          address: _addr.text.trim(),
-                        ),
-                      );
-                    }
+                      if (_formKey.currentState!.validate()) {
+                        bloc.add(
+                          ClientUpdated(
+                            id: widget.client.id,
+                            name: _name.text.trim(),
+                            phone: _phone.text.trim(),
+                            nationalId: _nid.text.trim(),
+                            address: _addr.text.trim(),
+                          ),
+                        );
+                      }
                     },
-
             );
           },
         ),
       ],
     );
   }
-
-
 }

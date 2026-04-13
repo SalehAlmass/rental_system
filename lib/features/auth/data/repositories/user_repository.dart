@@ -4,8 +4,8 @@ import 'package:rental_app/features/auth/domain/entities/user_model.dart';
 
 abstract class UserRepository {
   Future<List<User>> getUsers();
-  Future<User> createUser({required String username, required String password, required String role});
-  Future<User> updateUser({required int id, String? username, String? password, String? role, bool? isActive});
+  Future<User> createUser({required String username, required String password, required String role, Map<String, dynamic>? permissions});
+  Future<User> updateUser({required int id, String? username, String? password, String? role, bool? isActive, Map<String, dynamic>? permissions});
   Future<void> deleteUser({required int id});
   Future<User> changeUserRole({required int id, required String newRole});
 }
@@ -29,12 +29,13 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<User> createUser({required String username, required String password, required String role}) async {
+  Future<User> createUser({required String username, required String password, required String role, Map<String, dynamic>? permissions}) async {
     try {
       final response = await _apiClient.dio.post('/users', data: {
         'username': username,
         'password': password,
         'role': role,
+        if (permissions != null) 'permissions': permissions,
       });
       return User.fromJson(response.data);
     } on DioException catch (e) {
@@ -43,13 +44,14 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<User> updateUser({required int id, String? username, String? password, String? role, bool? isActive}) async {
+  Future<User> updateUser({required int id, String? username, String? password, String? role, bool? isActive, Map<String, dynamic>? permissions}) async {
     try {
       final data = <String, dynamic>{};
       if (username != null) data['username'] = username;
       if (password != null) data['password'] = password;
       if (role != null) data['role'] = role;
       if (isActive != null) data['is_active'] = isActive ? 1 : 0;
+      if (permissions != null) data['permissions'] = permissions;
 
       final response = await _apiClient.dio.put('/users/$id', data: data);
       return User.fromJson(response.data);

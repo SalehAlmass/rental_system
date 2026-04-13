@@ -105,9 +105,26 @@ class RentsRepository {
   }
 
   /// Close a rent and return calculated totals from the backend.
-  Future<Map<String, dynamic>> closeRent({required int rentId, required String endDatetime}) async {
+  Future<Map<String, dynamic>> closeRent({
+    required int rentId,
+    required String endDatetime,
+    bool applySpecialPricing = false,
+    double paidAmount = 0,
+    String paymentMethod = 'cash',
+    bool createReceipt = false,
+    String? paymentNotes,
+    String? idempotencyKey,
+  }) async {
     try {
-      final res = await _api.dio.post('rents/$rentId/close', data: {'end_datetime': endDatetime});
+      final res = await _api.dio.post('rents/$rentId/close', data: {
+        'end_datetime': endDatetime,
+        'apply_special_pricing': applySpecialPricing,
+        'paid_amount': paidAmount,
+        'payment_method': paymentMethod,
+        'create_receipt': createReceipt,
+        if (paymentNotes != null && paymentNotes.trim().isNotEmpty) 'payment_notes': paymentNotes.trim(),
+        if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) 'idempotency_key': idempotencyKey.trim(),
+      });
       final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : <String, dynamic>{};
       final payload = (data['data'] is Map) ? (data['data'] as Map).cast<String, dynamic>() : <String, dynamic>{};
       return payload;

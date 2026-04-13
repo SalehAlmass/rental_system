@@ -38,6 +38,7 @@ class UserManagementBloc
         username: event.username,
         password: event.password,
         role: event.role,
+        permissions: event.permissions,
       );
 
       if (state is UserManagementLoaded) {
@@ -60,6 +61,7 @@ class UserManagementBloc
         password: event.password,
         role: event.role,
         isActive: event.isActive,
+        permissions: event.permissions,
       );
 
       if (state is UserManagementLoaded) {

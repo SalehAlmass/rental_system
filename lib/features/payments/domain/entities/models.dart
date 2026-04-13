@@ -13,6 +13,7 @@ class Payment {
     this.voidReason,
     this.clientName,
     this.rentNo,
+    this.equipmentId,
     this.createdAt,
   });
 
@@ -29,17 +30,22 @@ class Payment {
   final String? voidReason;
   final String? clientName;
   final int? rentNo;
+  final int? equipmentId;
   final String? createdAt;
 
   factory Payment.fromJson(Map<String, dynamic> json) {
-    int toI(dynamic v) => v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
+    int toI(dynamic v) => v == null
+        ? 0
+        : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
     int? toINull(dynamic v) {
       if (v == null) return null;
       final i = toI(v);
       return i == 0 ? null : i;
     }
 
-    double toD(dynamic v) => v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
+    double toD(dynamic v) => v == null
+        ? 0.0
+        : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
     bool toB(dynamic v) {
       if (v == null) return false;
       if (v is bool) return v;
@@ -61,6 +67,7 @@ class Payment {
       voidReason: json['void_reason']?.toString(),
       clientName: json['client_name']?.toString(),
       rentNo: toINull(json['rent_no']),
+      equipmentId: toINull(json['equipment_id']),
       createdAt: json['created_at']?.toString(),
     );
   }

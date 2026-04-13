@@ -286,7 +286,7 @@ class DashboardPageState extends State<DashboardPage> {
   Widget _buildBody(bool isAdmin, String userName) {
     switch (_currentTab) {
       case DashboardTab.home:
-        return DashboardHome(isAdmin: isAdmin, userName: userName);
+        return DashboardHome(isAdmin: isAdmin, userName: userName, onOpenRents: () => _changeTab(DashboardTab.rents));
       case DashboardTab.clients:
         return const ClientsPage();
       case DashboardTab.equipment:

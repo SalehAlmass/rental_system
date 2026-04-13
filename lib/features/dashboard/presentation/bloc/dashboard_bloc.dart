@@ -18,7 +18,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     emit(state.copyWith(status: DashboardStatus.loading));
     try {
       final stats = await _repo.fetchStats();
-      final recent = await _repo.fetchRecentRents(limit: 10);
+      final recent = await _repo.fetchRecentRents(limit: 200);
       emit(state.copyWith(
         status: DashboardStatus.success,
         stats: stats,

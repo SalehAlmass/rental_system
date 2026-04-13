@@ -9,6 +9,8 @@ class ShiftClosing {
     this.notes,
     this.username,
     this.createdAt,
+    this.cashTotal = 0,
+    this.transferTotal = 0,
   });
 
   final int id;
@@ -20,6 +22,8 @@ class ShiftClosing {
   final String? notes;
   final String? username;
   final String? createdAt;
+  final double cashTotal;
+  final double transferTotal;
 
   factory ShiftClosing.fromJson(Map<String, dynamic> json) {
     int toI(dynamic v) => v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
@@ -35,6 +39,8 @@ class ShiftClosing {
       difference: toD(json['difference']),
       notes: json['notes']?.toString(),
       createdAt: json['created_at']?.toString(),
+      cashTotal: toD(json['cash_total']),
+      transferTotal: toD(json['transfer_total']),
     );
   }
 }

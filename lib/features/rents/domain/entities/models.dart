@@ -12,6 +12,18 @@ class Rent {
     this.status,
     this.clientName,
     this.equipmentName,
+    this.closedAt,
+    this.closedByUserId,
+    this.closingPaidAmount,
+    this.closingPaymentMethod,
+    this.closingPaymentStatus,
+    this.closingPaymentId,
+    this.pricingRuleCode,
+    this.pricingRuleLabel,
+    this.pricingRuleApplied,
+    this.paidAmount,
+    this.remainingAmount,
+    this.isPaid,
   });
 
   final int id;
@@ -30,6 +42,18 @@ class Rent {
 
   final String? clientName;
   final String? equipmentName;
+  final String? closedAt;
+  final int? closedByUserId;
+  final double? closingPaidAmount;
+  final String? closingPaymentMethod;
+  final String? closingPaymentStatus;
+  final int? closingPaymentId;
+  final String? pricingRuleCode;
+  final String? pricingRuleLabel;
+  final bool? pricingRuleApplied;
+  final double? paidAmount;
+  final double? remainingAmount;
+  final bool? isPaid;
 
   /* =========================
      JSON
@@ -55,6 +79,18 @@ class Rent {
       status: json['status']?.toString(),
       clientName: json['client_name']?.toString(),
       equipmentName: json['equipment_name']?.toString(),
+      closedAt: json['closed_at']?.toString(),
+      closedByUserId: json['closed_by_user_id'] == null ? null : _toInt(json['closed_by_user_id']),
+      closingPaidAmount: _toDouble(json['closing_paid_amount']),
+      closingPaymentMethod: json['closing_payment_method']?.toString(),
+      closingPaymentStatus: json['closing_payment_status']?.toString(),
+      closingPaymentId: json['closing_payment_id'] == null ? null : _toInt(json['closing_payment_id']),
+      pricingRuleCode: json['pricing_rule_code']?.toString(),
+      pricingRuleLabel: json['pricing_rule_label']?.toString(),
+      pricingRuleApplied: json['pricing_rule_applied'] == null ? null : (_toInt(json['pricing_rule_applied']) == 1),
+      paidAmount: _toDouble(json['paid_amount']),
+      remainingAmount: _toDouble(json['remaining_amount'] ?? json['remaining']),
+      isPaid: json['is_paid'] == null ? null : (_toInt(json['is_paid']) == 1 || json['is_paid'] == true),
     );
   }
 
@@ -75,6 +111,18 @@ class Rent {
     String? status,
     String? clientName,
     String? equipmentName,
+    String? closedAt,
+    int? closedByUserId,
+    double? closingPaidAmount,
+    String? closingPaymentMethod,
+    String? closingPaymentStatus,
+    int? closingPaymentId,
+    String? pricingRuleCode,
+    String? pricingRuleLabel,
+    bool? pricingRuleApplied,
+    double? paidAmount,
+    double? remainingAmount,
+    bool? isPaid,
   }) {
     return Rent(
       id: id ?? this.id,
@@ -89,6 +137,18 @@ class Rent {
       status: status ?? this.status,
       clientName: clientName ?? this.clientName,
       equipmentName: equipmentName ?? this.equipmentName,
+      closedAt: closedAt ?? this.closedAt,
+      closedByUserId: closedByUserId ?? this.closedByUserId,
+      closingPaidAmount: closingPaidAmount ?? this.closingPaidAmount,
+      closingPaymentMethod: closingPaymentMethod ?? this.closingPaymentMethod,
+      closingPaymentStatus: closingPaymentStatus ?? this.closingPaymentStatus,
+      closingPaymentId: closingPaymentId ?? this.closingPaymentId,
+      pricingRuleCode: pricingRuleCode ?? this.pricingRuleCode,
+      pricingRuleLabel: pricingRuleLabel ?? this.pricingRuleLabel,
+      pricingRuleApplied: pricingRuleApplied ?? this.pricingRuleApplied,
+      paidAmount: paidAmount ?? this.paidAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+      isPaid: isPaid ?? this.isPaid,
     );
   }
 }

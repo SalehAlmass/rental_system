@@ -47,12 +47,14 @@ Future<void> forgotPassword({required String username}) async {
   required String username,
   required String password,
   String role = 'user',
+  Map<String, dynamic>? permissions,
 }) async {
   try {
     await _api.dio.post('auth/register', data: {
       'username': username,
       'password': password,
       'role': role,
+      if (permissions != null) 'permissions': permissions,
     });
   } on DioException catch (e) {
     final msg = (e.response?.data is Map && e.response?.data['error'] != null)

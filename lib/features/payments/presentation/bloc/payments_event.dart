@@ -19,6 +19,7 @@ class PaymentCreated extends PaymentsEvent {
     required this.amount,
     this.clientId,
     this.rentId,
+    this.equipmentId,
     this.method = 'cash',
     this.referenceNo,
     this.notes,
@@ -28,12 +29,22 @@ class PaymentCreated extends PaymentsEvent {
   final double amount;
   final int? clientId;
   final int? rentId;
+  final int? equipmentId;
   final String method;
   final String? referenceNo;
   final String? notes;
 
   @override
-  List<Object?> get props => [type, amount, clientId, rentId, method, referenceNo, notes];
+  List<Object?> get props => [
+    type,
+    amount,
+    clientId,
+    rentId,
+    equipmentId,
+    method,
+    referenceNo,
+    notes,
+  ];
 }
 
 class PaymentUpdated extends PaymentsEvent {
@@ -42,6 +53,7 @@ class PaymentUpdated extends PaymentsEvent {
     required this.amount,
     this.clientId,
     this.rentId,
+    this.equipmentId,
     this.method = 'cash',
     this.referenceNo,
     this.notes,
@@ -51,12 +63,22 @@ class PaymentUpdated extends PaymentsEvent {
   final double amount;
   final int? clientId;
   final int? rentId;
+  final int? equipmentId;
   final String method;
   final String? referenceNo;
   final String? notes;
 
   @override
-  List<Object?> get props => [id, amount, clientId, rentId, method, referenceNo, notes];
+  List<Object?> get props => [
+    id,
+    amount,
+    clientId,
+    rentId,
+    equipmentId,
+    method,
+    referenceNo,
+    notes,
+  ];
 }
 
 class PaymentVoided extends PaymentsEvent {

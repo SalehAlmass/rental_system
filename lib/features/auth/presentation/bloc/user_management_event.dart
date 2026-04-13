@@ -13,15 +13,17 @@ class CreateUser extends UserManagementEvent {
   final String username;
   final String password;
   final String role;
+  final Map<String, dynamic>? permissions;
 
   const CreateUser({
     required this.username,
     required this.password,
     required this.role,
+    this.permissions,
   });
 
   @override
-  List<Object> get props => [username, password, role];
+  List<Object?> get props => [username, password, role, permissions];
 }
 
 class UpdateUser extends UserManagementEvent {
@@ -30,6 +32,7 @@ class UpdateUser extends UserManagementEvent {
   final String? password;
   final String? role;
   final bool? isActive;
+  final Map<String, dynamic>? permissions;
 
   const UpdateUser({
     required this.id,
@@ -37,10 +40,11 @@ class UpdateUser extends UserManagementEvent {
     this.password,
     this.role,
     this.isActive,
+    this.permissions,
   });
 
   @override
-  List<Object?> get props => [id, username, password, role, isActive];
+  List<Object?> get props => [id, username, password, role, isActive, permissions];
 }
 
 class DeleteUser extends UserManagementEvent {

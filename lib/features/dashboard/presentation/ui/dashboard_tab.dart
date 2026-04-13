@@ -5,4 +5,8 @@ enum DashboardTab {
   equipment,
   rents,
   settings,
+  //users,
+  // reports,
+  // payments,
+
 }

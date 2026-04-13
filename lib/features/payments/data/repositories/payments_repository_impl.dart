@@ -8,18 +8,20 @@ class PaymentsRepository {
   final ApiClient _api;
 
   // تعديل: إضافة clientId كـ parameter اختياري
-  Future<List<Payment>> list({int? clientId, bool showVoided = false}) async {
+  Future<List<Payment>> list({int? clientId, int? rentId, bool showVoided = false}) async {
     try {
       final res = await _api.dio.get(
         'payments',
         queryParameters: {
           if (clientId != null) 'client_id': clientId,
+          if (rentId != null) 'rent_id': rentId,
           'show_void': showVoided ? 1 : 0,
         },
       );
 
       dynamic raw = res.data;
-      if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['payments'] ?? [];
+      if (raw is Map)
+        raw = raw['data'] ?? raw['items'] ?? raw['payments'] ?? [];
       if (raw is! List) throw ApiFailure("Unexpected response: ${res.data}");
 
       return raw
@@ -40,27 +42,37 @@ class PaymentsRepository {
     required double amount,
     int? clientId,
     int? rentId,
+    int? equipmentId,
     String method = 'cash',
     String? referenceNo,
     String? notes,
     String? idempotencyKey,
   }) async {
     try {
-      final res = await _api.dio.post('payments', data: {
-        'type': type,
-        'amount': amount,
-        'client_id': clientId,
-        'rent_id': rentId,
-        'method': method,
-        'reference_no': referenceNo,
-        'notes': notes,
-        if (idempotencyKey != null && idempotencyKey.isNotEmpty)
-          'idempotency_key': idempotencyKey,
-      });
-      final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : {};
+      final res = await _api.dio.post(
+        'payments',
+        data: {
+          'type': type,
+          'amount': amount,
+          'client_id': clientId,
+          'rent_id': rentId,
+          'equipment_id': equipmentId,
+          'method': method,
+          'reference_no': referenceNo,
+          'notes': notes,
+          if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+            'idempotency_key': idempotencyKey,
+        },
+      );
+      final data = (res.data is Map)
+          ? (res.data as Map).cast<String, dynamic>()
+          : {};
       final rawId = data['id'];
-      final id = (rawId is num) ? rawId.toInt() : int.tryParse(rawId.toString()) ?? 0;
-      if (id <= 0) throw ApiFailure("Create payment: invalid id returned: $rawId");
+      final id = (rawId is num)
+          ? rawId.toInt()
+          : int.tryParse(rawId.toString()) ?? 0;
+      if (id <= 0)
+        throw ApiFailure("Create payment: invalid id returned: $rawId");
       return id;
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -76,19 +88,24 @@ class PaymentsRepository {
     required double amount,
     int? clientId,
     int? rentId,
+    int? equipmentId,
     String method = 'cash',
     String? referenceNo,
     String? notes,
   }) async {
     try {
-      await _api.dio.put('payments/$id', data: {
-        'amount': amount,
-        'client_id': clientId,
-        'rent_id': rentId,
-        'method': method,
-        'reference_no': referenceNo,
-        'notes': notes,
-      });
+      await _api.dio.put(
+        'payments/$id',
+        data: {
+          'amount': amount,
+          'client_id': clientId,
+          'rent_id': rentId,
+          'equipment_id': equipmentId,
+          'method': method,
+          'reference_no': referenceNo,
+          'notes': notes,
+        },
+      );
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)

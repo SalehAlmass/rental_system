@@ -16,7 +16,10 @@ import 'package:rental_app/features/payments/presentation/ui/payments_page.dart'
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
 import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
+import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
 import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
+import 'package:rental_app/features/settings/presentation/contract_closing_settings_page.dart';
+import 'package:rental_app/features/settings/presentation/team_monitoring_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 import 'package:rental_app/features/hr/presentation/ui/attendance_page.dart';
 import 'package:rental_app/features/hr/presentation/ui/payroll_page.dart';
@@ -117,6 +120,27 @@ class SettingsPage extends StatelessWidget {
               title: 'إدارة المستخدمين',
               subtitle: 'إضافة / تعديل / تعطيل المستخدمين',
               onTap: () => _push(context, const UserManagementPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.rule_folder_outlined,
+              title: 'سياسة إغلاق العقود',
+              subtitle: 'التحكم في احتساب الساعات وسندات القبض',
+              onTap: () => _push(context, const ContractClosingSettingsPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.notifications_active_outlined,
+              title: 'التنبيهات وسجل التدقيق',
+              subtitle: 'مراجعة العقود والسندات والفروقات الحساسة',
+              onTap: () => _push(context, const AdminMonitoringPage()),
+            ),
+            _tile(
+              context,
+              icon: Icons.groups_3_outlined,
+              title: 'مراقبة الموظفين',
+              subtitle: 'العقود والإغلاقات والتحصيل والمتابعات وآخر النشاط',
+              onTap: () => _push(context, const TeamMonitoringPage()),
             ),
           ],
 

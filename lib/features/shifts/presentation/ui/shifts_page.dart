@@ -22,46 +22,116 @@ class ShiftsPage extends StatelessWidget {
   }
 }
 
-class _ShiftsView extends StatelessWidget {
+class _ShiftsView extends StatefulWidget {
   const _ShiftsView();
+
+  @override
+  State<_ShiftsView> createState() => _ShiftsViewState();
+}
+
+class _ShiftsViewState extends State<_ShiftsView> {
+  String _period = 'all';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إغلاق الدوام'),
+        title: const Text('إغلاق الدوام والصندوق'),
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.lock_clock),
+        icon: const Icon(Icons.point_of_sale_rounded),
         label: const Text('إغلاق دوام'),
         onPressed: () => _openCloseDialog(context),
       ),
       body: BlocConsumer<ShiftsBloc, ShiftsState>(
         listener: (context, state) {
-          if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!)));
+          if (state.error != null && state.error!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error!)),
+            );
           }
         },
         builder: (context, state) {
-          if (state.status == ShiftsStatus.loading) {
+          if (state.status == ShiftsStatus.loading && state.items.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-          final items = state.items;
-          if (items.isEmpty) {
-            return const Center(child: Text('لا توجد إغلاقات دوام'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            itemBuilder: (context, i) {
-              final s = items[i];
-              return _ShiftCard(shift: s);
+
+          final items = _applyPeriod(state.items);
+          final summary = _ShiftSummary.from(items);
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              context.read<ShiftsBloc>().add(const ShiftsRequested());
             },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: [
+                _HeaderCard(summary: summary),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _PeriodChip(
+                      label: 'الكل',
+                      selected: _period == 'all',
+                      onTap: () => setState(() => _period = 'all'),
+                    ),
+                    _PeriodChip(
+                      label: 'اليوم',
+                      selected: _period == 'today',
+                      onTap: () => setState(() => _period = 'today'),
+                    ),
+                    _PeriodChip(
+                      label: 'آخر 7 أيام',
+                      selected: _period == 'week',
+                      onTap: () => setState(() => _period = 'week'),
+                    ),
+                    _PeriodChip(
+                      label: 'فروقات فقط',
+                      selected: _period == 'issues',
+                      onTap: () => setState(() => _period = 'issues'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (items.isEmpty)
+                  _EmptyState(onCloseShift: () => _openCloseDialog(context))
+                else ...[
+                  Text(
+                    'سجل إغلاقات الدوام',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...items.map((s) => _ShiftCard(shift: s)),
+                ],
+              ],
+            ),
           );
         },
       ),
     );
+  }
+
+  List<ShiftClosing> _applyPeriod(List<ShiftClosing> items) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return items.where((item) {
+      final date = DateTime.tryParse(item.shiftDate);
+      switch (_period) {
+        case 'today':
+          return date != null && DateTime(date.year, date.month, date.day) == today;
+        case 'week':
+          return date != null && !date.isBefore(today.subtract(const Duration(days: 6)));
+        case 'issues':
+          return item.difference.abs() > 0.009;
+        default:
+          return true;
+      }
+    }).toList();
   }
 
   Future<void> _openCloseDialog(BuildContext context) async {
@@ -78,63 +148,263 @@ class _ShiftsView extends StatelessWidget {
   }
 }
 
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.summary});
+  final _ShiftSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cs.primaryContainer, cs.surfaceContainerHighest],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'متابعة الصندوق اليومية',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'هذه الشاشة توثق المقبوض المتوقع، الفعلي داخل الصندوق، والفرق لكل موظف ولكل يوم.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SummaryPill(label: 'عدد الإغلاقات', value: '${summary.count}'),
+              _SummaryPill(label: 'المتوقع', value: summary.expected),
+              _SummaryPill(label: 'الفعلي', value: summary.actual),
+              _SummaryPill(label: 'إجمالي الفرق', value: summary.difference, highlight: summary.diffValue.abs() > 0.009),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryPill extends StatelessWidget {
+  const _SummaryPill({required this.label, required this.value, this.highlight = false});
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: highlight
+            ? Theme.of(context).colorScheme.errorContainer
+            : Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PeriodChip extends StatelessWidget {
+  const _PeriodChip({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onCloseShift});
+  final VoidCallback onCloseShift;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.inventory_2_outlined, size: 42),
+          const SizedBox(height: 12),
+          Text(
+            'لا توجد عمليات إغلاق دوام حتى الآن',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'ابدأ بإغلاق أول شفت لحفظ المقبوض الفعلي ومقارنته بقيمة المقبوض المتوقع داخل النظام.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: onCloseShift,
+            icon: const Icon(Icons.lock_clock_outlined),
+            label: const Text('إغلاق دوام الآن'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ShiftCard extends StatelessWidget {
   const _ShiftCard({required this.shift});
   final ShiftClosing shift;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'التاريخ: ${shift.shiftDate}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+    final diff = shift.difference;
+    final diffColor = diff == 0
+        ? Theme.of(context).colorScheme.outline
+        : (diff > 0 ? Colors.green : Colors.red);
+    final currency = NumberFormat('#,##0.00');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shift.username?.isNotEmpty == true ? shift.username! : 'المستخدم #${shift.userId}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('تاريخ الإغلاق: ${shift.shiftDate}'),
+                  ],
                 ),
-                if (shift.username != null)
-                  Text(
-                    shift.username!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.primary),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 6,
-              children: [
-                _kv('المتوقع', shift.expectedAmount),
-                _kv('الفعلي', shift.actualAmount),
-                _kv('الفرق', shift.difference, isDiff: true),
-              ],
-            ),
-            if ((shift.notes ?? '').isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('ملاحظة: ${shift.notes}', maxLines: 3, overflow: TextOverflow.ellipsis),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: diff == 0 ? Theme.of(context).colorScheme.secondaryContainer : diffColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  diff == 0 ? 'مطابق' : (diff > 0 ? 'زيادة' : 'عجز'),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: diff == 0 ? null : diffColor),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MetricBox(label: 'نقد النظام', value: currency.format(shift.cashTotal)),
+              _MetricBox(label: 'تحويل النظام', value: currency.format(shift.transferTotal)),
+              _MetricBox(label: 'المتوقع', value: currency.format(shift.expectedAmount)),
+              _MetricBox(label: 'الفعلي بالصندوق', value: currency.format(shift.actualAmount)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Icon(Icons.compare_arrows_rounded, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'الفرق: ${currency.format(diff)}',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: diffColor,
+                    ),
+              ),
+            ],
+          ),
+          if ((shift.notes ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text('ملاحظة: ${shift.notes}'),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
 
-  Widget _kv(String k, double v, {bool isDiff = false}) {
-    final s = v.toStringAsFixed(2);
-    return Text(
-      '$k: $s',
-      style: TextStyle(
-        fontWeight: FontWeight.w600,
-        color: isDiff
-            ? (v == 0 ? null : (v > 0 ? Colors.green : Colors.red))
-            : null,
+class _MetricBox extends StatelessWidget {
+  const _MetricBox({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 135),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }
@@ -148,13 +418,19 @@ class _CloseShiftDialog extends StatefulWidget {
 }
 
 class _CloseShiftDialogState extends State<_CloseShiftDialog> {
-  final _cash = TextEditingController();
-  final _transfer = TextEditingController();
+  final _cash = TextEditingController(text: '0');
+  final _transfer = TextEditingController(text: '0');
   final _drawer = TextEditingController();
   final _note = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   DateTime _date = DateTime.now();
   bool _submitting = false;
+
+  double get _cashValue => double.tryParse(_cash.text.trim()) ?? 0;
+  double get _transferValue => double.tryParse(_transfer.text.trim()) ?? 0;
+  double get _drawerValue => double.tryParse(_drawer.text.trim()) ?? 0;
+  double get _expected => _cashValue + _transferValue;
+  double get _difference => _drawerValue - _expected;
 
   @override
   void dispose() {
@@ -167,65 +443,94 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final currency = NumberFormat('#,##0.00');
+    final diff = _difference;
     return AlertDialog(
       title: const Text('إغلاق الدوام'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_month),
-                title: Text(DateFormat('yyyy-MM-dd').format(_date)),
-                trailing: TextButton(
-                  onPressed: _pickDate,
-                  child: const Text('تغيير'),
+      content: SizedBox(
+        width: 440,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_month),
+                  title: Text(DateFormat('yyyy-MM-dd').format(_date)),
+                  subtitle: const Text('تاريخ الإقفال'),
+                  trailing: TextButton(onPressed: _pickDate, child: const Text('تغيير')),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _cash,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'إجمالي النقد', border: OutlineInputBorder()),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'مطلوب';
-                  final n = double.tryParse(v);
-                  if (n == null || n < 0) return 'قيمة غير صحيحة';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _transfer,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'إجمالي التحويل', border: OutlineInputBorder()),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'مطلوب';
-                  final n = double.tryParse(v);
-                  if (n == null || n < 0) return 'قيمة غير صحيحة';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _drawer,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'المبلغ الفعلي في الصندوق', border: OutlineInputBorder()),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'مطلوب';
-                  final n = double.tryParse(v);
-                  if (n == null) return 'قيمة غير صحيحة';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _note,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)', border: OutlineInputBorder()),
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _cash,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'إجمالي المقبوض النقدي حسب النظام',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.payments_outlined),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateNonNegative,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _transfer,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'إجمالي التحويلات حسب النظام',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateNonNegative,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _drawer,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'المبلغ الفعلي الموجود في الصندوق',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.point_of_sale_outlined),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'مطلوب';
+                    final n = double.tryParse(v);
+                    if (n == null || n < 0) return 'قيمة غير صحيحة';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      _calcRow('الإجمالي المتوقع', currency.format(_expected)),
+                      const SizedBox(height: 6),
+                      _calcRow('الفرق', currency.format(diff),
+                          valueColor: diff == 0 ? null : (diff > 0 ? Colors.green : Colors.red)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _note,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'ملاحظة الإقفال أو سبب الفرق',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.note_alt_outlined),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -235,9 +540,28 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
           child: const Text('إلغاء'),
         ),
         ElevatedButton.icon(
-          icon: const Icon(Icons.save),
-          label: const Text('حفظ'),
+          icon: const Icon(Icons.save_outlined),
+          label: const Text('حفظ الإغلاق'),
           onPressed: _submitting ? null : _submit,
+        ),
+      ],
+    );
+  }
+
+  String? _validateNonNegative(String? v) {
+    if (v == null || v.trim().isEmpty) return 'مطلوب';
+    final n = double.tryParse(v);
+    if (n == null || n < 0) return 'قيمة غير صحيحة';
+    return null;
+  }
+
+  Widget _calcRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      children: [
+        Expanded(child: Text(label)),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.w800, color: valueColor),
         ),
       ],
     );
@@ -256,21 +580,47 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-    final cash = double.tryParse(_cash.text.trim()) ?? 0;
-    final transfer = double.tryParse(_transfer.text.trim()) ?? 0;
-    final drawer = double.tryParse(_drawer.text.trim()) ?? 0;
-    final dateStr = DateFormat('yyyy-MM-dd').format(_date);
-
     context.read<ShiftsBloc>().add(
           ShiftClosed(
-            shiftDate: dateStr,
-            cashTotal: cash,
-            transferTotal: transfer,
-            cashInDrawer: drawer,
+            shiftDate: DateFormat('yyyy-MM-dd').format(_date),
+            cashTotal: _cashValue,
+            transferTotal: _transferValue,
+            cashInDrawer: _drawerValue,
             note: _note.text.trim().isEmpty ? null : _note.text.trim(),
           ),
         );
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) Navigator.pop(context, true);
+    });
+  }
+}
 
-    Navigator.pop(context, true);
+class _ShiftSummary {
+  const _ShiftSummary({
+    required this.count,
+    required this.expected,
+    required this.actual,
+    required this.difference,
+    required this.diffValue,
+  });
+
+  final int count;
+  final String expected;
+  final String actual;
+  final String difference;
+  final double diffValue;
+
+  factory _ShiftSummary.from(List<ShiftClosing> items) {
+    final formatter = NumberFormat('#,##0.00');
+    final expectedValue = items.fold<double>(0, (sum, item) => sum + item.expectedAmount);
+    final actualValue = items.fold<double>(0, (sum, item) => sum + item.actualAmount);
+    final diffValue = items.fold<double>(0, (sum, item) => sum + item.difference);
+    return _ShiftSummary(
+      count: items.length,
+      expected: formatter.format(expectedValue),
+      actual: formatter.format(actualValue),
+      difference: formatter.format(diffValue),
+      diffValue: diffValue,
+    );
   }
 }

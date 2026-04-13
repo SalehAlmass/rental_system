@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
-import 'package:rental_app/features/auth/presentation/ui/CreateUserPage.dart';
 import '../bloc/user_management_bloc.dart';
 import '../../domain/entities/user_model.dart';
 
@@ -45,9 +44,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               IconButton(
                 icon: const Icon(Icons.manage_accounts_outlined , 
                   color: Colors.white, size: 28),
-                onPressed: () => Navigator.of(context).push(
-                 MaterialPageRoute(builder: (context) => const CreateUserPage())
-                ),
+                onPressed: () => _showCreateUserDialog(context),
               ),
             ],
           ),
@@ -102,7 +99,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         subtitle: Text(
-          '${_getRoleDisplay(user.role)} • ${user.isActive ? "نشط" : "غير نشط"}',
+          '${_getRoleDisplay(user.role)} • ${user.isActive ? "نشط" : "غير نشط"}'
+          'حساب الساعات: ${_modeLabel(user.contractHourPricingMode)} • سند القبض: ${_modeLabel(user.contractPaymentReceiptMode)}',
           style: TextStyle(color: Colors.grey.shade700),
         ),
         trailing: PopupMenuButton<String>(
@@ -154,6 +152,74 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
+
+  String _modeLabel(String mode) {
+    switch (mode) {
+      case 'auto':
+        return 'تلقائي';
+      case 'ask':
+        return 'إشعار اختياري';
+      default:
+        return 'حسب الإعداد العام';
+    }
+  }
+
+  Map<String, dynamic> _buildPermissions({required String hourMode, required String receiptMode}) {
+    return {
+      'contract_hour_pricing_mode': hourMode,
+      'contract_payment_receipt_mode': receiptMode,
+    };
+  }
+
+  Widget _permissionSection({
+    required StateSetter setModalState,
+    required String hourMode,
+    required String receiptMode,
+    required ValueChanged<String> onHourChanged,
+    required ValueChanged<String> onReceiptChanged,
+    bool allowInherit = true,
+  }) {
+    final items = <DropdownMenuItem<String>>[
+      if (allowInherit) const DropdownMenuItem(value: 'inherit', child: Text('حسب الإعداد العام')),
+      const DropdownMenuItem(value: 'auto', child: Text('تلقائي')),
+      const DropdownMenuItem(value: 'ask', child: Text('إشعار اختياري')),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        const Divider(),
+        const SizedBox(height: 8),
+        const Text('صلاحيات إغلاق العقود', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: hourMode,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'احتساب الساعات عند الإغلاق',
+          ),
+          items: items,
+          onChanged: (v) => setModalState(() => onHourChanged(v ?? (allowInherit ? 'inherit' : 'ask'))),
+        ),
+        const SizedBox(height: 8),
+        Text('الوضع الحالي: ${_modeLabel(hourMode)}', style: TextStyle(color: Colors.grey.shade700)),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: receiptMode,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'سند القبض عند إغلاق العقد',
+          ),
+          items: items,
+          onChanged: (v) => setModalState(() => onReceiptChanged(v ?? (allowInherit ? 'inherit' : 'auto'))),
+        ),
+        const SizedBox(height: 8),
+        Text('الوضع الحالي: ${_modeLabel(receiptMode)}', style: TextStyle(color: Colors.grey.shade700)),
+      ],
+    );
+  }
+
   // =================== Dialogs ===================
   void _showChangePasswordDialog(BuildContext context, User user) {
     final newPassword = TextEditingController();
@@ -203,108 +269,154 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
+
   void _showCreateUserDialog(BuildContext context) {
     final username = TextEditingController();
     final password = TextEditingController();
     String role = 'employee';
+    String hourMode = 'inherit';
+    String receiptMode = 'inherit';
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('إضافة مستخدم', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: username,
-              decoration: const InputDecoration(labelText: 'اسم المستخدم'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: password,
-              decoration: const InputDecoration(labelText: 'كلمة المرور'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField(
-              value: role,
-              decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
-              items: const [
-                DropdownMenuItem(value: 'employee', child: Text('موظف')),
-                DropdownMenuItem(value: 'manager', child: Text('مشرف')),
-                DropdownMenuItem(value: 'admin', child: Text('مدير')),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('إضافة مستخدم', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: username,
+                  decoration: const InputDecoration(labelText: 'اسم المستخدم'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: password,
+                  decoration: const InputDecoration(labelText: 'كلمة المرور'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField(
+                  value: role,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
+                  items: const [
+                    DropdownMenuItem(value: 'employee', child: Text('موظف')),
+                    DropdownMenuItem(value: 'manager', child: Text('مشرف')),
+                    DropdownMenuItem(value: 'admin', child: Text('مدير')),
+                  ],
+                  onChanged: (v) => setModalState(() => role = v.toString()),
+                ),
+                _permissionSection(
+                  setModalState: setModalState,
+                  hourMode: hourMode,
+                  receiptMode: receiptMode,
+                  onHourChanged: (v) => hourMode = v,
+                  onReceiptChanged: (v) => receiptMode = v,
+                ),
               ],
-              onChanged: (v) => role = v!,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                elevation: 3,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                context.read<UserManagementBloc>().add(
+                      CreateUser(
+                        username: username.text.trim(),
+                        password: password.text,
+                        role: role,
+                        permissions: _buildPermissions(hourMode: hourMode, receiptMode: receiptMode),
+                      ),
+                    );
+                Navigator.pop(context);
+              },
+              child: const Text('إنشاء', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              elevation: 3,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              context.read<UserManagementBloc>().add(
-                    CreateUser(
-                      username: username.text.trim(),
-                      password: password.text,
-                      role: role,
-                    ),
-                  );
-              Navigator.pop(context);
-            },
-            child: const Text('إنشاء', style: TextStyle(fontSize: 16)),
-          ),
-        ],
       ),
     );
   }
 
+
   void _showEditUserDialog(BuildContext context, User user) {
     final username = TextEditingController(text: user.username);
     bool isActive = user.isActive;
+    String role = user.role;
+    String hourMode = user.contractHourPricingMode;
+    String receiptMode = user.contractPaymentReceiptMode;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('تعديل المستخدم', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم المستخدم')),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('تعديل المستخدم', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('نشط؟'),
-                Switch(value: isActive, onChanged: (val) => setState(() => isActive = val)),
+                TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم المستخدم')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: role,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
+                  items: const [
+                    DropdownMenuItem(value: 'employee', child: Text('موظف')),
+                    DropdownMenuItem(value: 'manager', child: Text('مشرف')),
+                    DropdownMenuItem(value: 'admin', child: Text('مدير')),
+                  ],
+                  onChanged: (v) => setModalState(() => role = v ?? user.role),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('المستخدم نشط'),
+                  value: isActive,
+                  onChanged: (val) => setModalState(() => isActive = val),
+                ),
+                _permissionSection(
+                  setModalState: setModalState,
+                  hourMode: hourMode,
+                  receiptMode: receiptMode,
+                  onHourChanged: (v) => hourMode = v,
+                  onReceiptChanged: (v) => receiptMode = v,
+                ),
               ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                elevation: 3,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                context.read<UserManagementBloc>().add(
+                      UpdateUser(
+                        id: user.id,
+                        username: username.text,
+                        role: role,
+                        isActive: isActive,
+                        permissions: _buildPermissions(hourMode: hourMode, receiptMode: receiptMode),
+                      ),
+                    );
+                Navigator.pop(context);
+              },
+              child: const Text('تحديث', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              elevation: 3,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              context.read<UserManagementBloc>().add(
-                    UpdateUser(id: user.id, username: username.text, isActive: isActive),
-                  );
-              Navigator.pop(context);
-            },
-            child: const Text('تحديث', style: TextStyle(fontSize: 16)),
-          ),
-        ],
       ),
     );
   }
