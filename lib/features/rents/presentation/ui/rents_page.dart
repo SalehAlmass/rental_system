@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
@@ -15,7 +16,6 @@ import 'package:rental_app/features/rents/data/repositories/rents_repository_imp
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
-import 'package:dropdown_search/dropdown_search.dart';
 
 String nowSql() {
   final n = DateTime.now();
@@ -33,9 +33,59 @@ String? validateRate(String? value) {
   return null;
 }
 
+/// ===============================
+/// Financial helpers
+/// ===============================
+DateTime? _tryParseRentDate(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  return DateTime.tryParse(value.replaceFirst(' ', 'T'));
+}
+
+double safeRentPaid(Rent rent) {
+  final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
+  return paid < 0 ? 0 : paid;
+}
+
+double safeRentTotal(Rent rent) {
+  if ((rent.totalAmount ?? 0) > 0) return rent.totalAmount!;
+
+  final status = (rent.status ?? '').toLowerCase();
+  if (status != 'open') return 0;
+
+  final dailyRate = rent.rate ?? 0;
+  final start = _tryParseRentDate(rent.startDatetime);
+  if (dailyRate <= 0 || start == null) return 0;
+
+  final now = DateTime.now();
+  final minutes = now.difference(start).inMinutes;
+  if (minutes <= 0) return 0;
+
+  final hours = minutes / 60.0;
+
+  double total;
+  if (hours < 3) {
+    total = dailyRate * (2 / 3);
+  } else {
+    total = dailyRate;
+  }
+
+  return double.parse(total.toStringAsFixed(2));
+}
+
+double safeRentRemaining(Rent rent) {
+  final direct = rent.remainingAmount;
+  if (direct != null) {
+    return direct < 0 ? 0 : direct;
+  }
+
+  final total = safeRentTotal(rent);
+  final paid = safeRentPaid(rent);
+  final remaining = total - paid;
+  return remaining > 0 ? remaining : 0;
+}
+
 class RentsPage extends StatelessWidget {
   const RentsPage({super.key});
-
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +123,9 @@ class _RentsViewState extends State<_RentsView> {
   String _statusFilter = 'all';
   String _query = '';
   String _collectionSort = 'oldest';
+
   bool _loadingAgenda = false;
   List<_CollectionAgendaItem> _agendaItems = const [];
-
 
   @override
   void initState() {
@@ -84,27 +134,37 @@ class _RentsViewState extends State<_RentsView> {
   }
 
   Future<void> _fetchCollectionAgenda() async {
-    // نتحقق من وجود الـ endpoint أولاً
     setState(() => _loadingAgenda = true);
     try {
       final api = context.read<ApiClient>();
-      final res = await api.dio.get('rents/collection-agenda', queryParameters: {'sort': _collectionSort});
-      
+      final res = await api.dio.get(
+        'rents/collection-agenda',
+        queryParameters: {
+          'sort': _collectionSort,
+          't': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+
       if (!mounted) return;
-      
+
       dynamic raw = res.data;
-      if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['agenda'] ?? [];
+      if (raw is Map) {
+        raw = raw['data'] ?? raw['items'] ?? raw['agenda'] ?? [];
+      }
       if (raw is! List) raw = [];
-      final items = raw.whereType<Map>().map((e) => _CollectionAgendaItem.fromJson(e.cast<String, dynamic>())).toList();
-      
+
+      final items = raw
+          .whereType<Map>()
+          .map((e) => _CollectionAgendaItem.fromJson(e.cast<String, dynamic>()))
+          .toList();
+
       if (!mounted) return;
       setState(() {
         _agendaItems = items;
         _loadingAgenda = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      // الـ endpoint غير موجود - نعرض رسالة فارغة
       setState(() {
         _agendaItems = const [];
         _loadingAgenda = false;
@@ -123,18 +183,27 @@ class _RentsViewState extends State<_RentsView> {
     }
   }
 
-  Future<void> _openDetails(BuildContext context, int rentId) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: rentId)),
-    );
+  Future<void> _reloadEverything() async {
     if (!mounted) return;
     context.read<RentsBloc>().add(RentsRequested(status: _statusParam));
     await _fetchCollectionAgenda();
   }
 
+  Future<void> _openDetails(BuildContext context, int rentId) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: rentId)),
+    );
+
+    if (!mounted) return;
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await _reloadEverything();
+  }
+
   List<Rent> _applyUiFilters(List<Rent> items) {
     final q = _query.trim().toLowerCase();
+
     return items.where((rent) {
       final status = (rent.status ?? '').toLowerCase();
       final reviewNeeded = _needsReview(rent);
@@ -155,6 +224,10 @@ class _RentsViewState extends State<_RentsView> {
       if (!passesStatus) return false;
       if (q.isEmpty) return true;
 
+      final total = safeRentTotal(rent);
+      final paid = safeRentPaid(rent);
+      final remaining = safeRentRemaining(rent);
+
       final haystack = [
         rent.id.toString(),
         rent.clientName ?? '',
@@ -163,6 +236,9 @@ class _RentsViewState extends State<_RentsView> {
         rent.endDatetime ?? '',
         rent.closingPaymentId?.toString() ?? '',
         rent.pricingRuleLabel ?? '',
+        total.toStringAsFixed(2),
+        paid.toStringAsFixed(2),
+        remaining.toStringAsFixed(2),
       ].join(' ').toLowerCase();
 
       return haystack.contains(q);
@@ -172,23 +248,16 @@ class _RentsViewState extends State<_RentsView> {
   bool _isOverdue(Rent rent) {
     final status = (rent.status ?? '').toLowerCase();
     if (status != 'open') return false;
-    final start = DateTime.tryParse(rent.startDatetime.replaceFirst(' ', 'T'));
+    final start = _tryParseRentDate(rent.startDatetime);
     if (start == null) return false;
     return DateTime.now().difference(start).inHours >= 24;
   }
 
-  double _remainingAmount(Rent rent) {
-    final direct = rent.remainingAmount;
-    if (direct != null) return direct;
-    final total = rent.totalAmount ?? 0;
-    final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
-    final remaining = total - paid;
-    return remaining > 0 ? remaining : 0;
-  }
+  double _remainingAmount(Rent rent) => safeRentRemaining(rent);
 
   bool _isClosedWithDeferredPayment(Rent rent) {
     final status = (rent.status ?? '').toLowerCase();
-    return status == 'closed' && _remainingAmount(rent) > 0.009;
+    return status == 'closed' && safeRentRemaining(rent) > 0.009;
   }
 
   bool _needsReview(Rent rent) {
@@ -200,7 +269,6 @@ class _RentsViewState extends State<_RentsView> {
     return _isOverdue(rent);
   }
 
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -211,9 +279,7 @@ class _RentsViewState extends State<_RentsView> {
         actions: [
           IconButton(
             tooltip: 'تحديث',
-            onPressed: () => context.read<RentsBloc>().add(
-              RentsRequested(status: _statusParam),
-            ),
+            onPressed: _reloadEverything,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -231,9 +297,9 @@ class _RentsViewState extends State<_RentsView> {
         child: BlocConsumer<RentsBloc, RentsState>(
           listener: (context, state) {
             if (state.error != null) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.error!)));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.error!)),
+              );
             }
           },
           builder: (context, state) {
@@ -253,9 +319,8 @@ class _RentsViewState extends State<_RentsView> {
 
             return RefreshIndicator(
               onRefresh: () async {
-                context.read<RentsBloc>().add(RentsRequested(status: _statusParam));
-                await _fetchCollectionAgenda();
-                await Future<void>.delayed(const Duration(milliseconds: 300));
+                await _reloadEverything();
+                await Future<void>.delayed(const Duration(milliseconds: 200));
               },
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
@@ -278,22 +343,24 @@ class _RentsViewState extends State<_RentsView> {
                       children: [
                         Text(
                           'إدارة العقود اليومية',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'اعرض العقود المفتوحة والمغلقة بسرعة، وراجع العقود المتأخرة أو التي أغلقت بدون سند قبض.',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           onChanged: (value) => setState(() => _query = value),
                           decoration: InputDecoration(
-                            hintText: 'ابحث برقم العقد أو العميل أو المعدة أو رقم السند',
+                            hintText:
+                                'ابحث برقم العقد أو العميل أو المعدة أو رقم السند',
                             prefixIcon: const Icon(Icons.search),
                             filled: true,
                             fillColor: colorScheme.surface,
@@ -316,17 +383,22 @@ class _RentsViewState extends State<_RentsView> {
                       margin: const EdgeInsets.only(bottom: 14),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: (stats.overdue > 0 ? Colors.red : Colors.orange).withOpacity(0.08),
+                        color: (stats.overdue > 0 ? Colors.red : Colors.orange)
+                            .withOpacity(0.08),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: (stats.overdue > 0 ? Colors.red : Colors.orange).withOpacity(0.25),
+                          color: (stats.overdue > 0 ? Colors.red : Colors.orange)
+                              .withOpacity(0.25),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            stats.overdue > 0 ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined,
-                            color: stats.overdue > 0 ? Colors.red : Colors.orange,
+                            stats.overdue > 0
+                                ? Icons.warning_amber_rounded
+                                : Icons.account_balance_wallet_outlined,
+                            color:
+                                stats.overdue > 0 ? Colors.red : Colors.orange,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -337,20 +409,28 @@ class _RentsViewState extends State<_RentsView> {
                                   stats.overdue > 0
                                       ? 'لديك عقود متأخرة تحتاج متابعة الآن'
                                       : 'هناك عقود مغلقة لكن ما زال عليها رصيد مؤجل',
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.س',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
                                 ),
                               ],
                             ),
                           ),
                           FilledButton.icon(
-                            onPressed: () => setState(() => _statusFilter = stats.overdue > 0 ? 'overdue' : 'deferred'),
+                            onPressed: () => setState(
+                              () => _statusFilter =
+                                  stats.overdue > 0 ? 'overdue' : 'deferred',
+                            ),
                             icon: const Icon(Icons.open_in_new),
                             label: const Text('عرض الآن'),
                           ),
@@ -386,7 +466,8 @@ class _RentsViewState extends State<_RentsView> {
                           value: stats.deferredCount.toString(),
                           icon: Icons.account_balance_wallet_outlined,
                           tone: Colors.orange,
-                          subtitle: '${stats.deferredAmount.toStringAsFixed(0)} ر.س',
+                          subtitle:
+                              '${stats.deferredAmount.toStringAsFixed(0)} ر.س',
                         ),
                       ],
                     ),
@@ -397,7 +478,9 @@ class _RentsViewState extends State<_RentsView> {
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.35)),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withOpacity(0.35),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,16 +493,22 @@ class _RentsViewState extends State<_RentsView> {
                                 children: [
                                   Text(
                                     'متابعة التحصيل اليومية',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'تعرض العقود المتأخرة أو المؤجلة، وتوضح فورًا هل تم التواصل مع العميل اليوم ومن قام بذلك حتى لا يتكرر التواصل بين الموظفين.',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -427,9 +516,21 @@ class _RentsViewState extends State<_RentsView> {
                             const SizedBox(width: 8),
                             SegmentedButton<String>(
                               segments: const [
-                                ButtonSegment(value: 'oldest', icon: Icon(Icons.history_toggle_off), label: Text('الأقدم')),
-                                ButtonSegment(value: 'largest', icon: Icon(Icons.trending_up), label: Text('الأكبر')),
-                                ButtonSegment(value: 'scheduled', icon: Icon(Icons.event_available_outlined), label: Text('المجدول')),
+                                ButtonSegment(
+                                  value: 'oldest',
+                                  icon: Icon(Icons.history_toggle_off),
+                                  label: Text('الأقدم'),
+                                ),
+                                ButtonSegment(
+                                  value: 'largest',
+                                  icon: Icon(Icons.trending_up),
+                                  label: Text('الأكبر'),
+                                ),
+                                ButtonSegment(
+                                  value: 'scheduled',
+                                  icon: Icon(Icons.event_available_outlined),
+                                  label: Text('المجدول'),
+                                ),
                               ],
                               selected: {_collectionSort},
                               onSelectionChanged: (value) {
@@ -454,32 +555,56 @@ class _RentsViewState extends State<_RentsView> {
                               color: colorScheme.surface,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Text('لا توجد عقود بحاجة لتحصيل حاليًا'),
+                            child: const Text(
+                              'لا توجد عقود بحاجة لتحصيل حاليًا',
+                            ),
                           )
                         else
                           Column(
-                            children: collectionToday.take(5).map((item) => Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: item.hasContactToday ? Colors.blue.withOpacity(0.12) : Colors.orange.withOpacity(0.12),
-                                  child: Icon(item.hasContactToday ? Icons.phone_in_talk_outlined : Icons.account_balance_wallet_outlined, color: item.hasContactToday ? Colors.blue : Colors.orange),
-                                ),
-                                title: Text('عقد #${item.id} • ${item.clientName}'),
-                                subtitle: Text(_collectionAgendaSubtitle(item)),
-                                isThreeLine: true,
-                                trailing: const Icon(Icons.chevron_left),
-                                onTap: () => _openDetails(context, item.id),
-                              ),
-                            )).toList(),
+                            children: collectionToday
+                                .take(5)
+                                .map(
+                                  (item) => Card(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: item.hasContactToday
+                                            ? Colors.blue.withOpacity(0.12)
+                                            : Colors.orange.withOpacity(0.12),
+                                        child: Icon(
+                                          item.hasContactToday
+                                              ? Icons.phone_in_talk_outlined
+                                              : Icons.account_balance_wallet_outlined,
+                                          color: item.hasContactToday
+                                              ? Colors.blue
+                                              : Colors.orange,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        'عقد #${item.id} • ${item.clientName}',
+                                      ),
+                                      subtitle:
+                                          Text(_collectionAgendaSubtitle(item)),
+                                      isThreeLine: true,
+                                      trailing:
+                                          const Icon(Icons.chevron_left),
+                                      onTap: () =>
+                                          _openDetails(context, item.id),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         if (collectionToday.length > 5)
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton.icon(
-                              onPressed: () => setState(() => _statusFilter = 'deferred'),
+                              onPressed: () =>
+                                  setState(() => _statusFilter = 'deferred'),
                               icon: const Icon(Icons.open_in_new),
-                              label: Text('عرض كل عقود التحصيل (${collectionToday.length})'),
+                              label: Text(
+                                'عرض كل عقود التحصيل (${collectionToday.length})',
+                              ),
                             ),
                           ),
                       ],
@@ -532,13 +657,17 @@ class _RentsViewState extends State<_RentsView> {
                     children: [
                       Text(
                         'العقود المعروضة',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(999),
@@ -557,10 +686,16 @@ class _RentsViewState extends State<_RentsView> {
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.inbox_outlined, size: 42, color: colorScheme.outline),
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 42,
+                            color: colorScheme.outline,
+                          ),
                           const SizedBox(height: 12),
                           Text(
-                            state.items.isEmpty ? 'لا توجد عقود حتى الآن' : 'لا توجد عقود مطابقة للفلترة الحالية',
+                            state.items.isEmpty
+                                ? 'لا توجد عقود حتى الآن'
+                                : 'لا توجد عقود مطابقة للفلترة الحالية',
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
@@ -575,13 +710,14 @@ class _RentsViewState extends State<_RentsView> {
                           rent: rent,
                           isOverdue: _isOverdue(rent),
                           needsReview: _needsReview(rent),
-                          isClosedWithDeferredPayment: _isClosedWithDeferredPayment(rent),
+                          isClosedWithDeferredPayment:
+                              _isClosedWithDeferredPayment(rent),
                           remainingAmount: _remainingAmount(rent),
                           onOpenDetails: () => _openDetails(context, rent.id),
                           onCancelled: (rentId) {
                             context.read<RentsBloc>().add(
-                              RentCancelled(rentId: rentId),
-                            );
+                                  RentCancelled(rentId: rentId),
+                                );
                           },
                         ),
                       ),
@@ -595,21 +731,31 @@ class _RentsViewState extends State<_RentsView> {
     );
   }
 
-
   String _collectionAgendaSubtitle(_CollectionAgendaItem item) {
-    final lines = <String>['المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.س'];
+    final lines = <String>[
+      'المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.س'
+    ];
+
     if (item.hasScheduledFollowupToday) {
-      lines.add('متابعة مجدولة اليوم ${item.nextFollowupAtLabel}${item.latestCreatedByName == null ? '' : ' • بواسطة ${item.latestCreatedByName}'}');
+      lines.add(
+        'متابعة مجدولة اليوم ${item.nextFollowupAtLabel}${item.latestCreatedByName == null ? '' : ' • بواسطة ${item.latestCreatedByName}'}',
+      );
     } else if (item.hasUpcomingScheduledFollowup) {
       lines.add('المتابعة القادمة: ${item.nextFollowupAtLabel}');
     }
+
     if (item.hasContactToday) {
-      lines.add('تم التواصل اليوم بواسطة ${item.todayCreatedByName ?? 'أحد الموظفين'} ${item.todayCreatedAtLabel}');
+      lines.add(
+        'تم التواصل اليوم بواسطة ${item.todayCreatedByName ?? 'أحد الموظفين'} ${item.todayCreatedAtLabel}',
+      );
     } else if (item.latestCreatedAt != null) {
-      lines.add('آخر تواصل: ${item.latestCreatedByName ?? 'أحد الموظفين'} • ${item.latestCreatedAtLabel}');
+      lines.add(
+        'آخر تواصل: ${item.latestCreatedByName ?? 'أحد الموظفين'} • ${item.latestCreatedAtLabel}',
+      );
     } else {
       lines.add('لا توجد متابعة تحصيل مسجلة حتى الآن');
     }
+
     return lines.join('\n');
   }
 
@@ -626,7 +772,8 @@ class _RentsViewState extends State<_RentsView> {
     );
 
     if (ok == true && context.mounted) {
-      context.read<RentsBloc>().add(RentsRequested(status: _statusParam));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await _reloadEverything();
     }
   }
 }
@@ -650,7 +797,6 @@ class _RentCard extends StatelessWidget {
   final VoidCallback onOpenDetails;
   final void Function(int rentId) onCancelled;
 
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -658,6 +804,10 @@ class _RentCard extends StatelessWidget {
     final isClosed = status == 'closed';
     final isCancelled = status == 'cancelled';
     final paymentStatus = (rent.closingPaymentStatus ?? '').toLowerCase();
+
+    final total = safeRentTotal(rent);
+    final paid = safeRentPaid(rent);
+    final remaining = safeRentRemaining(rent);
 
     final accent = isCancelled
         ? Colors.grey
@@ -678,8 +828,9 @@ class _RentCard extends StatelessWidget {
         : isClosed
             ? 'أغلق بدون سند'
             : 'لم يُغلق بعد';
-    final financialHint = isClosedWithDeferredPayment
-        ? 'متبقٍ على العميل ${remainingAmount.toStringAsFixed(2)} ر.س'
+
+    final financialHint = remaining > 0.009
+        ? 'متبقٍ على العميل ${remaining.toStringAsFixed(2)} ر.س'
         : (rent.pricingRuleLabel ?? 'الاحتساب القياسي');
 
     return Container(
@@ -729,16 +880,20 @@ class _RentCard extends StatelessWidget {
                         children: [
                           Text(
                             'عقد #${rent.id}',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             rent.clientName ?? 'عميل غير محدد',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ),
@@ -751,9 +906,18 @@ class _RentCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _InfoPill(icon: Icons.precision_manufacturing_outlined, text: rent.equipmentName ?? 'معدة غير محددة'),
-                    _InfoPill(icon: Icons.login_rounded, text: rent.startDatetime),
-                    _InfoPill(icon: Icons.logout_rounded, text: rent.endDatetime ?? 'العقد جاري'),
+                    _InfoPill(
+                      icon: Icons.precision_manufacturing_outlined,
+                      text: rent.equipmentName ?? 'معدة غير محددة',
+                    ),
+                    _InfoPill(
+                      icon: Icons.login_rounded,
+                      text: rent.startDatetime,
+                    ),
+                    _InfoPill(
+                      icon: Icons.logout_rounded,
+                      text: rent.endDatetime ?? 'العقد جاري',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -762,16 +926,18 @@ class _RentCard extends StatelessWidget {
                     Expanded(
                       child: _MiniMetric(
                         label: 'الإجمالي',
-                        value: '${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.س',
+                        value: total <= 0 && status == 'open'
+                            ? 'جاري...'
+                            : '${total.toStringAsFixed(2)} ر.س',
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _MiniMetric(
-                        label: isClosedWithDeferredPayment ? 'المتبقي' : 'المدفوع عند الإغلاق',
-                        value: isClosedWithDeferredPayment
-                            ? '${remainingAmount.toStringAsFixed(2)} ر.س'
-                            : '${(rent.closingPaidAmount ?? rent.paidAmount ?? 0).toStringAsFixed(2)} ر.س',
+                        label: remaining > 0.009 ? 'المتبقي' : 'المدفوع',
+                        value: remaining > 0.009
+                            ? '${remaining.toStringAsFixed(2)} ر.س'
+                            : '${paid.toStringAsFixed(2)} ر.س',
                       ),
                     ),
                   ],
@@ -793,8 +959,12 @@ class _RentCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        needsReview ? Icons.warning_amber_rounded : Icons.receipt_long_outlined,
-                        color: needsReview ? Colors.orange : colorScheme.primary,
+                        needsReview
+                            ? Icons.warning_amber_rounded
+                            : Icons.receipt_long_outlined,
+                        color: needsReview
+                            ? Colors.orange
+                            : colorScheme.primary,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -803,12 +973,16 @@ class _RentCard extends StatelessWidget {
                           children: [
                             Text(
                               receiptLabel,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               financialHint,
-                              style: TextStyle(color: colorScheme.onSurfaceVariant),
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -830,7 +1004,11 @@ class _RentCard extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: onOpenDetails,
-                        icon: Icon(isClosed ? Icons.visibility_outlined : Icons.edit_note_outlined),
+                        icon: Icon(
+                          isClosed
+                              ? Icons.visibility_outlined
+                              : Icons.edit_note_outlined,
+                        ),
                         label: Text(isClosed ? 'عرض التفاصيل' : 'إدارة العقد'),
                       ),
                     ),
@@ -838,8 +1016,12 @@ class _RentCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: isClosed ? onOpenDetails : onOpenDetails,
-                          icon: Icon(isClosed ? Icons.receipt_long : Icons.lock_clock_outlined),
+                          onPressed: onOpenDetails,
+                          icon: Icon(
+                            isClosed
+                                ? Icons.receipt_long
+                                : Icons.lock_clock_outlined,
+                          ),
                           label: Text(isClosed ? 'مراجعة الإغلاق' : 'إغلاق سريع'),
                         ),
                       ),
@@ -856,20 +1038,24 @@ class _RentCard extends StatelessWidget {
                           context: context,
                           builder: (_) => AlertDialog(
                             title: const Text('تأكيد إلغاء العقد'),
-                            content: Text('هل تريد إلغاء العقد رقم #${rent.id} ؟'),
+                            content:
+                                Text('هل تريد إلغاء العقد رقم #${rent.id} ؟'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
                                 child: const Text('تراجع'),
                               ),
                               ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                ),
                                 onPressed: () => Navigator.pop(context, true),
                                 child: const Text('إلغاء العقد'),
                               ),
                             ],
                           ),
                         );
+
                         if (ok == true && context.mounted) {
                           onCancelled(rent.id);
                         }
@@ -903,7 +1089,6 @@ class _StatCard extends StatelessWidget {
   final Color tone;
   final String? subtitle;
 
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -925,9 +1110,9 @@ class _StatCard extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: tone,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: tone,
+                  ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -947,9 +1132,9 @@ class _StatCard extends StatelessWidget {
               child: Text(
                 subtitle!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: tone,
-                  fontSize: 10,
-                ),
+                      color: tone,
+                      fontSize: 10,
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -972,7 +1157,6 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -983,7 +1167,9 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+          color: selected
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -1003,7 +1189,6 @@ class _Pill extends StatelessWidget {
 
   final String label;
   final Color color;
-
 
   @override
   Widget build(BuildContext context) {
@@ -1026,7 +1211,6 @@ class _InfoPill extends StatelessWidget {
 
   final IconData icon;
   final String text;
-
 
   @override
   Widget build(BuildContext context) {
@@ -1060,7 +1244,6 @@ class _MiniMetric extends StatelessWidget {
 
   final String label;
   final String value;
-
 
   @override
   Widget build(BuildContext context) {
@@ -1162,6 +1345,7 @@ class _OpenRentDialog extends StatefulWidget {
 class _OpenRentDialogState extends State<_OpenRentDialog> {
   List<Client> _clients = [];
   List<Equipment> _equipment = [];
+
   int? _clientId;
   int? _equipmentId;
 
@@ -1183,11 +1367,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
     final e = await widget.equipmentRepo.list();
 
     if (!mounted) return;
+
+    final availableEquipment =
+        e.where((x) => (x.status ?? 'available') != 'rented').toList();
+
     setState(() {
       _clients = c;
-      _equipment = e
-          .where((x) => (x.status ?? 'available') != 'rented')
-          .toList();
+      _equipment = availableEquipment;
       _clientId = _clients.isNotEmpty ? _clients.first.id : null;
       _equipmentId = _equipment.isNotEmpty ? _equipment.first.id : null;
       _loading = false;
@@ -1199,7 +1385,6 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
     _rateCtrl.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1219,9 +1404,9 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                     items: (filter, _) => _clients
                         .where(
                           (c) =>
-                              c.name.toLowerCase().contains(
-                                filter.toLowerCase(),
-                              ) ||
+                              c.name
+                                  .toLowerCase()
+                                  .contains(filter.toLowerCase()) ||
                               (c.phone != null && c.phone!.contains(filter)) ||
                               (c.nationalId != null &&
                                   c.nationalId!.contains(filter)),
@@ -1229,10 +1414,12 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                         .toList(),
                     compareFn: (i, s) => i.id == s.id,
                     itemAsString: (Client c) => '${c.id} - ${c.name}',
-                    selectedItem: _clients.firstWhere(
-                      (c) => c.id == _clientId,
-                      orElse: () => _clients.first,
-                    ),
+                    selectedItem: _clients.isNotEmpty
+                        ? _clients.firstWhere(
+                            (c) => c.id == _clientId,
+                            orElse: () => _clients.first,
+                          )
+                        : null,
                     onChanged: (Client? data) {
                       if (data != null) setState(() => _clientId = data.id);
                     },
@@ -1252,13 +1439,12 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       ),
                       itemBuilder: (context, item, isDisabled, isSelected) =>
                           ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              '${item.phone ?? ""} | ${item.nationalId ?? ""}',
-                            ),
-                            selected: isSelected,
-                            trailing: Text('#${item.id}'),
-                          ),
+                        title: Text(item.name),
+                        subtitle:
+                            Text('${item.phone ?? ""} | ${item.nationalId ?? ""}'),
+                        selected: isSelected,
+                        trailing: Text('#${item.id}'),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1266,22 +1452,24 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                     items: (filter, _) => _equipment
                         .where(
                           (e) =>
-                              e.name.toLowerCase().contains(
-                                filter.toLowerCase(),
-                              ) ||
+                              e.name
+                                  .toLowerCase()
+                                  .contains(filter.toLowerCase()) ||
                               (e.serialNo != null &&
-                                  e.serialNo!.toLowerCase().contains(
-                                    filter.toLowerCase(),
-                                  )),
+                                  e.serialNo!
+                                      .toLowerCase()
+                                      .contains(filter.toLowerCase())),
                         )
                         .toList(),
                     compareFn: (i, s) => i.id == s.id,
                     itemAsString: (Equipment e) =>
                         '${e.name} - ${e.serialNo ?? "-"}',
-                    selectedItem: _equipment.firstWhere(
-                      (e) => e.id == _equipmentId,
-                      orElse: () => _equipment.first,
-                    ),
+                    selectedItem: _equipment.isNotEmpty
+                        ? _equipment.firstWhere(
+                            (e) => e.id == _equipmentId,
+                            orElse: () => _equipment.first,
+                          )
+                        : null,
                     onChanged: (Equipment? data) {
                       if (data != null) setState(() => _equipmentId = data.id);
                     },
@@ -1301,13 +1489,11 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       ),
                       itemBuilder: (context, item, isDisabled, isSelected) =>
                           ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              'رقم تسلسلي: ${item.serialNo ?? "-"}',
-                            ),
-                            selected: isSelected,
-                            trailing: Text('#${item.id}'),
-                          ),
+                        title: Text(item.name),
+                        subtitle: Text('رقم تسلسلي: ${item.serialNo ?? "-"}'),
+                        selected: isSelected,
+                        trailing: Text('#${item.id}'),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1318,7 +1504,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'سعر الساعة (اختياري)',
+                      labelText: 'سعر اليومي  (اتياري)خ',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -1349,7 +1535,6 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                   ? null
                   : () {
                       if (_clientId == null || _equipmentId == null) return;
-
                       if (!_formKey.currentState!.validate()) return;
 
                       setState(() {
@@ -1360,13 +1545,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       final rate = double.tryParse(_rateCtrl.text.trim()) ?? 0;
 
                       context.read<RentsBloc>().add(
-                        RentOpened(
-                          clientId: _clientId!,
-                          equipmentId: _equipmentId!,
-                          startDatetime: nowSql(),
-                          hourlyRate: rate,
-                        ),
-                      );
+                            RentOpened(
+                              clientId: _clientId!,
+                              equipmentId: _equipmentId!,
+                              startDatetime: nowSql(),
+                              dailyRate: rate,
+                            ),
+                          );
                     },
               child: disabled
                   ? const SizedBox(
@@ -1382,7 +1567,6 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
     );
   }
 }
-
 
 class _CollectionAgendaItem {
   const _CollectionAgendaItem({
@@ -1412,8 +1596,12 @@ class _CollectionAgendaItem {
   final String? todayCreatedByName;
 
   factory _CollectionAgendaItem.fromJson(Map<String, dynamic> json) {
-    int toI(dynamic v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
-    double toD(dynamic v) => v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+    int toI(dynamic v) =>
+        v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+
+    double toD(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+
     return _CollectionAgendaItem(
       id: toI(json['id']),
       clientId: toI(json['client_id']),
@@ -1429,9 +1617,11 @@ class _CollectionAgendaItem {
     );
   }
 
-  bool get hasContactToday => todayCreatedAt != null && todayCreatedAt!.isNotEmpty;
+  bool get hasContactToday =>
+      todayCreatedAt != null && todayCreatedAt!.isNotEmpty;
 
   DateTime? get _nextFollowupDateTime => _parse(latestNextFollowupAt);
+
   bool get hasScheduledFollowupToday {
     final dt = _nextFollowupDateTime;
     if (dt == null) return false;

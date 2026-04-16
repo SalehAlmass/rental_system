@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/failure.dart';
 import '../../../payments/data/repositories/payments_repository_impl.dart';
 import '../../../payments/domain/entities/models.dart';
 import '../../../payments/presentation/ui/payment_details_page.dart';
@@ -32,10 +34,13 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   List<Rent> _clientOutstandingRents = const [];
   List<CollectionFollowup> _followups = const [];
   List<CollectionFollowup> _clientFollowups = const [];
+
   double _total = 0;
   double _paid = 0;
   double _remaining = 0;
   bool _fullyPaid = false;
+
+  final Map<String, String> _sectionErrors = {};
 
   @override
   void initState() {
@@ -48,64 +53,125 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
+    _sectionErrors.clear();
+
     try {
-      await _fetchFinancials();
-      await _fetchRentPayments();
-      await _fetchClientOutstandingRents();
-      await _fetchCollectionFollowups();
-      await _fetchClientFollowups();
-    } catch (e) {
-      if (!mounted) return;
-      _snack('فشل تحميل تفاصيل العقد: $e');
+      await _runSection('financials', _fetchFinancials, fatal: true);
+
+      await Future.wait([
+        _runSection('payments', _fetchRentPayments),
+        _runSection('outstanding', _fetchClientOutstandingRents),
+        _runSection('followups', _fetchCollectionFollowups),
+        _runSection('client_followups', _fetchClientFollowups),
+      ]);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  Future<void> _runSection(
+    String key,
+    Future<void> Function() task, {
+    bool fatal = false,
+  }) async {
+    try {
+      await task();
+      if (!mounted) return;
+      setState(() => _sectionErrors.remove(key));
+    } catch (e) {
+      if (!mounted) return;
+      final msg = _friendlyError(e);
+      setState(() => _sectionErrors[key] = msg);
+      if (fatal) _snack(msg);
+    }
+  }
+
+  String _friendlyError(Object error) {
+    final text = error.toString();
+    if (text.contains('Unexpected token') ||
+        text.contains('FormatException') ||
+        text.contains('is not valid JSON')) {
+      return 'السيرفر أعاد استجابة غير صالحة بدل JSON. راجع ملف API أو سجل أخطاء PHP.';
+    }
+    if (text.contains('404')) return 'المسار المطلوب غير موجود في API.';
+    return text.replaceFirst('Exception: ', '');
+  }
+
+  dynamic _unwrapResponseData(dynamic raw) {
+    if (raw is String) {
+      final s = raw.trimLeft();
+      if (s.startsWith('<')) {
+        throw ApiFailure('API returned HTML instead of JSON: $s');
+      }
+      throw ApiFailure('API returned plain text instead of JSON: $s');
+    }
+
+    if (raw is Map) {
+      return raw['data'] ?? raw['items'] ?? raw['rent'] ?? raw['followups'] ?? raw;
+    }
+
+    return raw;
+  }
+
+  double _numToDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
+
   Future<void> _fetchFinancials() async {
-    final res = await _api.dio.get('rents/${widget.rentId}/financials');
+    try {
+      final res = await _api.dio.get('rents/${widget.rentId}/financials');
+      final raw = _unwrapResponseData(res.data);
 
-    dynamic raw = res.data;
-    if (raw is Map && raw['data'] != null) raw = raw['data'];
-    if (raw is! Map) {
-      throw Exception('Unexpected response: ${res.data}');
+      if (raw is! Map) throw ApiFailure('financials payload is invalid');
+
+      final rentJson =
+          (raw['rent'] is Map) ? (raw['rent'] as Map).cast<String, dynamic>() : null;
+
+      if (rentJson == null) {
+        throw ApiFailure('financials: rent is missing');
+      }
+
+      final rent = Rent.fromJson(rentJson);
+      final total = _numToDouble(raw['total_amount']);
+      final paid = _numToDouble(raw['paid_amount']);
+      final remaining = _numToDouble(raw['remaining_amount'] ?? raw['remaining']);
+      final isPaidServer =
+          (raw['is_paid'] == true) || (raw['is_fully_paid'] == true);
+
+      final status = (rent.status ?? '').toLowerCase();
+      final fullyPaidSafe = status == 'open' ? false : isPaidServer;
+
+      if (!mounted) return;
+      setState(() {
+        _rent = rent;
+        _total = total;
+        _paid = paid;
+        _remaining = remaining < 0 ? 0 : remaining;
+        _fullyPaid = fullyPaidSafe;
+      });
+    } catch (_) {
+      final rent = await _rentsRepo.get(widget.rentId);
+      if (!mounted) return;
+
+      setState(() {
+        _rent = rent;
+        _total = rent.totalAmount ?? 0;
+        _paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
+        _remaining = _remainingFor(rent);
+        _fullyPaid = (rent.status ?? '').toLowerCase() == 'open'
+            ? false
+            : (rent.isPaid ?? false);
+      });
     }
-
-    final rentJson = (raw['rent'] is Map)
-        ? (raw['rent'] as Map).cast<String, dynamic>()
-        : null;
-    if (rentJson == null) {
-      throw Exception('financials: rent is missing');
-    }
-
-    final rent = Rent.fromJson(rentJson);
-
-    double numToDouble(dynamic v) {
-      if (v is num) return v.toDouble();
-      return double.tryParse(v?.toString() ?? '') ?? 0.0;
-    }
-
-    final total = numToDouble(raw['total_amount']);
-    final paid = numToDouble(raw['paid_amount']);
-    final remaining = numToDouble(raw['remaining_amount'] ?? raw['remaining']);
-    final isPaidServer = (raw['is_paid'] == true) || (raw['is_fully_paid'] == true);
-
-    final status = (rent.status ?? '').toLowerCase();
-    final isOpen = status == 'open';
-    final fullyPaidSafe = isOpen ? false : isPaidServer;
-
-    setState(() {
-      _rent = rent;
-      _total = total;
-      _paid = paid;
-      _remaining = remaining < 0 ? 0 : remaining;
-      _fullyPaid = fullyPaidSafe;
-    });
   }
 
   Future<void> _fetchRentPayments() async {
-    final items = await _paymentsRepo.list(rentId: widget.rentId, showVoided: true);
+    final items = await _paymentsRepo.list(
+      rentId: widget.rentId,
+      showVoided: true,
+    );
     if (!mounted) return;
     setState(() => _rentPayments = items);
   }
@@ -118,7 +184,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     final outstanding = items.where((item) {
       if (item.id == rent.id) return false;
       final remaining = _remainingFor(item);
-      return remaining > 0.009 && (item.status ?? '').toLowerCase() != 'cancelled';
+      return remaining > 0.009 &&
+          (item.status ?? '').toLowerCase() != 'cancelled';
     }).toList();
 
     if (!mounted) return;
@@ -127,36 +194,43 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
   Future<void> _fetchCollectionFollowups() async {
     final res = await _api.dio.get('rents/${widget.rentId}/collection-followups');
-    dynamic raw = res.data;
-    if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['followups'] ?? [];
+    dynamic raw = _unwrapResponseData(res.data);
     if (raw is! List) raw = [];
+
     final items = raw
         .whereType<Map>()
         .map((e) => CollectionFollowup.fromJson(e.cast<String, dynamic>()))
         .toList();
+
     if (!mounted) return;
     setState(() => _followups = items);
   }
 
-
   Future<void> _fetchClientFollowups() async {
     final rent = _rent;
     if (rent == null) return;
-    final res = await _api.dio.get('clients/${rent.clientId}/collection-followups');
-    dynamic raw = res.data;
-    if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['followups'] ?? [];
+
+    final res =
+        await _api.dio.get('clients/${rent.clientId}/collection-followups');
+    dynamic raw = _unwrapResponseData(res.data);
     if (raw is! List) raw = [];
+
     final items = raw
         .whereType<Map>()
         .map((e) => CollectionFollowup.fromJson(e.cast<String, dynamic>()))
         .toList();
+
     if (!mounted) return;
     setState(() => _clientFollowups = items);
   }
 
-  Future<void> _createCollectionFollowup(_CollectionFollowupDraft draft, {bool allowDuplicateToday = false}) async {
+  Future<void> _createCollectionFollowup(
+    _CollectionFollowupDraft draft, {
+    bool allowDuplicateToday = false,
+  }) async {
     final rent = _rent;
     if (rent == null || _savingFollowup) return;
+
     setState(() => _savingFollowup = true);
     try {
       await _api.dio.post(
@@ -169,23 +243,26 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
           'allow_duplicate_today': allowDuplicateToday,
         },
       );
+
       await _fetchCollectionFollowups();
       await _fetchClientFollowups();
+
       if (!mounted) return;
       _snack('تم حفظ متابعة التحصيل');
     } on DioException catch (e) {
       if (!mounted) return;
       final data = e.response?.data;
-      final msg = data is Map && data['error'] != null ? data['error'].toString() : e.message ?? e.toString();
+      final msg = data is Map && data['error'] != null
+          ? data['error'].toString()
+          : e.message ?? e.toString();
       _snack('فشل حفظ متابعة التحصيل: $msg');
     } catch (e) {
       if (!mounted) return;
-      _snack('فشل حفظ متابعة التحصيل: $e');
+      _snack('فشل حفظ متابعة التحصيل: ${_friendlyError(e)}');
     } finally {
       if (mounted) setState(() => _savingFollowup = false);
     }
   }
-
 
   String _followupActor(CollectionFollowup item) {
     final name = item.createdByName?.trim();
@@ -195,6 +272,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
   Future<void> _openCollectionFollowupDialog() async {
     final todays = _todayClientFollowup;
+
     if (todays != null) {
       final proceed = await showDialog<bool>(
         context: context,
@@ -214,28 +292,48 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                 Text('ملاحظة: ${todays.note!.trim()}'),
               ],
               const SizedBox(height: 12),
-              const Text('حتى لا يتكرر التواصل مع نفس العميل في نفس اليوم، راجع المتابعة السابقة أولاً.'),
+              const Text(
+                'حتى لا يتكرر التواصل مع نفس العميل في نفس اليوم، راجع المتابعة السابقة أولاً.',
+              ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-            OutlinedButton(onPressed: () {
-              Navigator.pop(context, false);
-              _showFollowupsSheet(context);
-            }, child: const Text('عرض السجل')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('إضافة متابعة إضافية')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+                _showFollowupsSheet(context);
+              },
+              child: const Text('عرض السجل'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('إضافة متابعة إضافية'),
+            ),
           ],
         ),
       );
+
       if (proceed != true) return;
     }
 
     final draft = await showDialog<_CollectionFollowupDraft>(
       context: context,
-      builder: (_) => _CollectionFollowupDialog(initialHint: todays == null ? null : 'تم التواصل اليوم بواسطة ${_followupActor(todays)} • ${todays.contactTypeLabel} • ${todays.outcomeLabel}'),
+      builder: (_) => _CollectionFollowupDialog(
+        initialHint: todays == null
+            ? null
+            : 'تم التواصل اليوم بواسطة ${_followupActor(todays)} • ${todays.contactTypeLabel} • ${todays.outcomeLabel}',
+      ),
     );
+
     if (draft == null) return;
-    await _createCollectionFollowup(draft, allowDuplicateToday: todays != null);
+    await _createCollectionFollowup(
+      draft,
+      allowDuplicateToday: todays != null,
+    );
   }
 
   Future<void> _closeContract() async {
@@ -258,6 +356,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       if (result == null) return;
 
       setState(() => _closing = true);
+
       await _rentsRepo.closeRent(
         rentId: rent.id,
         endDatetime: DateTime.now().toIso8601String(),
@@ -266,7 +365,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         paymentMethod: result.paymentMethod,
         createReceipt: result.createReceipt,
         paymentNotes: result.paymentNotes,
-        idempotencyKey: 'rent_close_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
+        idempotencyKey:
+            'rent_close_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
       );
 
       await _load();
@@ -274,7 +374,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       _snack('تم إغلاق العقد بنجاح');
     } catch (e) {
       if (!mounted) return;
-      _snack('فشل إغلاق العقد: $e');
+      _snack('فشل إغلاق العقد: ${_friendlyError(e)}');
     } finally {
       if (mounted) setState(() => _closing = false);
     }
@@ -283,7 +383,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   Future<void> _showPayDialog({required Rent rent}) async {
     if (!mounted) return;
 
-    await _fetchFinancials();
+    await _runSection('financials', _fetchFinancials);
 
     final status = (rent.status ?? '').toLowerCase();
     final isOpen = status == 'open';
@@ -303,7 +403,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         maxPayable: maxPayable <= 0 ? 0 : maxPayable,
         unlimitedWhenOpen: isOpen && (_total <= 0.0001),
         onPay: (amount, method, notes) async {
-          final idemKey = 'rent_${rent.id}_${DateTime.now().microsecondsSinceEpoch}';
+          final idemKey =
+              'rent_${rent.id}_${DateTime.now().microsecondsSinceEpoch}';
           await _paymentsRepo.create(
             type: 'in',
             amount: amount,
@@ -317,13 +418,14 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       ),
     );
 
-    await _fetchFinancials();
-    await _fetchRentPayments();
+    await _runSection('financials', _fetchFinancials);
+    await _runSection('payments', _fetchRentPayments);
   }
 
   double _remainingFor(Rent rent) {
     final direct = rent.remainingAmount;
     if (direct != null) return direct < 0 ? 0 : direct;
+
     final total = rent.totalAmount ?? 0;
     final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
     final remaining = total - paid;
@@ -333,16 +435,28 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   Payment? get _lastPayment {
     final valid = _rentPayments.where((p) => !p.isVoid).toList();
     if (valid.isEmpty) return null;
+
     valid.sort((a, b) {
-      final ad = DateTime.tryParse((a.createdAt ?? '').replaceFirst(' ', 'T')) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bd = DateTime.tryParse((b.createdAt ?? '').replaceFirst(' ', 'T')) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final ad = DateTime.tryParse(
+            (a.createdAt ?? '').replaceFirst(' ', 'T'),
+          ) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = DateTime.tryParse(
+            (b.createdAt ?? '').replaceFirst(' ', 'T'),
+          ) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return bd.compareTo(ad);
     });
+
     return valid.first;
   }
 
-  CollectionFollowup? get _latestFollowup => _followups.isEmpty ? null : _followups.first;
-  CollectionFollowup? get _latestClientFollowup => _clientFollowups.isEmpty ? null : _clientFollowups.first;
+  CollectionFollowup? get _latestFollowup =>
+      _followups.isEmpty ? null : _followups.first;
+
+  CollectionFollowup? get _latestClientFollowup =>
+      _clientFollowups.isEmpty ? null : _clientFollowups.first;
+
   CollectionFollowup? get _todayClientFollowup {
     for (final item in _clientFollowups) {
       final dt = _tryParse(item.createdAt);
@@ -360,34 +474,93 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     return DateTime.tryParse(value.replaceFirst(' ', 'T'));
   }
 
-  bool get _hasDeferredPayment => _remaining > 0.009;
+  double get _liveOpenTotal {
+  final rent = _rent;
+  if (rent == null) return 0;
+
+  final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
+  if (savedTotal > 0) return savedTotal;
+
+  final status = (rent.status ?? '').toLowerCase();
+  if (status != 'open') return 0;
+
+  final dailyRate = rent.rate ?? 0;
+  if (dailyRate <= 0) return 0;
+
+  final start = _tryParse(rent.startDatetime);
+  if (start == null) return 0;
+
+  final minutes = DateTime.now().difference(start).inMinutes;
+  if (minutes <= 0) return 0;
+
+  final hours = minutes / 60.0;
+
+  double total;
+  if (hours < 3) {
+    total = dailyRate * (2 / 3);
+  } else {
+    total = dailyRate;
+  }
+
+  return double.parse(total.toStringAsFixed(2));
+}
+  double get _effectiveTotal => _liveOpenTotal;
+
+  double get _effectiveRemaining {
+    final status = (_rent?.status ?? '').toLowerCase();
+    final total = _effectiveTotal;
+
+    if (status == 'open' && total > 0) {
+      final remaining = total - _paid;
+      return remaining > 0 ? remaining : 0;
+    }
+
+    return _remaining > 0 ? _remaining : 0;
+  }
+
+  bool get _hasDeferredPayment => _effectiveRemaining > 0.009;
 
   bool get _isCollectionDelayed {
     if (!_hasDeferredPayment) return false;
+
     final status = (_rent?.status ?? '').toLowerCase();
     if (status != 'closed') return false;
-    final closedAt = DateTime.tryParse((_rent?.closedAt ?? '').replaceFirst(' ', 'T'));
+
+    final closedAt =
+        DateTime.tryParse((_rent?.closedAt ?? '').replaceFirst(' ', 'T'));
     if (closedAt == null) return false;
+
     return DateTime.now().difference(closedAt).inDays >= 3;
   }
 
   @override
   Widget build(BuildContext context) {
     final rent = _rent;
-    final status = ((rent?.status ?? '')).toLowerCase();
+    final status = (rent?.status ?? '').toLowerCase();
     final isOpen = status == 'open';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل العقد'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('تفاصيل العقد'),
+        centerTitle: true,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : (rent == null)
-              ? const Center(child: Text('تعذر تحميل العقد'))
+          : rent == null
+              ? Center(
+                  child: Text(
+                    _sectionErrors['financials'] ?? 'تعذر تحميل العقد',
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      if (_sectionErrors.isNotEmpty) ...[
+                        _buildErrorsBanner(),
+                        const SizedBox(height: 12),
+                      ],
                       _card(
                         title: 'معلومات العقد',
                         child: Column(
@@ -397,11 +570,26 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                             _kv('المعدة', rent.equipmentName ?? rent.equipmentId.toString()),
                             _kv('الحالة', _statusText(rent.status)),
                             _kv('بداية', _fmtDateTime(rent.startDatetime)),
-                            _kv('نهاية', rent.endDatetime == null ? '-' : _fmtDateTime(rent.endDatetime!)),
+                            _kv(
+                              'نهاية',
+                              rent.endDatetime == null
+                                  ? '-'
+                                  : _fmtDateTime(rent.endDatetime!),
+                            ),
                             const Divider(height: 18),
-                            _kv('الإجمالي', isOpen && _total <= 0.0001 ? 'غير نهائي (العقد جاري)' : '${_total.toStringAsFixed(2)} ر.س'),
+                            _kv(
+                              'الإجمالي',
+                              isOpen && _effectiveTotal <= 0.0001
+                                  ? 'غير نهائي (العقد جاري)'
+                                  : '${_effectiveTotal.toStringAsFixed(2)} ر.س',
+                            ),
                             _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.س'),
-                            _kv('المتبقي', isOpen && _total <= 0.0001 ? '-' : '${_remaining.toStringAsFixed(2)} ر.س'),
+                            _kv(
+                              'المتبقي',
+                              isOpen && _effectiveTotal <= 0.0001
+                                  ? '-'
+                                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.س',
+                            ),
                           ],
                         ),
                       ),
@@ -410,13 +598,28 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                         title: 'معلومات الإغلاق',
                         child: Column(
                           children: [
-                            _kv('وقت الإغلاق', rent.closedAt == null ? '-' : _fmtDateTime(rent.closedAt!)),
+                            _kv(
+                              'وقت الإغلاق',
+                              rent.closedAt == null ? '-' : _fmtDateTime(rent.closedAt!),
+                            ),
                             _kv('رقم المستخدم', rent.closedByUserId?.toString() ?? '-'),
-                            _kv('المبلغ عند الإغلاق', '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ر.س'),
-                            _kv('طريقة الدفع', _paymentMethodText(rent.closingPaymentMethod)),
-                            _kv('حالة السند', _receiptStatusText(rent.closingPaymentStatus)),
+                            _kv(
+                              'المبلغ عند الإغلاق',
+                              '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ر.س',
+                            ),
+                            _kv(
+                              'طريقة الدفع',
+                              _paymentMethodText(rent.closingPaymentMethod),
+                            ),
+                            _kv(
+                              'حالة السند',
+                              _receiptStatusText(rent.closingPaymentStatus),
+                            ),
                             _kv('رقم السند', rent.closingPaymentId?.toString() ?? '-'),
-                            _kv('طريقة الاحتساب', rent.pricingRuleLabel ?? 'الاحتساب القياسي'),
+                            _kv(
+                              'طريقة الاحتساب',
+                              rent.pricingRuleLabel ?? 'الاحتساب القياسي',
+                            ),
                           ],
                         ),
                       ),
@@ -429,9 +632,9 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                             if (_hasDeferredPayment) _buildCollectionBanner(context),
                             _buildFinancialStrip(isOpen: isOpen),
                             const SizedBox(height: 12),
-                            _buildLastPaymentCard(context),
+                            _buildLastPaymentCard(),
                             const SizedBox(height: 12),
-                            _buildFollowupCard(context),
+                            _buildFollowupCard(),
                             if (_clientOutstandingRents.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               _buildOtherOutstandingBanner(),
@@ -451,13 +654,23 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                                       ? null
                                       : () => _showPaymentsSheet(context),
                                   icon: const Icon(Icons.receipt_long_outlined),
-                                  label: Text(_rentPayments.isEmpty ? 'لا توجد سندات' : 'عرض السندات (${_rentPayments.length})'),
+                                  label: Text(
+                                    _rentPayments.isEmpty
+                                        ? 'لا توجد سندات'
+                                        : 'عرض السندات (${_rentPayments.length})',
+                                  ),
                                 ),
                                 if (isOpen)
                                   FilledButton.tonalIcon(
                                     onPressed: _closing ? null : _closeContract,
-                                    icon: Icon(_closing ? Icons.hourglass_top : Icons.lock_outline),
-                                    label: Text(_closing ? 'جاري الإغلاق...' : 'إغلاق العقد'),
+                                    icon: Icon(
+                                      _closing
+                                          ? Icons.hourglass_top
+                                          : Icons.lock_outline,
+                                    ),
+                                    label: Text(
+                                      _closing ? 'جاري الإغلاق...' : 'إغلاق العقد',
+                                    ),
                                   ),
                               ],
                             ),
@@ -470,35 +683,84 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     );
   }
 
+  Widget _buildErrorsBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orange.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'بعض الأقسام لم تُحمّل بالكامل',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          ..._sectionErrors.entries.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('• ${_sectionLabel(e.key)}: ${e.value}'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _sectionLabel(String key) {
+    switch (key) {
+      case 'financials':
+        return 'البيانات المالية';
+      case 'payments':
+        return 'السندات';
+      case 'outstanding':
+        return 'العقود الأخرى';
+      case 'followups':
+        return 'متابعات العقد';
+      case 'client_followups':
+        return 'متابعات العميل';
+      default:
+        return key;
+    }
+  }
+
   Widget _buildCollectionBanner(BuildContext context) {
-    final color = _isCollectionDelayed ? Colors.red : Colors.orange;
+    final msg = _isCollectionDelayed
+        ? 'تأخر في السداد لهذا العقد'
+        : 'يوجد مبلغ متبقٍ على العميل';
+
+    final bg = _isCollectionDelayed
+        ? Colors.red.withOpacity(0.08)
+        : Colors.amber.withOpacity(0.10);
+
+    final bd = _isCollectionDelayed
+        ? Colors.red.withOpacity(0.25)
+        : Colors.amber.withOpacity(0.30);
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.22)),
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: bd),
       ),
       child: Row(
         children: [
           Icon(
-            _isCollectionDelayed ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined,
-            color: color,
+            _isCollectionDelayed
+                ? Icons.warning_amber_rounded
+                : Icons.info_outline,
+            color: _isCollectionDelayed ? Colors.red : Colors.orange,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _isCollectionDelayed ? 'تأخر في السداد لهذا العقد' : 'يوجد مبلغ متبقٍ على العميل',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text('المتبقي الحالي: ${_remaining.toStringAsFixed(2)} ر.س'),
-              ],
+            child: Text(
+              msg,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -510,311 +772,253 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: const Color(0xFFEFF5F3),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Expanded(child: _miniMetric('إجمالي العقد', isOpen && _total <= 0.0001 ? 'جاري' : '${_total.toStringAsFixed(2)} ر.س')),
-          const SizedBox(width: 8),
-          Expanded(child: _miniMetric('المدفوع', '${_paid.toStringAsFixed(2)} ر.س')),
-          const SizedBox(width: 8),
-          Expanded(child: _miniMetric('المتبقي', isOpen && _total <= 0.0001 ? '-' : '${_remaining.toStringAsFixed(2)} ر.س')),
+          Expanded(
+            child: _miniMetric(
+              'إجمالي العقد',
+              isOpen && _effectiveTotal <= 0.0001
+                  ? 'جاري'
+                  : '${_effectiveTotal.toStringAsFixed(2)} ر.س',
+            ),
+          ),
+          Expanded(
+            child: _miniMetric(
+              'المدفوع',
+              '${_paid.toStringAsFixed(2)} ر.س',
+            ),
+          ),
+          Expanded(
+            child: _miniMetric(
+              'المتبقي',
+              isOpen && _effectiveTotal <= 0.0001
+                  ? '-'
+                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.س',
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLastPaymentCard(BuildContext context) {
+  Widget _buildLastPaymentCard() {
+    final payment = _lastPayment;
+    if (payment == null) {
+      return _emptyInfo('لا توجد دفعات مسجلة لهذا العقد حتى الآن.');
+    }
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('آخر دفعة', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          if (_lastPayment == null)
-            Text('لا توجد دفعات مسجلة حتى الآن', style: Theme.of(context).textTheme.bodyMedium)
-          else ...[
-            _kv('تاريخ آخر دفعة', _fmtDateTime(_lastPayment!.createdAt)),
-            _kv('آخر مبلغ مدفوع', '${_lastPayment!.amount.toStringAsFixed(2)} ر.س'),
-            _kv('رقم آخر سند', '#${_lastPayment!.id}'),
-            _kv('طريقة التحصيل الأخيرة', _paymentMethodText(_lastPayment!.method)),
-          ],
+          const Text(
+            'آخر دفعة',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          _kv('التاريخ', _fmtDateTime(payment.createdAt)),
+          _kv('المبلغ', '${payment.amount.toStringAsFixed(2)} ر.س'),
+          _kv('رقم السند', payment.id.toString()),
+          _kv('طريقة الدفع', _paymentMethodText(payment.method)),
         ],
       ),
     );
   }
 
-  Widget _buildFollowupCard(BuildContext context) {
-    final latest = _latestFollowup;
+  Widget _buildFollowupCard() {
+    final latest = _latestClientFollowup ?? _latestFollowup;
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  'متابعة التحصيل',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  'آخر تواصل',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              FilledButton.tonalIcon(
+              TextButton.icon(
                 onPressed: _savingFollowup ? null : _openCollectionFollowupDialog,
-                icon: const Icon(Icons.add_comment_outlined),
+                icon: const Icon(Icons.add_ic_call_outlined),
                 label: const Text('إضافة متابعة'),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (_todayClientFollowup != null) ...[
-            _buildTodayContactBanner(_todayClientFollowup!),
-            const SizedBox(height: 10),
-          ],
+          const SizedBox(height: 8),
           if (latest == null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text('لا توجد متابعة تحصيل مسجلة لهذا العقد حتى الآن'),
-            )
+            _emptyInfo('لا توجد متابعة تحصيل مسجلة لهذا العقد أو العميل.')
           else ...[
-            _kv('آخر تواصل', _fmtDateTime(latest.createdAt)),
-            _kv('نوع المتابعة', latest.contactTypeLabel),
+            _kv('النوع', latest.contactTypeLabel),
             _kv('النتيجة', latest.outcomeLabel),
             _kv('الموظف', _followupActor(latest)),
-            _kv('الملاحظة', latest.note?.trim().isEmpty ?? true ? '-' : latest.note!.trim()),
-            _kv('المتابعة القادمة', latest.nextFollowupAt == null ? '-' : _fmtDateTime(latest.nextFollowupAt)),
-            if (_followups.length > 1) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _showFollowupsSheet(context),
-                icon: const Icon(Icons.history),
-                label: Text('عرض كل المتابعات (${_followups.length})'),
-              ),
-            ],
+            _kv('التاريخ', _fmtDateTime(latest.createdAt)),
+            _kv('الموعد القادم', _fmtDateTime(latest.nextFollowupAt)),
+            if ((latest.note ?? '').trim().isNotEmpty)
+              _kv('الملاحظة', latest.note!.trim()),
           ],
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildTodayContactBanner(CollectionFollowup item) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('تم التواصل مع هذا العميل اليوم', style: TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          Text('بواسطة: ${_followupActor(item)} • ${_fmtDateTime(item.createdAt)}'),
-          Text('النوع: ${item.contactTypeLabel} • النتيجة: ${item.outcomeLabel}'),
-          if ((item.note ?? '').trim().isNotEmpty)
-            Text('الملاحظة: ${item.note!.trim()}'),
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: (_followups.isEmpty && _clientFollowups.isEmpty)
+                  ? null
+                  : () => _showFollowupsSheet(context),
+              icon: const Icon(Icons.history),
+              label: Text(
+                'عرض كل المتابعات (${_followups.length + _clientFollowups.length})',
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildOtherOutstandingBanner() {
-    final totalOutstanding = _clientOutstandingRents.fold<double>(0, (sum, item) => sum + _remainingFor(item));
+    final total = _clientOutstandingRents.fold<double>(
+      0,
+      (sum, r) => sum + _remainingFor(r),
+    );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.orange.withOpacity(0.2)),
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('⚠️ هذا العميل لديه عقود أخرى غير مسددة', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text(
+            'هذا العميل لديه عقود أخرى غير مسددة',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 6),
-          Text('عدد العقود الأخرى: ${_clientOutstandingRents.length} • إجمالي المتبقي: ${totalOutstanding.toStringAsFixed(2)} ر.س'),
+          Text('عدد العقود: ${_clientOutstandingRents.length}'),
+          Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.س'),
         ],
       ),
     );
   }
 
-  Future<void> _showPaymentsSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
+  void _showPaymentsSheet(BuildContext context) {
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('سندات العقد', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _rentPayments.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
-                    final payment = _rentPayments[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: payment.isVoid ? Colors.red.withOpacity(0.12) : Colors.green.withOpacity(0.12),
-                        child: Icon(payment.isVoid ? Icons.block : Icons.receipt, color: payment.isVoid ? Colors.red : Colors.green),
+          children: [
+            const Text(
+              'السندات المرتبطة بالعقد',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            for (final p in _rentPayments)
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    p.type == 'out'
+                        ? Icons.call_made
+                        : Icons.call_received,
+                    color: p.type == 'out' ? Colors.red : Colors.green,
+                  ),
+                  title: Text('${p.amount.toStringAsFixed(2)} ر.س'),
+                  subtitle: Text(
+                    '${_paymentMethodText(p.method)} • ${_fmtDateTime(p.createdAt)}',
+                  ),
+                  trailing: p.isVoid ? const Chip(label: Text('ملغي')) : null,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaymentDetailsPage(
+                        payment: p,
+                        paymentId: p.id,
                       ),
-                      title: Text('#${payment.id} • ${payment.amount.toStringAsFixed(2)} ر.س'),
-                      subtitle: Text('${_paymentMethodText(payment.method)} • ${_fmtDateTime(payment.createdAt)}'),
-                      trailing: payment.isVoid ? const Text('ملغي', style: TextStyle(color: Colors.red)) : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          this.context,
-                          MaterialPageRoute(builder: (_) => PaymentDetailsPage(paymentId: payment.id , payment: payment,)),
-                        );
-                      },
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _showFollowupsSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
+  void _showFollowupsSheet(BuildContext context) {
+    final merged = [..._clientFollowups];
+    merged.sort(
+      (a, b) => (_tryParse(b.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(
+        _tryParse(a.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      ),
+    );
+
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('سجل متابعات التحصيل', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _followups.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
-                    final item = _followups[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.orange.withOpacity(0.12),
-                        child: const Icon(Icons.phone_in_talk_outlined, color: Colors.orange),
-                      ),
-                      title: Text('${item.contactTypeLabel} • ${item.outcomeLabel}'),
-                      subtitle: Text('${_fmtDateTime(item.createdAt)}\n${item.note?.trim().isEmpty ?? true ? 'بدون ملاحظة' : item.note!.trim()}'),
-                      isThreeLine: true,
-                      trailing: item.createdByName == null ? null : Text(item.createdByName!, style: const TextStyle(fontSize: 12)),
-                    );
-                  },
+          children: [
+            const Text(
+              'سجل متابعات التحصيل',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            for (final f in merged)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.phone_in_talk_outlined),
+                  title: Text('${f.contactTypeLabel} • ${f.outcomeLabel}'),
+                  subtitle: Text(
+                    '${_fmtDateTime(f.createdAt)} ${(f.note ?? '').trim().isEmpty ? '-' : f.note!.trim()}',
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
-  }
-
-  Widget _miniMetric(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  String _statusText(String? s) {
-    switch ((s ?? '').toLowerCase()) {
-      case 'open':
-        return 'مفتوح (جاري)';
-      case 'closed':
-        return _fullyPaid ? 'مغلق - مسدد' : 'مغلق - عليه متبقٍ';
-      case 'cancelled':
-        return 'ملغي';
-      default:
-        return s ?? '-';
-    }
-  }
-
-  String _paymentMethodText(String? method) {
-    switch ((method ?? '').toLowerCase()) {
-      case 'cash':
-        return 'نقد';
-      case 'bank':
-        return 'تحويل';
-      case 'card':
-        return 'بطاقة';
-      default:
-        return method == null || method.isEmpty ? '-' : method;
-    }
-  }
-
-  String _receiptStatusText(String? status) {
-    switch ((status ?? '').toLowerCase()) {
-      case 'created':
-        return 'تم إنشاء سند';
-      case 'manual':
-        return 'تم يدويًا';
-      case 'not_created':
-        return 'لم يتم إنشاء سند';
-      default:
-        return status == null || status.isEmpty ? '-' : status;
-    }
-  }
-
-  String _fmtDateTime(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '-';
-    final dt = DateTime.tryParse(raw.replaceFirst(' ', 'T'));
-    if (dt == null) return raw;
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm';
   }
 
   Widget _card({required String title, required Widget child}) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Colors.black.withOpacity(0.05)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 12),
             child,
           ],
@@ -829,104 +1033,102 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 126, child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600))),
-          const SizedBox(width: 8),
-          Expanded(child: Text(v)),
+          Expanded(
+            child: Text(
+              k,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              v,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-}
-
-class CollectionFollowup {
-  const CollectionFollowup({
-    required this.id,
-    required this.rentId,
-    required this.clientId,
-    required this.contactType,
-    required this.createdAt,
-    this.outcome,
-    this.note,
-    this.nextFollowupAt,
-    this.createdByUserId,
-    this.createdByName,
-  });
-
-  final int id;
-  final int rentId;
-  final int clientId;
-  final String contactType;
-  final String createdAt;
-  final String? outcome;
-  final String? note;
-  final String? nextFollowupAt;
-  final int? createdByUserId;
-  final String? createdByName;
-
-  factory CollectionFollowup.fromJson(Map<String, dynamic> json) {
-    int toI(dynamic v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
-    int? toINull(dynamic v) {
-      if (v == null) return null;
-      final x = toI(v);
-      return x == 0 ? null : x;
-    }
-    return CollectionFollowup(
-      id: toI(json['id']),
-      rentId: toI(json['rent_id']),
-      clientId: toI(json['client_id']),
-      contactType: (json['contact_type'] ?? '').toString(),
-      createdAt: (json['created_at'] ?? '').toString(),
-      outcome: json['outcome']?.toString(),
-      note: json['note']?.toString(),
-      nextFollowupAt: json['next_followup_at']?.toString(),
-      createdByUserId: toINull(json['created_by_user_id']),
-      createdByName: json['created_by_name']?.toString(),
+  Widget _miniMetric(String title, String value) {
+    return Column(
+      children: [
+        Text(title, style: const TextStyle(color: Colors.black54)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ],
     );
   }
 
-  String get contactTypeLabel {
-    switch (contactType.toLowerCase()) {
-      case 'call':
-        return 'اتصال';
-      case 'whatsapp':
-        return 'واتساب';
-      case 'visit':
-        return 'زيارة';
-      case 'verbal':
-        return 'تذكير شفهي';
-      case 'no_answer':
-        return 'لم يتم الرد';
+  Widget _emptyInfo(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text),
+    );
+  }
+
+  String _statusText(String? s) {
+    switch ((s ?? '').toLowerCase()) {
+      case 'open':
+        return 'مفتوح (جاري)';
+      case 'closed':
+        return 'مغلق';
+      case 'cancelled':
+        return 'ملغي';
       default:
-        return contactType.isEmpty ? '-' : contactType;
+        return s ?? '-';
     }
   }
 
-  String get outcomeLabel {
-    switch ((outcome ?? '').toLowerCase()) {
-      case 'promise_to_pay':
-        return 'وعد بالسداد';
-      case 'follow_up_later':
-        return 'متابعة لاحقة';
-      case 'paid':
-        return 'تم التحصيل';
-      case 'customer_requested_delay':
-        return 'تأجيل بطلب العميل';
-      case 'no_answer':
-        return 'لا يرد';
-      case 'other':
-        return 'أخرى';
+  String _paymentMethodText(String? s) {
+    switch ((s ?? '').toLowerCase()) {
+      case 'cash':
+        return 'نقد';
+      case 'transfer':
+        return 'تحويل';
+      case 'card':
+        return 'بطاقة';
       default:
-        return outcome == null || outcome!.isEmpty ? '-' : outcome!;
+        return (s == null || s.isEmpty) ? '-' : s;
     }
+  }
+
+  String _receiptStatusText(String? s) {
+    switch ((s ?? '').toLowerCase()) {
+      case 'created':
+        return 'تم إنشاء السند';
+      case 'not_created':
+        return 'لم يُنشأ';
+      default:
+        return (s == null || s.isEmpty) ? '-' : s;
+    }
+  }
+
+  String _fmtDateTime(String? s) {
+    final dt = _tryParse(s);
+    if (dt == null) return '-';
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 }
 
 class _CollectionFollowupDraft {
-  const _CollectionFollowupDraft({
+  _CollectionFollowupDraft({
     required this.contactType,
     required this.outcome,
     required this.note,
@@ -939,8 +1141,208 @@ class _CollectionFollowupDraft {
   final DateTime? nextFollowupAt;
 }
 
+class _CollectionFollowupDialog extends StatefulWidget {
+  const _CollectionFollowupDialog({this.initialHint});
+  final String? initialHint;
+
+  @override
+  State<_CollectionFollowupDialog> createState() =>
+      _CollectionFollowupDialogState();
+}
+
+class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
+  String _contactType = 'call';
+  String _outcome = 'follow_up_later';
+  final _noteCtrl = TextEditingController();
+  DateTime? _nextFollowupAt;
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  void _applySmartSchedule(String outcome) {
+    final now = DateTime.now();
+    switch (outcome) {
+      case 'promise_to_pay':
+        _nextFollowupAt = now.add(const Duration(days: 1));
+        break;
+      case 'customer_requested_delay':
+        _nextFollowupAt = now.add(const Duration(days: 2));
+        break;
+      case 'follow_up_later':
+        _nextFollowupAt = now.add(const Duration(days: 1));
+        break;
+      case 'no_answer':
+        _nextFollowupAt = now.add(const Duration(hours: 6));
+        break;
+      case 'paid':
+        _nextFollowupAt = null;
+        break;
+      default:
+        break;
+    }
+  }
+
+  Future<void> _pickDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+    );
+    if (time == null || !mounted) return;
+
+    setState(() {
+      _nextFollowupAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
+  }
+
+  String _fmt(DateTime? dt) {
+    if (dt == null) return 'لا يوجد';
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('إضافة متابعة'),
+      content: SizedBox(
+        width: 430,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if ((widget.initialHint ?? '').trim().isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.25)),
+                  ),
+                  child: Text(widget.initialHint!),
+                ),
+                const SizedBox(height: 12),
+              ],
+              DropdownButtonFormField<String>(
+                value: _contactType,
+                decoration: const InputDecoration(
+                  labelText: 'نوع المتابعة',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'call', child: Text('اتصال')),
+                  DropdownMenuItem(value: 'whatsapp', child: Text('واتساب')),
+                  DropdownMenuItem(value: 'visit', child: Text('زيارة')),
+                  DropdownMenuItem(value: 'verbal', child: Text('شفهي')),
+                  DropdownMenuItem(value: 'no_answer', child: Text('لم يتم الرد')),
+                ],
+                onChanged: (v) => setState(() => _contactType = v ?? 'call'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _outcome,
+                decoration: const InputDecoration(
+                  labelText: 'النتيجة',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'promise_to_pay', child: Text('وعد بالسداد')),
+                  DropdownMenuItem(value: 'follow_up_later', child: Text('متابعة لاحقة')),
+                  DropdownMenuItem(value: 'paid', child: Text('تم التحصيل')),
+                  DropdownMenuItem(
+                    value: 'customer_requested_delay',
+                    child: Text('تأجيل بطلب العميل'),
+                  ),
+                  DropdownMenuItem(value: 'no_answer', child: Text('لا يرد')),
+                  DropdownMenuItem(value: 'other', child: Text('أخرى')),
+                ],
+                onChanged: (v) {
+                  final value = v ?? 'follow_up_later';
+                  setState(() {
+                    _outcome = value;
+                    _applySmartSchedule(value);
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _noteCtrl,
+                minLines: 3,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'الملاحظة',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('الموعد القادم'),
+                subtitle: Text(_fmt(_nextFollowupAt)),
+                trailing: Wrap(
+                  spacing: 4,
+                  children: [
+                    IconButton(
+                      onPressed: _pickDateTime,
+                      icon: const Icon(Icons.event),
+                    ),
+                    if (_nextFollowupAt != null)
+                      IconButton(
+                        onPressed: () => setState(() => _nextFollowupAt = null),
+                        icon: const Icon(Icons.clear),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_noteCtrl.text.trim().isEmpty && _outcome.trim().isEmpty) return;
+            Navigator.pop(
+              context,
+              _CollectionFollowupDraft(
+                contactType: _contactType,
+                outcome: _outcome,
+                note: _noteCtrl.text.trim(),
+                nextFollowupAt: _nextFollowupAt,
+              ),
+            );
+          },
+          child: const Text('حفظ'),
+        ),
+      ],
+    );
+  }
+}
+
 class _CloseContractResult {
-  const _CloseContractResult({
+  _CloseContractResult({
     required this.applySpecialPricing,
     required this.paidAmount,
     required this.paymentMethod,
@@ -963,7 +1365,7 @@ class _CloseContractDialog extends StatefulWidget {
   });
 
   final Rent rent;
-  final ContractClosingSettings settings;
+  final dynamic settings;
   final double currentPaid;
 
   @override
@@ -971,20 +1373,35 @@ class _CloseContractDialog extends StatefulWidget {
 }
 
 class _CloseContractDialogState extends State<_CloseContractDialog> {
-  late final TextEditingController _paidCtrl;
-  late final TextEditingController _notesCtrl;
-  late bool _applySpecialPricing;
-  late bool _createReceipt;
-  String _method = 'cash';
+  final _formKey = GlobalKey<FormState>();
+  final _paidCtrl = TextEditingController(text: '0');
+  final _notesCtrl = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _paidCtrl = TextEditingController();
-    _notesCtrl = TextEditingController();
-    final hours = _hoursSpent;
-    _applySpecialPricing = hours > 0 && hours <= 24;
-    _createReceipt = widget.settings.shouldAutoCreateReceipt;
+  bool _applySpecialPricing = false;
+  bool _createReceipt = true;
+  String _paymentMethod = 'cash';
+
+  bool get _allowSpecialPricing {
+    final s = widget.settings;
+    if (s is Map<String, dynamic>) {
+      final mode =
+          (s['hour_pricing_mode'] ?? s['special_pricing_mode'] ?? '')
+              .toString()
+              .toLowerCase();
+      return mode == 'auto' || mode == 'prompt' || mode == 'optional';
+    }
+    return true;
+  }
+
+  bool get _allowReceiptToggle {
+    final s = widget.settings;
+    if (s is Map<String, dynamic>) {
+      final mode = (s['receipt_mode'] ?? s['closing_receipt_mode'] ?? '')
+          .toString()
+          .toLowerCase();
+      return mode != 'forced_auto';
+    }
+    return true;
   }
 
   @override
@@ -994,132 +1411,100 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
     super.dispose();
   }
 
-  double get _hoursSpent {
-    final start = DateTime.tryParse(widget.rent.startDatetime);
-    if (start == null) return widget.rent.hours ?? 0;
-    final diff = DateTime.now().difference(start).inMinutes / 60.0;
-    return diff < 0 ? 0 : diff;
-  }
-
-  String get _suggestedPricingText {
-    if (_hoursSpent <= 0 || _hoursSpent > 24) {
-      return 'سيتم استخدام الاحتساب القياسي الحالي';
-    }
-    if (_hoursSpent < 3) {
-      return 'الاحتساب المقترح: أقل من 3 ساعات = ثلثي السعر اليومي';
-    }
-    return 'الاحتساب المقترح: 3 ساعات فأكثر = يوم كامل';
-  }
-
-  void _submit() {
-    final paidAmount = double.tryParse(_paidCtrl.text.trim()) ?? 0;
-    Navigator.pop(
-      context,
-      _CloseContractResult(
-        applySpecialPricing: _applySpecialPricing,
-        paidAmount: paidAmount,
-        paymentMethod: _method,
-        createReceipt: _createReceipt && paidAmount > 0,
-        paymentNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final shouldAskPricing = widget.settings.shouldAskForSpecialPricing;
-    final shouldAskReceipt = widget.settings.shouldAskForReceipt;
-
     return AlertDialog(
       title: const Text('إغلاق العقد'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('مدة العقد الحالية: ${_hoursSpent.toStringAsFixed(2)} ساعة'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(_suggestedPricingText),
-            ),
-            const SizedBox(height: 12),
-            if (shouldAskPricing)
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                value: _applySpecialPricing,
-                title: const Text('تفعيل احتساب الساعات الخاص'),
-                subtitle: const Text('يمكن للموظف تفعيله أو إلغاؤه حسب سياسة المدير'),
-                onChanged: (v) => setState(() => _applySpecialPricing = v),
-              )
-            else
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.verified_outlined),
-                title: const Text('طريقة احتساب الساعات'),
-                subtitle: Text(_applySpecialPricing ? 'مفعلة تلقائيًا' : 'احتساب قياسي تلقائي'),
-              ),
-            const Divider(height: 20),
-            TextField(
-              controller: _paidCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'المبلغ المدفوع عند الإغلاق',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _method,
-              items: const [
-                DropdownMenuItem(value: 'cash', child: Text('نقد')),
-                DropdownMenuItem(value: 'bank', child: Text('تحويل')),
-                DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+      content: SizedBox(
+        width: 430,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_allowSpecialPricing)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _applySpecialPricing,
+                    onChanged: (v) => setState(() => _applySpecialPricing = v),
+                    title: const Text('تطبيق احتساب الساعات الخاص'),
+                    subtitle: const Text(
+                      'أقل من 3 ساعات = ثلثي السعر، 3 ساعات فأكثر = يوم كامل',
+                    ),
+                  ),
+                TextFormField(
+                  controller: _paidCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'المبلغ المدفوع الآن',
+                    border: OutlineInputBorder(),
+                    prefixText: 'ر.س ',
+                  ),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _paymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'طريقة الدفع',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('نقد')),
+                    DropdownMenuItem(value: 'transfer', child: Text('تحويل')),
+                    DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+                  ],
+                  onChanged: (v) => setState(() => _paymentMethod = v ?? 'cash'),
+                ),
+                const SizedBox(height: 12),
+                if (_allowReceiptToggle)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _createReceipt,
+                    onChanged: (v) => setState(() => _createReceipt = v),
+                    title: const Text('إنشاء سند قبض تلقائي'),
+                  ),
+                TextFormField(
+                  controller: _notesCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'ملاحظة الإغلاق / السند',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
               ],
-              onChanged: (v) => setState(() => _method = v ?? 'cash'),
-              decoration: const InputDecoration(
-                labelText: 'طريقة الدفع',
-                border: OutlineInputBorder(),
-              ),
             ),
-            const SizedBox(height: 10),
-            if (shouldAskReceipt)
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                value: _createReceipt,
-                title: const Text('إنشاء سند قبض'),
-                subtitle: const Text('هذا الخيار إشعار اختياري حسب صلاحية المدير'),
-                onChanged: (v) => setState(() => _createReceipt = v),
-              )
-            else
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.receipt_long),
-                title: const Text('سند القبض'),
-                subtitle: Text(widget.settings.shouldAutoCreateReceipt ? 'سيتم إنشاؤه تلقائيًا عند وجود مبلغ مدفوع' : 'لن يتم إنشاؤه تلقائيًا'),
-              ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _notesCtrl,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظة السند أو الإغلاق',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: const Icon(Icons.lock_outline),
-          label: const Text('اعتماد الإغلاق'),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(
+              context,
+              _CloseContractResult(
+                applySpecialPricing: _applySpecialPricing,
+                paidAmount: double.tryParse(_paidCtrl.text.trim()) ?? 0,
+                paymentMethod: _paymentMethod,
+                createReceipt: _createReceipt,
+                paymentNotes: _notesCtrl.text.trim().isEmpty
+                    ? null
+                    : _notesCtrl.text.trim(),
+              ),
+            );
+          },
+          child: const Text('إغلاق العقد'),
         ),
       ],
     );
@@ -1131,321 +1516,143 @@ class _PayNowDialog extends StatefulWidget {
     required this.total,
     required this.alreadyPaid,
     required this.maxPayable,
+    required this.unlimitedWhenOpen,
     required this.onPay,
-    this.unlimitedWhenOpen = false,
   });
 
   final double total;
   final double alreadyPaid;
   final double maxPayable;
   final bool unlimitedWhenOpen;
-  final Future<void> Function(double amount, String method, String? notes) onPay;
+  final Future<void> Function(double, String, String?) onPay;
 
   @override
   State<_PayNowDialog> createState() => _PayNowDialogState();
 }
 
 class _PayNowDialogState extends State<_PayNowDialog> {
+  final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
   String _method = 'cash';
-  bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _amountCtrl.text = widget.unlimitedWhenOpen ? '' : widget.maxPayable.toStringAsFixed(2);
-  }
+  bool _saving = false;
 
   @override
   void dispose() {
     _amountCtrl.dispose();
-    _notesCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pay() async {
-    if (_loading) return;
-    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
-    if (amount <= 0) {
-      _snack('أدخل مبلغ صحيح');
-      return;
-    }
-    if (!widget.unlimitedWhenOpen && amount > widget.maxPayable + 0.0001) {
-      _snack('لا يمكن تسديد أكثر من المتبقي على العقد');
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      await widget.onPay(amount, _method, _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim());
-      if (!mounted) return;
-      Navigator.pop(context);
-      _snack('تم إنشاء سند القبض');
-    } catch (e) {
-      if (!mounted) return;
-      _snack('فشل إنشاء السند: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('تسديد العقد'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('إجمالي العقد: ${widget.total.toStringAsFixed(2)} ر.س'),
-          Text('المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.س'),
-          Text(
-            widget.unlimitedWhenOpen ? 'المتبقي: غير نهائي (العقد جاري)' : 'المتبقي: ${widget.maxPayable.toStringAsFixed(2)} ر.س',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amountCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(labelText: widget.unlimitedWhenOpen ? 'مبلغ التسديد' : 'مبلغ التسديد (حتى المتبقي)'),
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: _method,
-            items: const [
-              DropdownMenuItem(value: 'cash', child: Text('نقدًا')),
-              DropdownMenuItem(value: 'bank', child: Text('تحويل بنكي')),
-              DropdownMenuItem(value: 'card', child: Text('بطاقة')),
-            ],
-            onChanged: (v) => setState(() => _method = v ?? 'cash'),
-            decoration: const InputDecoration(labelText: 'الطريقة'),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _notesCtrl,
-            decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)'),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: _loading ? null : () => Navigator.pop(context), child: const Text('لاحقًا')),
-        FilledButton(onPressed: _loading ? null : _pay, child: Text(_loading ? 'جاري...' : 'تسديد')),
-      ],
-    );
-  }
-}
-
-class _CollectionFollowupDialog extends StatefulWidget {
-  const _CollectionFollowupDialog({this.initialHint});
-
-  final String? initialHint;
-
-  @override
-  State<_CollectionFollowupDialog> createState() => _CollectionFollowupDialogState();
-}
-
-class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
-  final TextEditingController _noteCtrl = TextEditingController();
-  String _contactType = 'call';
-  String _outcome = 'follow_up_later';
-  DateTime? _nextFollowupAt;
-
-  DateTime _smartBaseDate(int days, {int hour = 9, int minute = 0}) {
-    final now = DateTime.now();
-    final base = now.add(Duration(days: days));
-    return DateTime(base.year, base.month, base.day, hour, minute);
-  }
-
-  void _applySuggestedSchedule(DateTime? value, {String? note}) {
-    setState(() {
-      _nextFollowupAt = value;
-      if (note != null && _noteCtrl.text.trim().isEmpty) {
-        _noteCtrl.text = note;
-      }
-    });
-  }
-
-  void _applyOutcomeSuggestion(String outcome) {
-    switch (outcome) {
-      case 'promise_to_pay':
-        _applySuggestedSchedule(_smartBaseDate(1, hour: 10), note: 'وعد العميل بالسداد غدًا');
-        break;
-      case 'customer_requested_delay':
-        _applySuggestedSchedule(_smartBaseDate(2, hour: 10), note: 'طلب العميل مهلة قصيرة قبل السداد');
-        break;
-      case 'follow_up_later':
-        _applySuggestedSchedule(_smartBaseDate(1, hour: 16));
-        break;
-      case 'no_answer':
-        _applySuggestedSchedule(_smartBaseDate(0, hour: DateTime.now().hour + 2 > 20 ? 20 : DateTime.now().hour + 2, minute: 0), note: 'لم يرد العميل، تحتاج إعادة محاولة');
-        break;
-      case 'paid':
-        _applySuggestedSchedule(null);
-        break;
-      default:
-        break;
-    }
-  }
-
-  @override
-  void dispose() {
     _noteCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _pickNextDate() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      firstDate: now,
-      initialDate: now,
-      lastDate: DateTime(now.year + 3),
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-    if (!mounted) return;
-    setState(() {
-      _nextFollowupAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? 9,
-        time?.minute ?? 0,
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+    if (amount <= 0) return;
+
+    setState(() => _saving = true);
+    try {
+      await widget.onPay(
+        amount,
+        _method,
+        _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       );
-    });
+      if (!mounted) return;
+      Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final remainingText = widget.unlimitedWhenOpen
+        ? 'العقد مفتوح والإجمالي غير نهائي بعد'
+        : 'المتبقي: ${widget.maxPayable.toStringAsFixed(2)} ر.س';
+
     return AlertDialog(
-      title: const Text('إضافة متابعة تحصيل'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.initialHint != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(widget.initialHint!),
-              ),
-              const SizedBox(height: 12),
-            ],
-            DropdownButtonFormField<String>(
-              value: _contactType,
-              items: const [
-                DropdownMenuItem(value: 'call', child: Text('اتصال')),
-                DropdownMenuItem(value: 'whatsapp', child: Text('واتساب')),
-                DropdownMenuItem(value: 'visit', child: Text('زيارة')),
-                DropdownMenuItem(value: 'verbal', child: Text('تذكير شفهي')),
-                DropdownMenuItem(value: 'no_answer', child: Text('لم يتم الرد')),
-              ],
-              onChanged: (v) => setState(() => _contactType = v ?? 'call'),
-              decoration: const InputDecoration(labelText: 'نوع المتابعة', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _outcome,
-              items: const [
-                DropdownMenuItem(value: 'promise_to_pay', child: Text('وعد بالسداد')),
-                DropdownMenuItem(value: 'follow_up_later', child: Text('متابعة لاحقة')),
-                DropdownMenuItem(value: 'paid', child: Text('تم التحصيل')),
-                DropdownMenuItem(value: 'customer_requested_delay', child: Text('تأجيل بطلب العميل')),
-                DropdownMenuItem(value: 'no_answer', child: Text('لا يرد')),
-                DropdownMenuItem(value: 'other', child: Text('أخرى')),
-              ],
-              onChanged: (v) {
-                final next = v ?? 'follow_up_later';
-                setState(() => _outcome = next);
-                _applyOutcomeSuggestion(next);
-              },
-              decoration: const InputDecoration(labelText: 'النتيجة', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _noteCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظة المتابعة',
-                border: OutlineInputBorder(),
-                hintText: 'مثال: تم التواصل مع العميل ووعد بالسداد غدًا',
-              ),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'جدولة ذكية للمتابعة',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+      title: const Text('إضافة دفعة'),
+      content: SizedBox(
+        width: 430,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.today_outlined, size: 18),
-                  label: const Text('اليوم مساءً'),
-                  onPressed: () => _applySuggestedSchedule(_smartBaseDate(0, hour: 18), note: 'متابعة مسائية مجدولة'),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.wb_sunny_outlined, size: 18),
-                  label: const Text('غدًا'),
-                  onPressed: () => _applySuggestedSchedule(_smartBaseDate(1, hour: 10), note: 'متابعة مجدولة للغد'),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.event_repeat_outlined, size: 18),
-                  label: const Text('بعد يومين'),
-                  onPressed: () => _applySuggestedSchedule(_smartBaseDate(2, hour: 10), note: 'متابعة مجدولة بعد يومين'),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.calendar_view_week_outlined, size: 18),
-                  label: const Text('الأسبوع القادم'),
-                  onPressed: () => _applySuggestedSchedule(_smartBaseDate(7, hour: 10), note: 'متابعة مجدولة للأسبوع القادم'),
-                ),
-                if (_nextFollowupAt != null)
-                  ActionChip(
-                    avatar: const Icon(Icons.clear, size: 18),
-                    label: const Text('مسح الموعد'),
-                    onPressed: () => _applySuggestedSchedule(null),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('الإجمالي: ${widget.total.toStringAsFixed(2)} ر.س'),
+                      Text('المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.س'),
+                      Text(remainingText),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'مبلغ الدفعة',
+                    border: OutlineInputBorder(),
+                    prefixText: 'ر.س ',
+                  ),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n <= 0) return 'أدخل مبلغًا صحيحًا';
+                    if (!widget.unlimitedWhenOpen &&
+                        widget.maxPayable > 0 &&
+                        n - widget.maxPayable > 0.009) {
+                      return 'المبلغ أكبر من المتبقي';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _method,
+                  decoration: const InputDecoration(
+                    labelText: 'طريقة الدفع',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('نقد')),
+                    DropdownMenuItem(value: 'transfer', child: Text('تحويل')),
+                    DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+                  ],
+                  onChanged: (v) => setState(() => _method = v ?? 'cash'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _noteCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'ملاحظة',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.event_available_outlined),
-              title: const Text('موعد المتابعة القادمة'),
-              subtitle: Text(_nextFollowupAt == null ? 'غير محدد' : '${_nextFollowupAt!.year}-${_nextFollowupAt!.month.toString().padLeft(2, '0')}-${_nextFollowupAt!.day.toString().padLeft(2, '0')} ${_nextFollowupAt!.hour.toString().padLeft(2, '0')}:${_nextFollowupAt!.minute.toString().padLeft(2, '0')}'),
-              trailing: TextButton(onPressed: _pickNextDate, child: const Text('تحديد')),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
         FilledButton(
-          onPressed: () {
-            Navigator.pop(
-              context,
-              _CollectionFollowupDraft(
-                contactType: _contactType,
-                outcome: _outcome,
-                note: _noteCtrl.text.trim(),
-                nextFollowupAt: _nextFollowupAt,
-              ),
-            );
-          },
-          child: const Text('حفظ المتابعة'),
+          onPressed: _saving ? null : _submit,
+          child: Text(_saving ? 'جاري الحفظ...' : 'حفظ الدفعة'),
         ),
       ],
     );

@@ -17,7 +17,7 @@ class RentsRepository {
   try {
     final res = await _api.dio.get('rents/$id');
 
-    final raw = res.data;
+    final raw = (res.data is Map ? res.data : {});
     final data = (raw is Map)
         ? (raw['data'] ?? raw['rent'] ?? raw)
         : raw;
@@ -46,9 +46,9 @@ class RentsRepository {
         },
       );
 
-      dynamic raw = res.data;
+      dynamic raw = (res.data is Map ? res.data : {});
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['rents'] ?? [];
-      if (raw is! List) throw ApiFailure("Unexpected response: ${res.data}");
+      if (raw is! List) throw ApiFailure("Unexpected response: ${(res.data is Map ? res.data : {})}");
 
       return raw
           .map((e) => Rent.fromJson((e as Map).cast<String, dynamic>()))
@@ -64,34 +64,52 @@ class RentsRepository {
 
   // باقي الدوال كما هي
   Future<int> openRent({
-    required int clientId,
-    required int equipmentId,
-    required String startDatetime,
-    double hourlyRate = 0,
-    String? notes,
-  }) async {
-    try {
-      final res = await _api.dio.post('rents', data: {
+  required int clientId,
+  required int equipmentId,
+  required String startDatetime,
+  double dailyRate = 0,
+  String? notes,
+}) async {
+  try {
+    final res = await _api.dio.post(
+      'rents',
+      data: {
         'client_id': clientId,
         'equipment_id': equipmentId,
         'start_datetime': startDatetime,
-        if (hourlyRate > 0) 'rate': hourlyRate,
+        if (dailyRate > 0) 'rate': dailyRate,
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
-      });
-      final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : {};
-      final rawId = data['id'];
-      final id = (rawId is num) ? rawId.toInt() : int.tryParse(rawId.toString()) ?? 0;
-      if (id <= 0) throw ApiFailure("Open rent: invalid id returned: $rawId");
-      return id;
-    } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to open rent');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
-    }
-  }
+      },
+    );
 
+    final root = ((res.data is Map ? res.data : {}) is Map)
+        ? ((res.data is Map ? res.data : {}) as Map).cast<String, dynamic>()
+        : <String, dynamic>{};
+
+    final data = (root['data'] is Map)
+        ? (root['data'] as Map).cast<String, dynamic>()
+        : root;
+
+    final rawId = data['id'];
+    final id = rawId is num
+        ? rawId.toInt()
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+
+    if (id <= 0) {
+      throw ApiFailure('فشل فتح العقد: لم يتم إرجاع رقم صحيح');
+    }
+
+    return id;
+  } on DioException catch (e) {
+    final data = e.response?.data;
+    final msg = (data is Map && data['error'] != null)
+        ? data['error'].toString()
+        : (e.message ?? 'فشل فتح العقد');
+    throw ApiFailure(msg, statusCode: e.response?.statusCode);
+  }
+}
+  
+  
   Future<void> updateNotes({required int rentId, required String notes}) async {
     try {
       await _api.dio.put('rents/$rentId', data: {'notes': notes});
@@ -125,7 +143,7 @@ class RentsRepository {
         if (paymentNotes != null && paymentNotes.trim().isNotEmpty) 'payment_notes': paymentNotes.trim(),
         if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) 'idempotency_key': idempotencyKey.trim(),
       });
-      final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : <String, dynamic>{};
+      final data = ((res.data is Map ? res.data : {}) is Map) ? ((res.data is Map ? res.data : {}) as Map).cast<String, dynamic>() : <String, dynamic>{};
       final payload = (data['data'] is Map) ? (data['data'] as Map).cast<String, dynamic>() : <String, dynamic>{};
       return payload;
     } on DioException catch (e) {

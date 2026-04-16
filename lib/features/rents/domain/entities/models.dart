@@ -152,3 +152,74 @@ class Rent {
     );
   }
 }
+
+class CollectionFollowup {
+  const CollectionFollowup({
+    required this.id,
+    required this.contactType,
+    required this.outcome,
+    required this.createdAt,
+    this.note,
+    this.nextFollowupAt,
+    this.createdByUserId,
+    this.createdByName,
+  });
+
+  final int id;
+  final String contactType;
+  final String outcome;
+  final String createdAt;
+  final String? note;
+  final String? nextFollowupAt;
+  final int? createdByUserId;
+  final String? createdByName;
+
+  factory CollectionFollowup.fromJson(Map<String, dynamic> json) {
+    int toI(dynamic v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+
+    return CollectionFollowup(
+      id: toI(json['id']),
+      contactType: (json['contact_type'] ?? '').toString(),
+      outcome: (json['outcome'] ?? '').toString(),
+      createdAt: (json['created_at'] ?? '').toString(),
+      note: json['note']?.toString(),
+      nextFollowupAt: json['next_followup_at']?.toString(),
+      createdByUserId: json['created_by_user_id'] == null ? null : toI(json['created_by_user_id']),
+      createdByName: json['created_by_name']?.toString(),
+    );
+  }
+
+  String get contactTypeLabel {
+    switch (contactType.toLowerCase()) {
+      case 'call':
+        return 'اتصال';
+      case 'whatsapp':
+        return 'واتساب';
+      case 'visit':
+        return 'زيارة';
+      case 'verbal':
+        return 'تذكير شفهي';
+      case 'no_answer':
+        return 'لم يتم الرد';
+      default:
+        return contactType.isEmpty ? '-' : contactType;
+    }
+  }
+
+  String get outcomeLabel {
+    switch (outcome.toLowerCase()) {
+      case 'promised_to_pay':
+        return 'وعد بالدفع';
+      case 'paid':
+        return 'تم الدفع';
+      case 'not_responding':
+        return 'لا يستجيب';
+      case 'disputed':
+        return 'يعترض على المبلغ';
+      case 'followup_scheduled':
+        return 'تم تحديد متابعة لاحقة';
+      default:
+        return outcome.isEmpty ? '-' : outcome;
+    }
+  }
+}
