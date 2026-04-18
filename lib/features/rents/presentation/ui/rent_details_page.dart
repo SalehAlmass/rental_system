@@ -210,8 +210,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     final rent = _rent;
     if (rent == null) return;
 
-    final res =
-        await _api.dio.get('clients/${rent.clientId}/collection-followups');
+    final res = await _api.dio.get('clients/${rent.clientId}/collection-followups');
     dynamic raw = _unwrapResponseData(res.data);
     if (raw is! List) raw = [];
 
@@ -350,6 +349,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
           rent: rent,
           settings: settings,
           currentPaid: _paid,
+          totalAmount: _effectiveTotal,
+          remainingAmount: _effectiveRemaining,
         ),
       );
 
@@ -393,15 +394,17 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       return;
     }
 
-    final maxPayable = _remaining;
+    final maxPayable = _remaining > 0 ? _remaining : _effectiveRemaining;
+    final initialAmount = _effectiveTotal > 0 ? _effectiveTotal : maxPayable;
 
     await showDialog(
       context: context,
       builder: (_) => _PayNowDialog(
-        total: _total,
+        total: _effectiveTotal,
         alreadyPaid: _paid,
         maxPayable: maxPayable <= 0 ? 0 : maxPayable,
-        unlimitedWhenOpen: isOpen && (_total <= 0.0001),
+        unlimitedWhenOpen: isOpen && (_effectiveTotal <= 0.0001),
+        initialAmount: initialAmount,
         onPay: (amount, method, notes) async {
           final idemKey =
               'rent_${rent.id}_${DateTime.now().microsecondsSinceEpoch}';
@@ -475,35 +478,36 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   double get _liveOpenTotal {
-  final rent = _rent;
-  if (rent == null) return 0;
+    final rent = _rent;
+    if (rent == null) return 0;
 
-  final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
-  if (savedTotal > 0) return savedTotal;
+    final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
+    if (savedTotal > 0) return savedTotal;
 
-  final status = (rent.status ?? '').toLowerCase();
-  if (status != 'open') return 0;
+    final status = (rent.status ?? '').toLowerCase();
+    if (status != 'open') return 0;
 
-  final dailyRate = rent.rate ?? 0;
-  if (dailyRate <= 0) return 0;
+    final dailyRate = rent.rate ?? 0;
+    if (dailyRate <= 0) return 0;
 
-  final start = _tryParse(rent.startDatetime);
-  if (start == null) return 0;
+    final start = _tryParse(rent.startDatetime);
+    if (start == null) return 0;
 
-  final minutes = DateTime.now().difference(start).inMinutes;
-  if (minutes <= 0) return 0;
+    final minutes = DateTime.now().difference(start).inMinutes;
+    if (minutes <= 0) return 0;
 
-  final hours = minutes / 60.0;
+    final hours = minutes / 60.0;
 
-  double total;
-  if (hours < 3) {
-    total = dailyRate * (2 / 3);
-  } else {
-    total = dailyRate;
+    double total;
+    if (hours < 3) {
+      total = dailyRate * (2 / 3);
+    } else {
+      total = dailyRate;
+    }
+
+    return double.parse(total.toStringAsFixed(2));
   }
 
-  return double.parse(total.toStringAsFixed(2));
-}
   double get _effectiveTotal => _liveOpenTotal;
 
   double get _effectiveRemaining {
@@ -557,10 +561,6 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      if (_sectionErrors.isNotEmpty) ...[
-                        _buildErrorsBanner(),
-                        const SizedBox(height: 12),
-                      ],
                       _card(
                         title: 'معلومات العقد',
                         child: Column(
@@ -681,50 +681,6 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                   ),
                 ),
     );
-  }
-
-  Widget _buildErrorsBanner() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.orange.withOpacity(0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'بعض الأقسام لم تُحمّل بالكامل',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          ..._sectionErrors.entries.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text('• ${_sectionLabel(e.key)}: ${e.value}'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _sectionLabel(String key) {
-    switch (key) {
-      case 'financials':
-        return 'البيانات المالية';
-      case 'payments':
-        return 'السندات';
-      case 'outstanding':
-        return 'العقود الأخرى';
-      case 'followups':
-        return 'متابعات العقد';
-      case 'client_followups':
-        return 'متابعات العميل';
-      default:
-        return key;
-    }
   }
 
   Widget _buildCollectionBanner(BuildContext context) {
@@ -1362,11 +1318,15 @@ class _CloseContractDialog extends StatefulWidget {
     required this.rent,
     required this.settings,
     required this.currentPaid,
+    required this.totalAmount,
+    required this.remainingAmount,
   });
 
   final Rent rent;
   final dynamic settings;
   final double currentPaid;
+  final double totalAmount;
+  final double remainingAmount;
 
   @override
   State<_CloseContractDialog> createState() => _CloseContractDialogState();
@@ -1374,7 +1334,7 @@ class _CloseContractDialog extends StatefulWidget {
 
 class _CloseContractDialogState extends State<_CloseContractDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _paidCtrl = TextEditingController(text: '0');
+  late final TextEditingController _paidCtrl;
   final _notesCtrl = TextEditingController();
 
   bool _applySpecialPricing = false;
@@ -1405,6 +1365,15 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    final initial = widget.totalAmount > 0 ? widget.totalAmount : 0;
+    _paidCtrl = TextEditingController(
+      text: initial.toStringAsFixed(2),
+    );
+  }
+
+  @override
   void dispose() {
     _paidCtrl.dispose();
     _notesCtrl.dispose();
@@ -1423,6 +1392,23 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('إجمالي العقد: ${widget.totalAmount.toStringAsFixed(2)} ر.س'),
+                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.س'),
+                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.س'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (_allowSpecialPricing)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -1438,6 +1424,7 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'المبلغ المدفوع الآن',
+                    helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
                     border: OutlineInputBorder(),
                     prefixText: 'ر.س ',
                   ),
@@ -1517,6 +1504,7 @@ class _PayNowDialog extends StatefulWidget {
     required this.alreadyPaid,
     required this.maxPayable,
     required this.unlimitedWhenOpen,
+    required this.initialAmount,
     required this.onPay,
   });
 
@@ -1524,6 +1512,7 @@ class _PayNowDialog extends StatefulWidget {
   final double alreadyPaid;
   final double maxPayable;
   final bool unlimitedWhenOpen;
+  final double initialAmount;
   final Future<void> Function(double, String, String?) onPay;
 
   @override
@@ -1532,10 +1521,20 @@ class _PayNowDialog extends StatefulWidget {
 
 class _PayNowDialogState extends State<_PayNowDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _amountCtrl = TextEditingController();
+  late final TextEditingController _amountCtrl;
   final _noteCtrl = TextEditingController();
   String _method = 'cash';
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl = TextEditingController(
+      text: widget.initialAmount > 0
+          ? widget.initialAmount.toStringAsFixed(2)
+          : '',
+    );
+  }
 
   @override
   void dispose() {
@@ -1568,7 +1567,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
   Widget build(BuildContext context) {
     final remainingText = widget.unlimitedWhenOpen
         ? 'العقد مفتوح والإجمالي غير نهائي بعد'
-        : 'المتبقي: ${widget.maxPayable.toStringAsFixed(2)} ر.س';
+        : 'المتبقي الحالي: ${widget.maxPayable.toStringAsFixed(2)} ر.س';
 
     return AlertDialog(
       title: const Text('إضافة دفعة'),
@@ -1590,7 +1589,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('الإجمالي: ${widget.total.toStringAsFixed(2)} ر.س'),
+                      Text('إجمالي العقد: ${widget.total.toStringAsFixed(2)} ر.س'),
                       Text('المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.س'),
                       Text(remainingText),
                     ],
@@ -1602,17 +1601,13 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'مبلغ الدفعة',
+                    helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
                     border: OutlineInputBorder(),
                     prefixText: 'ر.س ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n <= 0) return 'أدخل مبلغًا صحيحًا';
-                    if (!widget.unlimitedWhenOpen &&
-                        widget.maxPayable > 0 &&
-                        n - widget.maxPayable > 0.009) {
-                      return 'المبلغ أكبر من المتبقي';
-                    }
                     return null;
                   },
                 ),
