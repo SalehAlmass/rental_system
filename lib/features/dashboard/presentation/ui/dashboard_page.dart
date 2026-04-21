@@ -17,7 +17,6 @@ import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/settings_page.dart';
 import 'package:rental_app/theme/theme_bloc.dart';
 
-
 import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
 
 import 'package:rental_app/features/profile/profile_cubit.dart';
@@ -79,7 +78,8 @@ class DashboardPageState extends State<DashboardPage> {
       return const SizedBox.shrink();
     }
 
-    final currentConfig = _tabConfig[_currentTab] ?? {'appBar': true, 'drawer': true};
+    final currentConfig =
+        _tabConfig[_currentTab] ?? {'appBar': true, 'drawer': true};
 
     return BlocProvider.value(
       value: _profileCubit,
@@ -153,7 +153,6 @@ class DashboardPageState extends State<DashboardPage> {
                     : null,
 
                 // Drawer removed - all navigation moved to Settings page
-
                 body: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   switchInCurve: Curves.easeOutCubic,
@@ -185,7 +184,8 @@ class DashboardPageState extends State<DashboardPage> {
                   child: const Icon(Icons.person),
                 ),
 
-                floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerDocked,
 
                 bottomNavigationBar: _buildBottomNav(),
               );
@@ -245,36 +245,28 @@ class DashboardPageState extends State<DashboardPage> {
     final idx = railTabs.indexOf(_currentTab);
 
     return NavigationRail(
-      backgroundColor: Theme.of(context).colorScheme.onBackground,      
+      backgroundColor: Theme.of(context).colorScheme.onBackground,
       selectedIndex: idx < 0 ? 0 : idx,
       onDestinationSelected: (i) => _changeTab(railTabs[i]),
       labelType: NavigationRailLabelType.all,
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.home,
-          color: Colors.white,),
-          label: Text('الرئيسية',
-          style: TextStyle(color: Colors.white)),
+          icon: Icon(Icons.home, color: Colors.white),
+          label: Text('الرئيسية', style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.settings,
-          color: Colors.white,),
-          label: Text('المعدات',
-          style: TextStyle(color: Colors.white)),
+          icon: Icon(Icons.settings, color: Colors.white),
+          label: Text('المعدات', style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.wallet,
-          color: Colors.white,),
-          label: Text('العقود',
-          style: TextStyle(color: Colors.white)),
+          icon: Icon(Icons.wallet, color: Colors.white),
+          label: Text('العقود', style: TextStyle(color: Colors.white)),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.info,
-          color: Colors.white,),
-          label: Text('الإعدادات',
-          style: TextStyle(color: Colors.white)),
+          icon: Icon(Icons.info, color: Colors.white),
+          label: Text('الإعدادات', style: TextStyle(color: Colors.white)),
         ),
-        
+
         // NavigationRailDestination(
         //   icon: Icon(Icons.assessment),
         //   label: Text('التقارير'),
@@ -286,7 +278,11 @@ class DashboardPageState extends State<DashboardPage> {
   Widget _buildBody(bool isAdmin, String userName) {
     switch (_currentTab) {
       case DashboardTab.home:
-        return DashboardHome(isAdmin: isAdmin, userName: userName, onOpenRents: () => _changeTab(DashboardTab.rents));
+        return DashboardHome(
+          isAdmin: isAdmin,
+          userName: userName,
+          onOpenRents: () => _changeTab(DashboardTab.rents),
+        );
       case DashboardTab.clients:
         return const ClientsPage();
       case DashboardTab.equipment:
@@ -303,7 +299,6 @@ class DashboardPageState extends State<DashboardPage> {
       //   return const ReportsPage();
       // case DashboardTab.settings:
       //   return const SettingsPage();
-        
     }
   }
 

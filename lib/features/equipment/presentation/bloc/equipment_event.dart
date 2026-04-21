@@ -14,7 +14,7 @@ class EquipmentCreated extends EquipmentEvent {
     this.model,
     this.serialNo,
     this.status = 'available',
-    this.hourlyRate = 0,
+    this.dailyRate = 0,
     this.depreciationRate = 0,
     this.lastMaintenanceDate,
     this.isActive = true,
@@ -24,13 +24,13 @@ class EquipmentCreated extends EquipmentEvent {
   final String? model;
   final String? serialNo;
   final String status;
-  final double hourlyRate;
+  final double dailyRate;
   final double depreciationRate;
   final String? lastMaintenanceDate;
   final bool isActive;
 
   @override
-  List<Object?> get props => [name, model, serialNo, status, hourlyRate, depreciationRate, lastMaintenanceDate, isActive];
+  List<Object?> get props => [name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive];
 }
 
 class EquipmentUpdated extends EquipmentEvent {
@@ -40,7 +40,7 @@ class EquipmentUpdated extends EquipmentEvent {
     this.model,
     this.serialNo,
     this.status = 'available',
-    this.hourlyRate = 0,
+    this.dailyRate = 0,
     this.depreciationRate = 0,
     this.lastMaintenanceDate,
     this.isActive = true,
@@ -51,13 +51,13 @@ class EquipmentUpdated extends EquipmentEvent {
   final String? model;
   final String? serialNo;
   final String status;
-  final double hourlyRate;
+  final double dailyRate;
   final double depreciationRate;
   final String? lastMaintenanceDate;
   final bool isActive;
 
   @override
-  List<Object?> get props => [id, name, model, serialNo, status, hourlyRate, depreciationRate, lastMaintenanceDate, isActive];
+  List<Object?> get props => [id, name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive];
 }
 
 class EquipmentDeleted extends EquipmentEvent {

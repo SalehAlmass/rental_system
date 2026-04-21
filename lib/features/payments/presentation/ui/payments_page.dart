@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:intl/intl.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
@@ -937,7 +938,9 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   bool _submitted = false;
   bool _localSubmitting = false;
 
-  bool get _isMaintenanceVoucher => _type == 'out' && (_equipmentId ?? 0) > 0;
+  bool get _isOutVoucher => _type == 'out' || _type == 'depreciation';
+  bool get _isMaintenanceVoucher => _isOutVoucher && (_equipmentId ?? 0) > 0;
+  bool get _isDepreciationVoucher => _type == 'depreciation';
 
   @override
   void initState() {
@@ -984,7 +987,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
 
   String _buildAutoMaintenanceNote() {
     final eqName = _equipmentNameById(_equipmentId);
-    return 'سند صيانة للمعدة: $eqName';
+    return _isDepreciationVoucher ? 'سند صرف إهلاك للمعدة: $eqName' : 'سند صيانة للمعدة: $eqName';
   }
 
   @override
@@ -1025,6 +1028,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                             value: 'out',
                             child: Text('سند صرف'),
                           ),
+                          DropdownMenuItem(
+                            value: 'depreciation',
+                            child: Text('سند صرف إهلاك'),
+                          ),
                         ],
                         onChanged: (v) {
                           final value = v ?? 'in';
@@ -1038,7 +1045,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       ),
                     const SizedBox(height: 10),
 
-                    if (_type == 'out')
+                    if (_isOutVoucher)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
@@ -1059,9 +1066,11 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           ),
                         ),
                         child: Text(
-                          _isMaintenanceVoucher
-                              ? 'هذا السند سيُسجل كسند صيانة معدة'
-                              : 'يمكنك جعل هذا السند مصروف صيانة عبر اختيار المعدة أدناه',
+                          _isDepreciationVoucher
+                              ? 'هذا السند سيُسجل كسند صرف إهلاك للمعدة'
+                              : (_isMaintenanceVoucher
+                                  ? 'هذا السند سيُسجل كسند صيانة معدة'
+                                  : 'يمكنك جعل هذا السند مصروف صيانة أو إهلاك عبر اختيار المعدة أدناه'),
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -1097,25 +1106,35 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     ),
                     const SizedBox(height: 10),
 
-                    DropdownButtonFormField<int?>(
-                      value: _rentId,
-                      decoration: const InputDecoration(
-                        labelText: 'العقد (اختياري)',
-                        border: OutlineInputBorder(),
+                    DropdownSearch<Rent>(
+                      items: (filter, _) => _rents.where((r) {
+                        final q = filter.toLowerCase();
+                        final hay = 'عقد #${r.id} ${r.clientName ?? ''} ${r.equipmentName ?? ''}'.toLowerCase();
+                        return hay.contains(q);
+                      }).toList(),
+                      compareFn: (a, b) => a.id == b.id,
+                      selectedItem: _rentId == null
+                          ? null
+                          : _rents.cast<Rent?>().firstWhere((r) => r?.id == _rentId, orElse: () => null),
+                      itemAsString: (r) => 'عقد #${r.id} - ${r.clientName ?? 'بدون عميل'}',
+                      onChanged: (Rent? selected) {
+                        setState(() {
+                          _rentId = selected?.id;
+                          if (selected != null) {
+                            _clientId = selected.clientId;
+                          }
+                        });
+                      },
+                      decoratorProps: const DropDownDecoratorProps(
+                        decoration: InputDecoration(
+                          labelText: 'العقد (اختياري)',
+                          border: OutlineInputBorder(),
+                          helperText: 'ابحث برقم العقد وسيتم جلب العميل تلقائيًا',
+                        ),
                       ),
-                      items: [
-                        const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('-'),
-                        ),
-                        ..._rents.map(
-                          (r) => DropdownMenuItem<int?>(
-                            value: r.id,
-                            child: Text('عقد #${r.id}'),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _rentId = v),
+                      popupProps: const PopupProps.menu(
+                        showSearchBox: true,
+                      ),
                     ),
                     const SizedBox(height: 10),
 
@@ -1141,10 +1160,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           ),
                         ),
                       ],
-                      onChanged: _type == 'out'
+                      onChanged: _isOutVoucher
                           ? (v) => setState(() => _equipmentId = v)
                           : null,
-                      disabledHint: const Text('متاح فقط في سندات الصرف'),
+                      disabledHint: const Text('متاح فقط في سندات الصرف والإهلاك'),
                     ),
                     const SizedBox(height: 10),
 
@@ -1176,12 +1195,12 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       controller: _notes,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        labelText: _isMaintenanceVoucher
-                            ? 'تفاصيل الصيانة (اختياري)'
-                            : 'ملاحظات (اختياري)',
+                        labelText: _isDepreciationVoucher
+                            ? 'تفاصيل الإهلاك (اختياري)'
+                            : (_isMaintenanceVoucher ? 'تفاصيل الصيانة (اختياري)' : 'ملاحظات (اختياري)'),
                         border: const OutlineInputBorder(),
-                        helperText: _isMaintenanceVoucher
-                            ? 'إذا تركته فارغًا سيضيف النظام ملاحظة صيانة تلقائيًا'
+                        helperText: (_isMaintenanceVoucher || _isDepreciationVoucher)
+                            ? 'إذا تركته فارغًا سيضيف النظام ملاحظة تلقائية'
                             : null,
                       ),
                     ),
@@ -1217,7 +1236,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       final amt = double.tryParse(_amount.text.trim()) ?? 0;
                       final finalNotes = _notes.text.trim().isNotEmpty
                           ? _notes.text.trim()
-                          : (_isMaintenanceVoucher
+                          : ((_isMaintenanceVoucher || _isDepreciationVoucher)
                                 ? _buildAutoMaintenanceNote()
                                 : null);
 
@@ -1231,7 +1250,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                             amount: amt,
                             clientId: _clientId,
                             rentId: _rentId,
-                            equipmentId: _type == 'out' ? _equipmentId : null,
+                            equipmentId: _isOutVoucher ? _equipmentId : null,
                             method: _method,
                             referenceNo: _ref.text.trim().isEmpty
                                 ? null
@@ -1242,11 +1261,11 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       } else {
                         context.read<PaymentsBloc>().add(
                           PaymentCreated(
-                            type: _type,
+                            type: _isDepreciationVoucher ? 'out' : _type,
                             amount: amt,
                             clientId: _clientId,
                             rentId: _rentId,
-                            equipmentId: _type == 'out' ? _equipmentId : null,
+                            equipmentId: _isOutVoucher ? _equipmentId : null,
                             method: _method,
                             referenceNo: _ref.text.trim().isEmpty
                                 ? null
@@ -1262,7 +1281,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_isMaintenanceVoucher ? 'حفظ سند الصيانة' : 'حفظ'),
+                  : Text(_isDepreciationVoucher ? 'حفظ سند الإهلاك' : (_isMaintenanceVoucher ? 'حفظ سند الصيانة' : 'حفظ')), 
             );
           },
         ),

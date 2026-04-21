@@ -13,7 +13,7 @@ import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
 
-class DashboardHome extends StatelessWidget {
+class DashboardHome extends StatefulWidget {
   final bool isAdmin;
   final String userName;
   final VoidCallback? onOpenRents;
@@ -25,6 +25,12 @@ class DashboardHome extends StatelessWidget {
     this.onOpenRents,
   });
 
+  @override
+  State<DashboardHome> createState() => _DashboardHomeState();
+}
+
+class _DashboardHomeState extends State<DashboardHome> {
+  String _statusFilter = 'all';
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
@@ -51,14 +57,14 @@ class DashboardHome extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _buildHeader(context, userName, isAdmin),
+                _buildHeader(context, widget.userName, widget.isAdmin),
                 const SizedBox(height: 24),
-                if (isAdmin)
+                if (widget.isAdmin)
                   _AdminExecutiveDashboard(
-                    userName: userName,
+                    userName: widget.userName,
                     stats: stats,
                     rents: state.recentRents,
-                    onOpenRents: onOpenRents,
+                    onOpenRents: widget.onOpenRents,
                   )
                 else ...[
                   if (summary.openCount > 0 ||
@@ -66,7 +72,7 @@ class DashboardHome extends StatelessWidget {
                       summary.deferredCount > 0)
                     _EmployeeAlertBanner(
                       summary: summary,
-                      onOpenRents: onOpenRents,
+                      onOpenRents: widget.onOpenRents,
                     ),
                   if (summary.openCount > 0 ||
                       summary.overdueCount > 0 ||
@@ -81,14 +87,18 @@ class DashboardHome extends StatelessWidget {
                           title: 'العقود المفتوحة',
                           value: summary.openCount.toString(),
                           icon: Icons.lock_open_rounded,
-                          onTap: onOpenRents,
+                          onTap: widget.onOpenRents,
                         ),
                         StatCard(
                           title: 'العقود المتأخرة',
                           value: summary.overdueCount.toString(),
                           icon: Icons.warning_amber_rounded,
                           color: Colors.red,
-                          onTap: onOpenRents,
+                          onTap: () => setState(
+                            () => _statusFilter = summary.overdueCount > 0
+                                ? 'overdue'
+                                : 'deferred',
+                          ),
                         ),
                         StatCard(
                           title: 'تسديد مؤجل',
@@ -97,7 +107,11 @@ class DashboardHome extends StatelessWidget {
                               '${summary.deferredAmount.toStringAsFixed(0)} ر.س',
                           icon: Icons.account_balance_wallet_outlined,
                           color: Colors.orange,
-                          onTap: onOpenRents,
+                          onTap: () => setState(
+                            () => _statusFilter = summary.deferredCount > 0
+                                ? 'deferred'
+                                : 'overdue',
+                          ),
                         ),
                       ],
                     ),
@@ -109,10 +123,10 @@ class DashboardHome extends StatelessWidget {
                       final crossAxisCount = w >= 1100
                           ? 4
                           : w >= 800
-                              ? 3
-                              : w >= 500
-                                  ? 2
-                                  : 1;
+                          ? 3
+                          : w >= 500
+                          ? 2
+                          : 1;
 
                       return GridView.count(
                         crossAxisCount: crossAxisCount,
@@ -138,7 +152,7 @@ class DashboardHome extends StatelessWidget {
                             title: 'العقود المفتوحة',
                             value: stats.openRents.toString(),
                             icon: Icons.description,
-                            onTap: onOpenRents,
+                            onTap: widget.onOpenRents,
                             width: double.infinity,
                           ),
                           StatCard(
@@ -157,10 +171,9 @@ class DashboardHome extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   'آخر العقود',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (state.recentRents.isEmpty)
@@ -270,8 +283,8 @@ class _AdminExecutiveDashboard extends StatelessWidget {
             final columns = constraints.maxWidth >= 1100
                 ? 4
                 : constraints.maxWidth >= 700
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
             return GridView.count(
               crossAxisCount: columns,
               shrinkWrap: true,
@@ -284,7 +297,10 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   title: 'إيراد اليوم',
                   value: '${money.format(summary.todayRevenue)} ر.س',
                   subtitle: 'إغلاق وتحصيلات اليوم',
-                  trend: _trendText(summary.todayRevenue, summary.yesterdayRevenue),
+                  trend: _trendText(
+                    summary.todayRevenue,
+                    summary.yesterdayRevenue,
+                  ),
                   icon: Icons.today_rounded,
                   color: Colors.green,
                   width: double.infinity,
@@ -293,8 +309,10 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   title: 'تحصيل هذا الأسبوع',
                   value: '${money.format(summary.thisWeekRevenue)} ر.س',
                   subtitle: 'مقارنة بالأسبوع الماضي',
-                  trend:
-                      _trendText(summary.thisWeekRevenue, summary.lastWeekRevenue),
+                  trend: _trendText(
+                    summary.thisWeekRevenue,
+                    summary.lastWeekRevenue,
+                  ),
                   icon: Icons.calendar_view_week_rounded,
                   color: Colors.teal,
                   width: double.infinity,
@@ -518,11 +536,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({
-    required this.title,
-    required this.child,
-    this.subtitle,
-  });
+  const _Panel({required this.title, required this.child, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -638,7 +652,10 @@ class _StatusRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
           Text(
             value,
@@ -678,7 +695,12 @@ class _InsightChip extends StatelessWidget {
         children: [
           Icon(icon, color: color),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );
@@ -707,9 +729,15 @@ class _TopItemRow extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
-            Text(amount, style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+            Text(
+              amount,
+              style: TextStyle(color: color, fontWeight: FontWeight.w800),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -754,14 +782,16 @@ class _WeeklyRevenueChart extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: labels
-              .map((e) => Expanded(
-                    child: Center(
-                      child: Text(
-                        e,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+              .map(
+                (e) => Expanded(
+                  child: Center(
+                    child: Text(
+                      e,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
       ],
@@ -808,10 +838,7 @@ class _LineChartPainter extends CustomPainter {
 
     final areaPaint = Paint()
       ..shader = LinearGradient(
-        colors: [
-          color.withOpacity(0.24),
-          color.withOpacity(0.02),
-        ],
+        colors: [color.withOpacity(0.24), color.withOpacity(0.02)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
@@ -827,7 +854,10 @@ class _LineChartPainter extends CustomPainter {
     for (var i = 1; i < points.length; i++) {
       final prev = points[i - 1];
       final current = points[i];
-      final mid = Offset((prev.dx + current.dx) / 2, (prev.dy + current.dy) / 2);
+      final mid = Offset(
+        (prev.dx + current.dx) / 2,
+        (prev.dy + current.dy) / 2,
+      );
       linePath.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
     }
     linePath.lineTo(points.last.dx, points.last.dy);
@@ -895,10 +925,10 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
         '/settings/admin-alerts',
         queryParameters: {'days': 7, 'limit': 20},
       );
-      
+
       // Check mounted after async operation
       if (!mounted) return;
-      
+
       final data = (res.data is Map<String, dynamic>)
           ? res.data as Map<String, dynamic>
           : <String, dynamic>{};
@@ -913,7 +943,10 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
           .where((a) => (a['severity'] ?? '').toString() == 'high')
           .length;
 
-      if (silent && mounted && highCount > _lastHighCount && _lastHighCount > 0) {
+      if (silent &&
+          mounted &&
+          highCount > _lastHighCount &&
+          _lastHighCount > 0) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -927,7 +960,8 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
 
       if (!mounted) return;
       setState(() {
-        _summary = ((payload['summary'] as Map?)?.cast<String, dynamic>()) ?? {};
+        _summary =
+            ((payload['summary'] as Map?)?.cast<String, dynamic>()) ?? {};
         _alerts = alerts;
         _lastHighCount = highCount;
         _loading = false;
@@ -976,8 +1010,10 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.red.withOpacity(0.12),
-                child: const Icon(Icons.notifications_active_outlined,
-                    color: Colors.red),
+                child: const Icon(
+                  Icons.notifications_active_outlined,
+                  color: Colors.red,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -986,8 +1022,10 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
                   children: [
                     const Text(
                       'التنبيهات الفورية للإدارة',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -1121,8 +1159,8 @@ class _AlertStrip extends StatelessWidget {
     final tone = severity == 'high'
         ? Colors.red
         : severity == 'medium'
-            ? Colors.orange
-            : Colors.blueGrey;
+        ? Colors.orange
+        : Colors.blueGrey;
     final dt = _fmtDate(data['created_at']?.toString());
 
     return Container(
@@ -1171,8 +1209,10 @@ class _AlertStrip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: tone.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -1181,8 +1221,8 @@ class _AlertStrip extends StatelessWidget {
                   severity == 'high'
                       ? 'حرج'
                       : severity == 'medium'
-                          ? 'متوسط'
-                          : 'منخفض',
+                      ? 'متوسط'
+                      : 'منخفض',
                   style: TextStyle(color: tone, fontWeight: FontWeight.w700),
                 ),
               ),
@@ -1215,11 +1255,7 @@ class _InlineError extends StatelessWidget {
           const Icon(Icons.error_outline, color: Colors.red),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              message,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(message, maxLines: 2, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () => onRetry(silent: false),
@@ -1259,8 +1295,8 @@ class _RentCard extends StatelessWidget {
     final statusLabel = status == 'closed'
         ? 'مغلق'
         : status == 'cancelled'
-            ? 'ملغي'
-            : 'مفتوح';
+        ? 'ملغي'
+        : 'مفتوح';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1403,13 +1439,17 @@ class _AdminDashboardSummary {
         if (_sameDay(closeDate, yesterdayStart)) {
           yesterdayRevenue += cash;
         }
-        if (!closeDate.isBefore(weekStart) && closeDate.isBefore(todayStart.add(const Duration(days: 1)))) {
+        if (!closeDate.isBefore(weekStart) &&
+            closeDate.isBefore(todayStart.add(const Duration(days: 1)))) {
           thisWeekRevenue += cash;
         }
-        if (!closeDate.isBefore(lastWeekStart) && closeDate.isBefore(weekStart)) {
+        if (!closeDate.isBefore(lastWeekStart) &&
+            closeDate.isBefore(weekStart)) {
           lastWeekRevenue += cash;
         }
-        final key = DateFormat('yyyy-MM-dd').format(DateTime(closeDate.year, closeDate.month, closeDate.day));
+        final key = DateFormat(
+          'yyyy-MM-dd',
+        ).format(DateTime(closeDate.year, closeDate.month, closeDate.day));
         if (revenueMap.containsKey(key)) {
           revenueMap[key] = (revenueMap[key] ?? 0) + cash;
         }
@@ -1417,18 +1457,19 @@ class _AdminDashboardSummary {
 
       final amountBasis = (rent.totalAmount ?? cash);
       if (amountBasis > 0) {
-        final equipment = (rent.equipmentName ?? 'معدة #${rent.equipmentId}').trim();
+        final equipment = (rent.equipmentName ?? 'معدة #${rent.equipmentId}')
+            .trim();
         final client = (rent.clientName ?? 'عميل #${rent.clientId}').trim();
-        equipmentTotals[equipment] = (equipmentTotals[equipment] ?? 0) + amountBasis;
+        equipmentTotals[equipment] =
+            (equipmentTotals[equipment] ?? 0) + amountBasis;
         clientTotals[client] = (clientTotals[client] ?? 0) + amountBasis;
       }
     }
 
     List<_TopAmountItem> topFromMap(Map<String, double> source) {
-      final items = source.entries
-          .map((e) => _TopAmountItem(e.key, e.value))
-          .toList()
-        ..sort((a, b) => b.amount.compareTo(a.amount));
+      final items =
+          source.entries.map((e) => _TopAmountItem(e.key, e.value)).toList()
+            ..sort((a, b) => b.amount.compareTo(a.amount));
       return items.take(5).toList();
     }
 
@@ -1578,10 +1619,12 @@ String _trendText(double current, double previous) {
 }
 
 String _buildInsightText(_AdminDashboardSummary summary) {
-  if (summary.todayRevenue > summary.yesterdayRevenue && summary.overdueCount == 0) {
+  if (summary.todayRevenue > summary.yesterdayRevenue &&
+      summary.overdueCount == 0) {
     return 'التحصيل اليوم أفضل من أمس ولا توجد حالات تأخير ظاهرة.';
   }
-  if (summary.overdueCount > 0 && summary.todayRevenue <= summary.yesterdayRevenue) {
+  if (summary.overdueCount > 0 &&
+      summary.todayRevenue <= summary.yesterdayRevenue) {
     return 'يوجد ضغط تشغيلي: العقود المتأخرة مرتفعة والتحصيل اليوم أقل من أمس.';
   }
   if (summary.deferredCount > 0) {

@@ -92,11 +92,9 @@ class EquipmentDetailsPage extends StatelessWidget {
                       // Equipment information
                       _buildDetailItem('الاسم', equipment.name),
                       const Divider(),
-                      _buildDetailItem('الموديل', equipment.model ?? '-'),
-                      const Divider(),
                       _buildDetailItem('الرقم التسلسلي', equipment.serialNo ?? '-'),
                       const Divider(),
-                      _buildDetailItem('سعر الساعة', '${equipment.hourlyRate.toStringAsFixed(0)} ر.س'),
+                      _buildDetailItem('السعر اليومي', '${equipment.dailyRate.toStringAsFixed(0)} ر.س'),
                       const Divider(),
                       _buildDetailItem('نسبة الإهلاك', '${equipment.depreciationRate.toStringAsFixed(0)} %'),
                       const Divider(),

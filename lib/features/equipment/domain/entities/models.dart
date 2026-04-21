@@ -5,7 +5,7 @@ class Equipment {
     this.model,
     this.serialNo,
     this.status,
-    this.hourlyRate = 0,
+    this.dailyRate = 0,
     this.depreciationRate = 0,
     this.lastMaintenanceDate,
     this.isActive = true,
@@ -16,7 +16,7 @@ class Equipment {
   final String? model;
   final String? serialNo;
   final String? status;
-  final double hourlyRate;
+  final double dailyRate;
   final double depreciationRate;
   final String? lastMaintenanceDate; // YYYY-MM-DD or null
   final bool isActive;
@@ -37,7 +37,7 @@ class Equipment {
       model: json['model']?.toString(),
       serialNo: json['serial_no']?.toString(),
       status: json['status']?.toString(),
-      hourlyRate: toD(json['hourly_rate']),
+      dailyRate: toD(json['daily_rate'] ?? json['hourly_rate']),
       depreciationRate: toD(json['depreciation_rate']),
       lastMaintenanceDate: json['last_maintenance_date']?.toString(),
       isActive: toB(json['is_active']),
@@ -50,7 +50,8 @@ class Equipment {
         'model': model,
         'serial_no': serialNo,
         'status': status,
-        'hourly_rate': hourlyRate,
+        'daily_rate': dailyRate,
+        'hourly_rate': dailyRate,
         'depreciation_rate': depreciationRate,
         'last_maintenance_date': lastMaintenanceDate,
         'is_active': isActive ? 1 : 0,

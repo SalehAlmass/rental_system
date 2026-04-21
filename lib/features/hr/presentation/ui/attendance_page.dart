@@ -203,7 +203,7 @@ class _AttendancePageState extends State<AttendancePage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text('ملاحظة: يوم الجمعة إجازة افتراضيًا.',
+                  const Text('ملاحظة: الدوام الصباحي من 6:00 ص إلى 12:00 ظهرًا، والمسائي من 4:00 م إلى 9:00 م، والجمعة إجازة افتراضيًا.',
                       style: TextStyle(fontSize: 12, color: Colors.black54)),
                 ],
               ),

@@ -44,9 +44,9 @@ String? validateSerialNo(String? value) {
   return validateField(value, isNumber: false, isRequired: false);
 }
 
-String? validateHourlyRate(String? value) {
+String? validateDailyRate(String? value) {
   if (value == null || value.isEmpty) {
-    return 'الرجاء إدخال سعر الساعة';
+    return 'الرجاء إدخال السعر اليومي';
   }
   
   final numValue = double.tryParse(value);
@@ -198,7 +198,7 @@ class _EquipmentCard extends StatelessWidget {
               children: [
                 Text('الموديل: ${equipment.model ?? '-'}'),
                 Text(
-                  'السعر: ${equipment.hourlyRate.toStringAsFixed(0)} ر.س / ساعة',
+                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ر.س / يوم',
                 ),
               ],
             ),
@@ -308,7 +308,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       _name.text = e.name;
       _model.text = e.model ?? '';
       _serial.text = e.serialNo ?? '';
-      _rate.text = e.hourlyRate.toString();
+      _rate.text = e.dailyRate.toString();
       _dep.text = e.depreciationRate.toString();
       _status = e.status ?? 'available';
       _active = e.isActive;
@@ -358,10 +358,10 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _rate,
-                      validator: validateHourlyRate,
+                      validator: validateDailyRate,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'سعر الساعة',
+                        labelText: 'السعر اليومي',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -433,7 +433,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                 model: _model.text.trim(),
                 serialNo: _serial.text.trim(),
                 status: _status,
-                hourlyRate: rate,
+                dailyRate: rate,
                 depreciationRate: dep,
                 isActive: _active,
               ),
@@ -445,7 +445,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                 model: _model.text.trim(),
                 serialNo: _serial.text.trim(),
                 status: _status,
-                hourlyRate: rate,
+                dailyRate: rate,
                 depreciationRate: dep,
                 isActive: _active,
               ),

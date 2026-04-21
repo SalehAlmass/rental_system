@@ -16,6 +16,9 @@ import 'package:rental_app/features/rents/data/repositories/rents_repository_imp
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
+import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
+import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
+import 'package:rental_app/features/settings/data/contract_closing_settings_repository.dart';
 
 String nowSql() {
   final n = DateTime.now();
@@ -99,6 +102,9 @@ class RentsPage extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (_) => EquipmentRepository(context.read<ApiClient>()),
+        ),
+        RepositoryProvider(
+          create: (_) => ContractClosingSettingsRepository(context.read<ApiClient>()),
         ),
       ],
       child: BlocProvider(
@@ -201,6 +207,74 @@ class _RentsViewState extends State<_RentsView> {
     await _reloadEverything();
   }
 
+
+  Future<void> _openQuickClose(BuildContext context, Rent rent) async {
+    final repo = context.read<RentsRepository>();
+    final settingsRepo = context.read<ContractClosingSettingsRepository>();
+    final paymentsRepo = PaymentsRepository(context.read<ApiClient>());
+    final total = safeRentTotal(rent);
+    final paid = safeRentPaid(rent);
+    final remaining = safeRentRemaining(rent);
+
+    final settings = await settingsRepo.fetch();
+    if (!mounted) return;
+
+    final result = await showDialog<_QuickCloseResult>(
+      context: context,
+      builder: (_) => _QuickCloseDialog(
+        rent: rent,
+        settings: settings,
+        totalAmount: total,
+        currentPaid: paid,
+        remainingAmount: remaining,
+      ),
+    );
+    if (result == null) return;
+
+    await repo.closeRent(
+      rentId: rent.id,
+      endDatetime: DateTime.now().toIso8601String(),
+      applySpecialPricing: result.applySpecialPricing,
+      paidAmount: result.paidAmount,
+      paymentMethod: result.paymentMethod,
+      createReceipt: false,
+      paymentNotes: result.paymentNotes,
+      idempotencyKey: 'quick_close_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
+    );
+
+    if (!mounted) return;
+    final fullyPaid = (result.paidAmount + 0.009) >= total && total > 0;
+    if (fullyPaid) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('تم تسديد العقد كاملًا'),
+          content: const Text('هل تريد إنشاء سند قبض الآن؟'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('لا')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('نعم')),
+          ],
+        ),
+      );
+      if (go == true && mounted) {
+        await paymentsRepo.create(
+          type: 'in',
+          amount: result.paidAmount,
+          clientId: rent.clientId,
+          rentId: rent.id,
+          method: result.paymentMethod,
+          notes: result.paymentNotes ?? 'سند قبض بعد الإغلاق السريع',
+          idempotencyKey: 'quick_close_receipt_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
+        );
+        if (mounted) {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentsPage()));
+        }
+      }
+    }
+
+    await _reloadEverything();
+  }
+
   List<Rent> _applyUiFilters(List<Rent> items) {
     final q = _query.trim().toLowerCase();
 
@@ -297,9 +371,9 @@ class _RentsViewState extends State<_RentsView> {
         child: BlocConsumer<RentsBloc, RentsState>(
           listener: (context, state) {
             if (state.error != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.error!)),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.error!)));
             }
           },
           builder: (context, state) {
@@ -343,17 +417,14 @@ class _RentsViewState extends State<_RentsView> {
                       children: [
                         Text(
                           'إدارة العقود اليومية',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'اعرض العقود المفتوحة والمغلقة بسرعة، وراجع العقود المتأخرة أو التي أغلقت بدون سند قبض.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 16),
                         TextField(
@@ -387,8 +458,9 @@ class _RentsViewState extends State<_RentsView> {
                             .withOpacity(0.08),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: (stats.overdue > 0 ? Colors.red : Colors.orange)
-                              .withOpacity(0.25),
+                          color:
+                              (stats.overdue > 0 ? Colors.red : Colors.orange)
+                                  .withOpacity(0.25),
                         ),
                       ),
                       child: Row(
@@ -397,8 +469,9 @@ class _RentsViewState extends State<_RentsView> {
                             stats.overdue > 0
                                 ? Icons.warning_amber_rounded
                                 : Icons.account_balance_wallet_outlined,
-                            color:
-                                stats.overdue > 0 ? Colors.red : Colors.orange,
+                            color: stats.overdue > 0
+                                ? Colors.red
+                                : Colors.orange,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -416,9 +489,7 @@ class _RentsViewState extends State<_RentsView> {
                                 const SizedBox(height: 4),
                                 Text(
                                   'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.س',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
+                                  style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: colorScheme.onSurfaceVariant,
                                       ),
@@ -428,8 +499,9 @@ class _RentsViewState extends State<_RentsView> {
                           ),
                           FilledButton.icon(
                             onPressed: () => setState(
-                              () => _statusFilter =
-                                  stats.overdue > 0 ? 'overdue' : 'deferred',
+                              () => _statusFilter = stats.overdue > 0
+                                  ? 'overdue'
+                                  : 'deferred',
                             ),
                             icon: const Icon(Icons.open_in_new),
                             label: const Text('عرض الآن'),
@@ -496,9 +568,7 @@ class _RentsViewState extends State<_RentsView> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                        ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -574,7 +644,8 @@ class _RentsViewState extends State<_RentsView> {
                                         child: Icon(
                                           item.hasContactToday
                                               ? Icons.phone_in_talk_outlined
-                                              : Icons.account_balance_wallet_outlined,
+                                              : Icons
+                                                    .account_balance_wallet_outlined,
                                           color: item.hasContactToday
                                               ? Colors.blue
                                               : Colors.orange,
@@ -583,11 +654,11 @@ class _RentsViewState extends State<_RentsView> {
                                       title: Text(
                                         'عقد #${item.id} • ${item.clientName}',
                                       ),
-                                      subtitle:
-                                          Text(_collectionAgendaSubtitle(item)),
+                                      subtitle: Text(
+                                        _collectionAgendaSubtitle(item),
+                                      ),
                                       isThreeLine: true,
-                                      trailing:
-                                          const Icon(Icons.chevron_left),
+                                      trailing: const Icon(Icons.chevron_left),
                                       onTap: () =>
                                           _openDetails(context, item.id),
                                     ),
@@ -633,7 +704,8 @@ class _RentsViewState extends State<_RentsView> {
                       _FilterChip(
                         label: 'ملغاة',
                         selected: _statusFilter == 'cancelled',
-                        onTap: () => setState(() => _statusFilter = 'cancelled'),
+                        onTap: () =>
+                            setState(() => _statusFilter = 'cancelled'),
                       ),
                       _FilterChip(
                         label: 'متأخرة',
@@ -657,9 +729,7 @@ class _RentsViewState extends State<_RentsView> {
                     children: [
                       Text(
                         'العقود المعروضة',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const Spacer(),
@@ -714,10 +784,11 @@ class _RentsViewState extends State<_RentsView> {
                               _isClosedWithDeferredPayment(rent),
                           remainingAmount: _remainingAmount(rent),
                           onOpenDetails: () => _openDetails(context, rent.id),
+                          onQuickClose: () => _openQuickClose(context, rent),
                           onCancelled: (rentId) {
                             context.read<RentsBloc>().add(
-                                  RentCancelled(rentId: rentId),
-                                );
+                              RentCancelled(rentId: rentId),
+                            );
                           },
                         ),
                       ),
@@ -733,7 +804,7 @@ class _RentsViewState extends State<_RentsView> {
 
   String _collectionAgendaSubtitle(_CollectionAgendaItem item) {
     final lines = <String>[
-      'المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.س'
+      'المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.س',
     ];
 
     if (item.hasScheduledFollowupToday) {
@@ -786,6 +857,7 @@ class _RentCard extends StatelessWidget {
     required this.isClosedWithDeferredPayment,
     required this.remainingAmount,
     required this.onOpenDetails,
+    required this.onQuickClose,
     required this.onCancelled,
   });
 
@@ -795,6 +867,7 @@ class _RentCard extends StatelessWidget {
   final bool isClosedWithDeferredPayment;
   final double remainingAmount;
   final VoidCallback onOpenDetails;
+  final VoidCallback onQuickClose;
   final void Function(int rentId) onCancelled;
 
   @override
@@ -812,22 +885,22 @@ class _RentCard extends StatelessWidget {
     final accent = isCancelled
         ? Colors.grey
         : isClosed
-            ? (isClosedWithDeferredPayment ? Colors.orange : Colors.green)
-            : (isOverdue ? Colors.red : Colors.blue);
+        ? (isClosedWithDeferredPayment ? Colors.orange : Colors.green)
+        : (isOverdue ? Colors.red : Colors.blue);
 
     final statusLabel = isCancelled
         ? 'ملغي'
         : isClosed
-            ? (isClosedWithDeferredPayment ? 'مغلق والسداد مؤجل' : 'مغلق')
-            : isOverdue
-                ? 'مفتوح ومتأخر'
-                : 'مفتوح';
+        ? (isClosedWithDeferredPayment ? 'مغلق والسداد مؤجل' : 'مغلق')
+        : isOverdue
+        ? 'مفتوح ومتأخر'
+        : 'مفتوح';
 
     final receiptLabel = paymentStatus == 'created'
         ? 'تم إنشاء السند'
         : isClosed
-            ? 'أغلق بدون سند'
-            : 'لم يُغلق بعد';
+        ? 'أغلق بدون سند'
+        : 'لم يُغلق بعد';
 
     final financialHint = remaining > 0.009
         ? 'متبقٍ على العميل ${remaining.toStringAsFixed(2)} ر.س'
@@ -868,8 +941,8 @@ class _RentCard extends StatelessWidget {
                         isCancelled
                             ? Icons.block_rounded
                             : isClosed
-                                ? Icons.task_alt_rounded
-                                : Icons.description_outlined,
+                            ? Icons.task_alt_rounded
+                            : Icons.description_outlined,
                         color: accent,
                       ),
                     ),
@@ -880,20 +953,14 @@ class _RentCard extends StatelessWidget {
                         children: [
                           Text(
                             'عقد #${rent.id}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             rent.clientName ?? 'عميل غير محدد',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -1016,13 +1083,15 @@ class _RentCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: onOpenDetails,
+                          onPressed: isClosed ? onOpenDetails : onQuickClose,
                           icon: Icon(
                             isClosed
                                 ? Icons.receipt_long
                                 : Icons.lock_clock_outlined,
                           ),
-                          label: Text(isClosed ? 'مراجعة الإغلاق' : 'إغلاق سريع'),
+                          label: Text(
+                            isClosed ? 'مراجعة الإغلاق' : 'إغلاق سريع',
+                          ),
                         ),
                       ),
                     ],
@@ -1038,8 +1107,9 @@ class _RentCard extends StatelessWidget {
                           context: context,
                           builder: (_) => AlertDialog(
                             title: const Text('تأكيد إلغاء العقد'),
-                            content:
-                                Text('هل تريد إلغاء العقد رقم #${rent.id} ؟'),
+                            content: Text(
+                              'هل تريد إلغاء العقد رقم #${rent.id} ؟',
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
@@ -1094,15 +1164,12 @@ class _StatCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      width: 160,     
+      width: 160,
       margin: const EdgeInsetsDirectional.only(end: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            tone.withOpacity(0.18),
-            tone.withOpacity(0.07),
-          ],
+          colors: [tone.withOpacity(0.18), tone.withOpacity(0.07)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -1143,9 +1210,9 @@ class _StatCard extends StatelessWidget {
                   child: Text(
                     subtitle!,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: tone,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: tone,
+                      fontWeight: FontWeight.w800,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1161,10 +1228,10 @@ class _StatCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1172,10 +1239,10 @@ class _StatCard extends StatelessWidget {
                 Text(
                   value,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: tone,
-                        height: 1,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: tone,
+                    height: 1,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1281,10 +1348,7 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 180),
-            child: Text(
-              text,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(text, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -1310,15 +1374,9 @@ class _MiniMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
-          ),
+          Text(label, style: TextStyle(color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -1421,8 +1479,9 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
     if (!mounted) return;
 
-    final availableEquipment =
-        e.where((x) => (x.status ?? 'available') != 'rented').toList();
+    final availableEquipment = e
+        .where((x) => (x.status ?? 'available') != 'rented')
+        .toList();
 
     setState(() {
       _clients = c;
@@ -1457,9 +1516,9 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                     items: (filter, _) => _clients
                         .where(
                           (c) =>
-                              c.name
-                                  .toLowerCase()
-                                  .contains(filter.toLowerCase()) ||
+                              c.name.toLowerCase().contains(
+                                filter.toLowerCase(),
+                              ) ||
                               (c.phone != null && c.phone!.contains(filter)) ||
                               (c.nationalId != null &&
                                   c.nationalId!.contains(filter)),
@@ -1492,12 +1551,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       ),
                       itemBuilder: (context, item, isDisabled, isSelected) =>
                           ListTile(
-                        title: Text(item.name),
-                        subtitle:
-                            Text('${item.phone ?? ""} | ${item.nationalId ?? ""}'),
-                        selected: isSelected,
-                        trailing: Text('#${item.id}'),
-                      ),
+                            title: Text(item.name),
+                            subtitle: Text(
+                              '${item.phone ?? ""} | ${item.nationalId ?? ""}',
+                            ),
+                            selected: isSelected,
+                            trailing: Text('#${item.id}'),
+                          ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1505,13 +1565,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                     items: (filter, _) => _equipment
                         .where(
                           (e) =>
-                              e.name
-                                  .toLowerCase()
-                                  .contains(filter.toLowerCase()) ||
+                              e.name.toLowerCase().contains(
+                                filter.toLowerCase(),
+                              ) ||
                               (e.serialNo != null &&
-                                  e.serialNo!
-                                      .toLowerCase()
-                                      .contains(filter.toLowerCase())),
+                                  e.serialNo!.toLowerCase().contains(
+                                    filter.toLowerCase(),
+                                  )),
                         )
                         .toList(),
                     compareFn: (i, s) => i.id == s.id,
@@ -1542,11 +1602,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       ),
                       itemBuilder: (context, item, isDisabled, isSelected) =>
                           ListTile(
-                        title: Text(item.name),
-                        subtitle: Text('رقم تسلسلي: ${item.serialNo ?? "-"}'),
-                        selected: isSelected,
-                        trailing: Text('#${item.id}'),
-                      ),
+                            title: Text(item.name),
+                            subtitle: Text(
+                              'رقم تسلسلي: ${item.serialNo ?? "-"}',
+                            ),
+                            selected: isSelected,
+                            trailing: Text('#${item.id}'),
+                          ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1598,13 +1660,13 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                       final rate = double.tryParse(_rateCtrl.text.trim()) ?? 0;
 
                       context.read<RentsBloc>().add(
-                            RentOpened(
-                              clientId: _clientId!,
-                              equipmentId: _equipmentId!,
-                              startDatetime: nowSql(),
-                              dailyRate: rate,
-                            ),
-                          );
+                        RentOpened(
+                          clientId: _clientId!,
+                          equipmentId: _equipmentId!,
+                          startDatetime: nowSql(),
+                          dailyRate: rate,
+                        ),
+                      );
                     },
               child: disabled
                   ? const SizedBox(
@@ -1712,5 +1774,163 @@ class _CollectionAgendaItem {
     if (dt == null) return value;
     String two(int x) => x.toString().padLeft(2, '0');
     return '${two(dt.day)}/${two(dt.month)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+}
+
+
+class _QuickCloseResult {
+  const _QuickCloseResult({
+    required this.paidAmount,
+    required this.paymentMethod,
+    required this.applySpecialPricing,
+    this.paymentNotes,
+  });
+
+  final double paidAmount;
+  final String paymentMethod;
+  final bool applySpecialPricing;
+  final String? paymentNotes;
+}
+
+class _QuickCloseDialog extends StatefulWidget {
+  const _QuickCloseDialog({
+    required this.rent,
+    required this.settings,
+    required this.totalAmount,
+    required this.currentPaid,
+    required this.remainingAmount,
+  });
+
+  final Rent rent;
+  final dynamic settings;
+  final double totalAmount;
+  final double currentPaid;
+  final double remainingAmount;
+
+  @override
+  State<_QuickCloseDialog> createState() => _QuickCloseDialogState();
+}
+
+class _QuickCloseDialogState extends State<_QuickCloseDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountCtrl;
+  final _notesCtrl = TextEditingController();
+  String _method = 'cash';
+  bool _applySpecialPricing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl = TextEditingController(text: widget.totalAmount.toStringAsFixed(2));
+  }
+
+  void _fill(double value) {
+    _amountCtrl.text = value.toStringAsFixed(2);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.totalAmount;
+    final half = total / 2;
+    final twoThirds = total * (2 / 3);
+    return AlertDialog(
+      title: const Text('تسديد وإغلاق العقد'),
+      content: SizedBox(
+        width: 430,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('إجمالي العقد: ${total.toStringAsFixed(2)} ر.س'),
+                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.س'),
+                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.س'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(onPressed: () => _fill(total), child: const Text('اليوم كامل')),
+                    OutlinedButton(onPressed: () => _fill(half), child: const Text('نصف يوم')),
+                    OutlinedButton(onPressed: () => _fill(twoThirds), child: const Text('ثلثين')),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _applySpecialPricing,
+                  onChanged: (v) => setState(() => _applySpecialPricing = v),
+                  title: const Text('تطبيق الاحتساب الخاص'),
+                ),
+                TextFormField(
+                  controller: _amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'المبلغ المسدد', border: OutlineInputBorder()),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _method,
+                  decoration: const InputDecoration(labelText: 'طريقة الدفع', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('نقد')),
+                    DropdownMenuItem(value: 'transfer', child: Text('تحويل')),
+                    DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+                  ],
+                  onChanged: (v) => setState(() => _method = v ?? 'cash'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'ملاحظة', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(context, _QuickCloseResult(
+              paidAmount: double.tryParse(_amountCtrl.text.trim()) ?? 0,
+              paymentMethod: _method,
+              applySpecialPricing: _applySpecialPricing,
+              paymentNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            ));
+          },
+          child: const Text('إغلاق وتحصيل'),
+        ),
+      ],
+    );
   }
 }

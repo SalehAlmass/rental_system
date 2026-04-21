@@ -1419,6 +1419,16 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                       'أقل من 3 ساعات = ثلثي السعر، 3 ساعات فأكثر = يوم كامل',
                     ),
                   ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(onPressed: () => _paidCtrl.text = widget.totalAmount.toStringAsFixed(2), child: const Text('اليوم كامل')),
+                    OutlinedButton(onPressed: () => _paidCtrl.text = (widget.totalAmount / 2).toStringAsFixed(2), child: const Text('نصف يوم')),
+                    OutlinedButton(onPressed: () => _paidCtrl.text = (widget.totalAmount * (2 / 3)).toStringAsFixed(2), child: const Text('ثلثين')),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _paidCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -1594,6 +1604,16 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                       Text(remainingText),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = widget.total.toStringAsFixed(2)), child: const Text('اليوم كامل')),
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (widget.total / 2).toStringAsFixed(2)), child: const Text('نصف يوم')),
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (widget.total * (2 / 3)).toStringAsFixed(2)), child: const Text('ثلثين')),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
