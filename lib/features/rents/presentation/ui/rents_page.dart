@@ -88,7 +88,12 @@ double safeRentRemaining(Rent rent) {
 }
 
 class RentsPage extends StatelessWidget {
-  const RentsPage({super.key});
+  final String initialFilter;
+
+  const RentsPage({
+    super.key,
+    this.initialFilter = 'all',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -110,16 +115,23 @@ class RentsPage extends StatelessWidget {
       child: BlocProvider(
         create: (context) =>
             RentsBloc(context.read<RentsRepository>())
-              ..add(const RentsRequested()),
-        child: _RentsView(showBackButton: Navigator.canPop(context)),
+              ..add(RentsRequested(status: initialFilter)),
+        child: _RentsView(
+          showBackButton: Navigator.canPop(context),
+          initialFilter: initialFilter,
+        ),
       ),
     );
   }
 }
 
 class _RentsView extends StatefulWidget {
-  const _RentsView({this.showBackButton = true});
+  const _RentsView({
+    this.showBackButton = true,
+    this.initialFilter = 'all',
+  });
   final bool showBackButton;
+  final String initialFilter;
 
   @override
   State<_RentsView> createState() => _RentsViewState();
@@ -136,6 +148,7 @@ class _RentsViewState extends State<_RentsView> {
   @override
   void initState() {
     super.initState();
+    _statusFilter = widget.initialFilter;
     _fetchCollectionAgenda();
   }
 
@@ -450,65 +463,63 @@ class _RentsViewState extends State<_RentsView> {
                   ),
                   const SizedBox(height: 14),
                   if (stats.overdue > 0 || stats.deferredCount > 0)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: (stats.overdue > 0 ? Colors.red : Colors.orange)
-                            .withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color:
-                              (stats.overdue > 0 ? Colors.red : Colors.orange)
-                                  .withOpacity(0.25),
+                    () {
+                      final isOverdue = stats.overdue > 0;
+                      final tone = isOverdue ? Colors.red : Colors.orange;
+                      final alertTitle = isOverdue
+                          ? 'لديك عقود متأخرة تحتاج متابعة الآن'
+                          : 'هناك عقود مغلقة لكن ما زال عليها رصيد مؤجل';
+                      final alertIcon = isOverdue
+                          ? Icons.warning_amber_rounded
+                          : Icons.account_balance_wallet_outlined;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: tone.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: tone.withOpacity(0.25)),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            stats.overdue > 0
-                                ? Icons.warning_amber_rounded
-                                : Icons.account_balance_wallet_outlined,
-                            color: stats.overdue > 0
-                                ? Colors.red
-                                : Colors.orange,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  stats.overdue > 0
-                                      ? 'لديك عقود متأخرة تحتاج متابعة الآن'
-                                      : 'هناك عقود مغلقة لكن ما زال عليها رصيد مؤجل',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
+                        child: Row(
+                          children: [
+                            Icon(alertIcon, color: tone),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    alertTitle,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.س',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.س',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          FilledButton.icon(
-                            onPressed: () => setState(
-                              () => _statusFilter = stats.overdue > 0
-                                  ? 'overdue'
-                                  : 'deferred',
+                            FilledButton.icon(
+                              onPressed: () => setState(
+                                () => _statusFilter =
+                                    isOverdue ? 'overdue' : 'deferred',
+                              ),
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text('عرض الآن'),
                             ),
-                            icon: const Icon(Icons.open_in_new),
-                            label: const Text('عرض الآن'),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }(),
                   SizedBox(
                     height: 124,
                     child: ListView(
@@ -520,24 +531,28 @@ class _RentsViewState extends State<_RentsView> {
                           value: stats.total.toString(),
                           icon: Icons.assignment_outlined,
                           tone: colorScheme.primary,
+                          onTap: () => setState(() => _statusFilter = 'all'),
                         ),
                         _StatCard(
                           title: 'مفتوحة',
                           value: stats.open.toString(),
                           icon: Icons.lock_open_rounded,
                           tone: Colors.blue,
+                          onTap: () => setState(() => _statusFilter = 'open'),
                         ),
                         _StatCard(
                           title: 'متأخرة',
                           value: stats.overdue.toString(),
                           icon: Icons.warning_amber_rounded,
                           tone: Colors.red,
+                          onTap: () => setState(() => _statusFilter = 'overdue'),
                         ),
                         _StatCard(
                           title: 'تسديد مؤجل',
                           value: stats.deferredCount.toString(),
                           icon: Icons.account_balance_wallet_outlined,
                           tone: Colors.orange,
+                          onTap: () => setState(() => _statusFilter = 'deferred'),
                           subtitle:
                               '${stats.deferredAmount.toStringAsFixed(0)} ر.س',
                         ),
@@ -1151,6 +1166,7 @@ class _StatCard extends StatelessWidget {
     required this.icon,
     required this.tone,
     this.subtitle,
+    required this.onTap,
   });
 
   final String title;
@@ -1158,15 +1174,18 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color tone;
   final String? subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      width: 160,
-      margin: const EdgeInsetsDirectional.only(end: 10),
-      padding: const EdgeInsets.all(10),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        margin: const EdgeInsetsDirectional.only(end: 10),
+        padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [tone.withOpacity(0.18), tone.withOpacity(0.07)],
@@ -1261,6 +1280,7 @@ class _StatCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
