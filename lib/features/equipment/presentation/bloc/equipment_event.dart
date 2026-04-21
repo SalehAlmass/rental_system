@@ -18,6 +18,11 @@ class EquipmentCreated extends EquipmentEvent {
     this.depreciationRate = 0,
     this.lastMaintenanceDate,
     this.isActive = true,
+    this.purchasePrice = 0,
+    this.salvageValue = 0,
+    this.usefulLifeMonths = 60,
+    this.depreciationStartDate,
+    this.estimatedUsageDays = 365,
   });
 
   final String name;
@@ -28,9 +33,14 @@ class EquipmentCreated extends EquipmentEvent {
   final double depreciationRate;
   final String? lastMaintenanceDate;
   final bool isActive;
+  final double purchasePrice;
+  final double salvageValue;
+  final int usefulLifeMonths;
+  final String? depreciationStartDate;
+  final int estimatedUsageDays;
 
   @override
-  List<Object?> get props => [name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive];
+  List<Object?> get props => [name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive, purchasePrice, salvageValue, usefulLifeMonths, depreciationStartDate, estimatedUsageDays];
 }
 
 class EquipmentUpdated extends EquipmentEvent {
@@ -44,6 +54,11 @@ class EquipmentUpdated extends EquipmentEvent {
     this.depreciationRate = 0,
     this.lastMaintenanceDate,
     this.isActive = true,
+    this.purchasePrice = 0,
+    this.salvageValue = 0,
+    this.usefulLifeMonths = 60,
+    this.depreciationStartDate,
+    this.estimatedUsageDays = 365,
   });
 
   final int id;
@@ -55,9 +70,14 @@ class EquipmentUpdated extends EquipmentEvent {
   final double depreciationRate;
   final String? lastMaintenanceDate;
   final bool isActive;
+  final double purchasePrice;
+  final double salvageValue;
+  final int usefulLifeMonths;
+  final String? depreciationStartDate;
+  final int estimatedUsageDays;
 
   @override
-  List<Object?> get props => [id, name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive];
+  List<Object?> get props => [id, name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive, purchasePrice, salvageValue, usefulLifeMonths, depreciationStartDate, estimatedUsageDays];
 }
 
 class EquipmentDeleted extends EquipmentEvent {

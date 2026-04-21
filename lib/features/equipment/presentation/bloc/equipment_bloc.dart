@@ -38,6 +38,11 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
         depreciationRate: event.depreciationRate,
         lastMaintenanceDate: event.lastMaintenanceDate,
         isActive: event.isActive,
+        purchasePrice: event.purchasePrice,
+        salvageValue: event.salvageValue,
+        usefulLifeMonths: event.usefulLifeMonths,
+        depreciationStartDate: event.depreciationStartDate,
+        estimatedUsageDays: event.estimatedUsageDays,
       );
       final items = await _repo.list();
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));
@@ -59,6 +64,11 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
         depreciationRate: event.depreciationRate,
         lastMaintenanceDate: event.lastMaintenanceDate,
         isActive: event.isActive,
+        purchasePrice: event.purchasePrice,
+        salvageValue: event.salvageValue,
+        usefulLifeMonths: event.usefulLifeMonths,
+        depreciationStartDate: event.depreciationStartDate,
+        estimatedUsageDays: event.estimatedUsageDays,
       );
       final items = await _repo.list();
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));

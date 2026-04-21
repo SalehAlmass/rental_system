@@ -196,7 +196,7 @@ class _EquipmentCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('الموديل: ${equipment.model ?? '-'}'),
+                Text('الرقم التسلسلي: ${equipment.serialNo ?? '-'}'),
                 Text(
                   'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ر.س / يوم',
                 ),
@@ -294,6 +294,11 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
   final _serial = TextEditingController();
   final _rate = TextEditingController();
   final _dep = TextEditingController();
+  final _purchase = TextEditingController();
+  final _salvage = TextEditingController();
+  final _lifeMonths = TextEditingController();
+  final _startDate = TextEditingController();
+  final _usageDays = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   String _status = 'available';
@@ -310,6 +315,11 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       _serial.text = e.serialNo ?? '';
       _rate.text = e.dailyRate.toString();
       _dep.text = e.depreciationRate.toString();
+      _purchase.text = e.purchasePrice.toString();
+      _salvage.text = e.salvageValue.toString();
+      _lifeMonths.text = e.usefulLifeMonths.toString();
+      _startDate.text = e.depreciationStartDate ?? '';
+      _usageDays.text = e.estimatedUsageDays.toString();
       _status = e.status ?? 'available';
       _active = e.isActive;
     }
@@ -373,12 +383,73 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                       validator: validateDepreciationRate,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'الإهلاك',
+                        labelText: 'نسبة الإهلاك % (اختياري)',
                         border: OutlineInputBorder(),
                       ),
                     ),
                   ),
                 ],
+              ),
+              
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _purchase,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'سعر الشراء',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _salvage,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'القيمة المتبقية',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lifeMonths,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'العمر بالأشهر',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _usageDays,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'أيام الاستخدام المتوقعة',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _startDate,
+                decoration: const InputDecoration(
+                  labelText: 'تاريخ بدء الإهلاك YYYY-MM-DD',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -424,6 +495,11 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
 
       final rate = double.tryParse(_rate.text) ?? 0;
       final dep = double.tryParse(_dep.text) ?? 0;
+      final purchase = double.tryParse(_purchase.text) ?? 0;
+      final salvage = double.tryParse(_salvage.text) ?? 0;
+      final lifeMonths = int.tryParse(_lifeMonths.text) ?? 60;
+      final usageDays = int.tryParse(_usageDays.text) ?? 365;
+      final startDate = _startDate.text.trim().isEmpty ? null : _startDate.text.trim();
 
       if (editing) {
         context.read<EquipmentBloc>().add(
@@ -436,6 +512,11 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                 dailyRate: rate,
                 depreciationRate: dep,
                 isActive: _active,
+                purchasePrice: purchase,
+                salvageValue: salvage,
+                usefulLifeMonths: lifeMonths,
+                depreciationStartDate: startDate,
+                estimatedUsageDays: usageDays,
               ),
             );
       } else {
@@ -448,6 +529,11 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                 dailyRate: rate,
                 depreciationRate: dep,
                 isActive: _active,
+                purchasePrice: purchase,
+                salvageValue: salvage,
+                usefulLifeMonths: lifeMonths,
+                depreciationStartDate: startDate,
+                estimatedUsageDays: usageDays,
               ),
             );
       }

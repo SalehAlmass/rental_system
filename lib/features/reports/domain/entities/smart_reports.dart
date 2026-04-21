@@ -6,6 +6,9 @@ class EquipmentProfitRow {
   final double profit;
   final double cost;
   final double net;
+  final double accountingDepreciation;
+  final double operationalDepreciation;
+  final double operationalNet;
 
   const EquipmentProfitRow({
     required this.equipmentId,
@@ -15,6 +18,9 @@ class EquipmentProfitRow {
     required this.profit,
     required this.cost,
     required this.net,
+    this.accountingDepreciation = 0,
+    this.operationalDepreciation = 0,
+    this.operationalNet = 0,
   });
 
   factory EquipmentProfitRow.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class EquipmentProfitRow {
       profit: toD(json['profit'] ?? json['revenue']),
       cost: toD(json['cost']),
       net: toD(json['net'] ?? json['net_profit']),
+      accountingDepreciation: toD(json['accounting_depreciation']),
+      operationalDepreciation: toD(json['operational_depreciation']),
+      operationalNet: toD(json['operational_net']),
     );
   }
 }
