@@ -31,13 +31,23 @@ class PaymentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider(create: (_) => PaymentsRepository(context.read<ApiClient>())),
-        RepositoryProvider(create: (_) => ClientsRepository(context.read<ApiClient>())),
-        RepositoryProvider(create: (_) => RentsRepository(context.read<ApiClient>())),
-        RepositoryProvider(create: (_) => EquipmentRepository(context.read<ApiClient>())),
+        RepositoryProvider(
+          create: (_) => PaymentsRepository(context.read<ApiClient>()),
+        ),
+        RepositoryProvider(
+          create: (_) => ClientsRepository(context.read<ApiClient>()),
+        ),
+        RepositoryProvider(
+          create: (_) => RentsRepository(context.read<ApiClient>()),
+        ),
+        RepositoryProvider(
+          create: (_) => EquipmentRepository(context.read<ApiClient>()),
+        ),
       ],
       child: BlocProvider(
-        create: (context) => PaymentsBloc(context.read<PaymentsRepository>())..add(const PaymentsRequested()),
+        create: (context) =>
+            PaymentsBloc(context.read<PaymentsRepository>())
+              ..add(const PaymentsRequested()),
         child: _PaymentsView(showBackButton: Navigator.canPop(context)),
       ),
     );
@@ -75,18 +85,26 @@ class _PaymentsViewState extends State<_PaymentsView> {
             children: [
               CustomAppBar(
                 title: 'السندات',
-                onIconPressed: widget.showBackButton ? () => Navigator.pop(context) : null,
+                onIconPressed: widget.showBackButton
+                    ? () => Navigator.pop(context)
+                    : null,
                 actions: [
                   BlocBuilder<PaymentsBloc, PaymentsState>(
                     builder: (context, state) {
                       return IconButton(
-                        tooltip: state.showVoided ? 'إخفاء الملغية' : 'إظهار الملغية',
-                        icon: Icon(state.showVoided ? Icons.visibility : Icons.visibility_off),
+                        tooltip: state.showVoided
+                            ? 'إخفاء الملغية'
+                            : 'إظهار الملغية',
+                        icon: Icon(
+                          state.showVoided
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
                         color: Colors.white,
                         onPressed: () {
                           context.read<PaymentsBloc>().add(
-                                PaymentsRequested(showVoided: !state.showVoided),
-                              );
+                            PaymentsRequested(showVoided: !state.showVoided),
+                          );
                         },
                       );
                     },
@@ -117,13 +135,14 @@ class _PaymentsViewState extends State<_PaymentsView> {
           child: BlocConsumer<PaymentsBloc, PaymentsState>(
             listener: (context, state) {
               if (state.error != null && state.error!.isNotEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.error!)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.error!)));
               }
             },
             builder: (context, state) {
-              if (state.status == PaymentsStatus.loading && state.items.isEmpty) {
+              if (state.status == PaymentsStatus.loading &&
+                  state.items.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
 
@@ -136,8 +155,8 @@ class _PaymentsViewState extends State<_PaymentsView> {
                     child: RefreshIndicator(
                       onRefresh: () async {
                         context.read<PaymentsBloc>().add(
-                              PaymentsRequested(showVoided: state.showVoided),
-                            );
+                          PaymentsRequested(showVoided: state.showVoided),
+                        );
                       },
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -148,7 +167,8 @@ class _PaymentsViewState extends State<_PaymentsView> {
                             controller: _searchController,
                             onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              hintText: 'ابحث برقم السند، العميل، العقد أو الملاحظة',
+                              hintText:
+                                  'ابحث برقم السند، العميل، العقد أو الملاحظة',
                               prefixIcon: const Icon(Icons.search_rounded),
                               suffixIcon: _searchController.text.isEmpty
                                   ? null
@@ -171,13 +191,48 @@ class _PaymentsViewState extends State<_PaymentsView> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _FilterChip(label: 'الكل', value: 'all', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'قبض', value: 'in', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'صرف', value: 'out', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'مرتبطة بعقد', value: 'rent', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'صيانة معدات', value: 'equipment', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'ملغية', value: 'void', groupValue: _selectedFilter, onSelected: _setFilter),
-                              _FilterChip(label: 'اليوم', value: 'today', groupValue: _selectedFilter, onSelected: _setFilter),
+                              _FilterChip(
+                                label: 'الكل',
+                                value: 'all',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'قبض',
+                                value: 'in',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'صرف',
+                                value: 'out',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'مرتبطة بعقد',
+                                value: 'rent',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'صيانة معدات',
+                                value: 'equipment',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'ملغية',
+                                value: 'void',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
+                              _FilterChip(
+                                label: 'اليوم',
+                                value: 'today',
+                                groupValue: _selectedFilter,
+                                onSelected: _setFilter,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -189,12 +244,17 @@ class _PaymentsViewState extends State<_PaymentsView> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.point_of_sale_rounded, color: cs.primary),
+                                Icon(
+                                  Icons.point_of_sale_rounded,
+                                  color: cs.primary,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'هذه الشاشة مرتبطة بالمراجعة اليومية للصندوق. كل سند قبض أو صرف ينعكس على إغلاق الدوام ومقارنة المقبوض الفعلي بالمفترض.',
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium,
                                   ),
                                 ),
                               ],
@@ -273,8 +333,10 @@ class _PaymentsViewState extends State<_PaymentsView> {
 
     if (ok == true && context.mounted) {
       context.read<PaymentsBloc>().add(
-            PaymentsRequested(showVoided: context.read<PaymentsBloc>().state.showVoided),
-          );
+        PaymentsRequested(
+          showVoided: context.read<PaymentsBloc>().state.showVoided,
+        ),
+      );
     }
   }
 
@@ -335,11 +397,8 @@ class _PaymentsList extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: items.length,
-      itemBuilder: (context, index) => _PaymentCard(
-        payment: items[index],
-        onEdit: onEdit,
-        onVoid: onVoid,
-      ),
+      itemBuilder: (context, index) =>
+          _PaymentCard(payment: items[index], onEdit: onEdit, onVoid: onVoid),
     );
   }
 
@@ -401,7 +460,9 @@ class _PaymentsHeader extends StatelessWidget {
         children: [
           Text(
             'إدارة السندات والمقبوضات',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
@@ -413,10 +474,27 @@ class _PaymentsHeader extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _SummaryCard(label: 'إجمالي القبض', value: summary.totalIn, icon: Icons.south_west_rounded),
-              _SummaryCard(label: 'إجمالي الصرف', value: summary.totalOut, icon: Icons.north_east_rounded),
-              _SummaryCard(label: 'صافي الحركة', value: summary.net, icon: Icons.account_balance_wallet_outlined, highlight: summary.netValue < 0),
-              _SummaryCard(label: 'عدد السندات', value: '${summary.count}', icon: Icons.receipt_long_rounded),
+              _SummaryCard(
+                label: 'إجمالي القبض',
+                value: summary.totalIn,
+                icon: Icons.south_west_rounded,
+              ),
+              _SummaryCard(
+                label: 'إجمالي الصرف',
+                value: summary.totalOut,
+                icon: Icons.north_east_rounded,
+              ),
+              _SummaryCard(
+                label: 'صافي الحركة',
+                value: summary.net,
+                icon: Icons.account_balance_wallet_outlined,
+                highlight: summary.netValue < 0,
+              ),
+              _SummaryCard(
+                label: 'عدد السندات',
+                value: '${summary.count}',
+                icon: Icons.receipt_long_rounded,
+              ),
             ],
           ),
         ],
@@ -426,7 +504,12 @@ class _PaymentsHeader extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.label, required this.value, required this.icon, this.highlight = false});
+  const _SummaryCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.highlight = false,
+  });
   final String label;
   final String value;
   final IconData icon;
@@ -449,7 +532,12 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -480,7 +568,11 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _PaymentCard extends StatelessWidget {
-  const _PaymentCard({required this.payment, required this.onEdit, required this.onVoid});
+  const _PaymentCard({
+    required this.payment,
+    required this.onEdit,
+    required this.onVoid,
+  });
   final Payment payment;
   final void Function(Payment p) onEdit;
   final void Function(Payment p) onVoid;
@@ -489,7 +581,9 @@ class _PaymentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIn = payment.type.toLowerCase() == 'in';
     final cs = Theme.of(context).colorScheme;
-    final stateColor = payment.isVoid ? Colors.grey : (isIn ? Colors.green : Colors.red);
+    final stateColor = payment.isVoid
+        ? Colors.grey
+        : (isIn ? Colors.green : Colors.red);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -510,7 +604,10 @@ class _PaymentCard extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PaymentDetailsPage(payment: payment , paymentId: payment.id,)),
+            MaterialPageRoute(
+              builder: (_) =>
+                  PaymentDetailsPage(payment: payment, paymentId: payment.id),
+            ),
           );
         },
         child: Padding(
@@ -522,7 +619,12 @@ class _PaymentCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     backgroundColor: stateColor,
-                    child: Icon(isIn ? Icons.call_received_rounded : Icons.call_made_rounded, color: Colors.white),
+                    child: Icon(
+                      isIn
+                          ? Icons.call_received_rounded
+                          : Icons.call_made_rounded,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -531,11 +633,17 @@ class _PaymentCard extends StatelessWidget {
                       children: [
                         Text(
                           'سند #${payment.id}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          isIn ? 'سند قبض' : 'سند صرف',
+                          payment.isVoid
+                              ? 'سند ملغي'
+                              : ((payment.equipmentId ?? 0) > 0 &&
+                                    payment.type.toLowerCase() == 'out')
+                              ? 'سند صيانة معدة'
+                              : (isIn ? 'سند قبض' : 'سند صرف'),
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
@@ -549,12 +657,29 @@ class _PaymentCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _MetaChip(icon: Icons.payments_outlined, text: '${payment.amount.toStringAsFixed(2)} ر.س'),
-                  _MetaChip(icon: Icons.person_outline_rounded, text: payment.clientName ?? 'بدون عميل'),
-                  _MetaChip(icon: Icons.description_outlined, text: payment.rentNo != null ? 'عقد #${payment.rentNo}' : 'غير مرتبط بعقد'),
-                  _MetaChip(icon: Icons.account_balance_outlined, text: _methodLabel(payment.method)),
+                  _MetaChip(
+                    icon: Icons.payments_outlined,
+                    text: '${payment.amount.toStringAsFixed(2)} ر.س',
+                  ),
+                  _MetaChip(
+                    icon: Icons.person_outline_rounded,
+                    text: payment.clientName ?? 'بدون عميل',
+                  ),
+                  _MetaChip(
+                    icon: Icons.description_outlined,
+                    text: payment.rentNo != null
+                        ? 'عقد #${payment.rentNo}'
+                        : 'غير مرتبط بعقد',
+                  ),
+                  _MetaChip(
+                    icon: Icons.account_balance_outlined,
+                    text: _methodLabel(payment.method),
+                  ),
                   if ((payment.equipmentId ?? 0) > 0)
-                    const _MetaChip(icon: Icons.build_circle_outlined, text: 'صيانة معدة'),
+                    const _MetaChip(
+                      icon: Icons.build_circle_outlined,
+                      text: 'صيانة معدة',
+                    ),
                 ],
               ),
               if ((payment.notes ?? '').trim().isNotEmpty) ...[
@@ -580,10 +705,14 @@ class _PaymentCard extends StatelessWidget {
                     icon: const Icon(Icons.print_outlined),
                     onPressed: () async {
                       try {
-                        await PdfService().printPaymentVoucher(payment: payment);
+                        await PdfService().printPaymentVoucher(
+                          payment: payment,
+                        );
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الطباعة: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل الطباعة: $e')),
+                          );
                         }
                       }
                     },
@@ -593,10 +722,14 @@ class _PaymentCard extends StatelessWidget {
                     icon: const Icon(Icons.share_outlined),
                     onPressed: () async {
                       try {
-                        await PdfService().sharePaymentVoucher(payment: payment);
+                        await PdfService().sharePaymentVoucher(
+                          payment: payment,
+                        );
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل المشاركة: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل المشاركة: $e')),
+                          );
                         }
                       }
                     },
@@ -652,12 +785,22 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIn = payment.type.toLowerCase() == 'in';
     final label = payment.isVoid ? 'ملغي' : (isIn ? 'قبض' : 'صرف');
-    final bg = payment.isVoid ? Colors.grey.shade300 : (isIn ? Colors.green.shade100 : Colors.red.shade100);
-    final fg = payment.isVoid ? Colors.black87 : (isIn ? Colors.green.shade800 : Colors.red.shade800);
+    final bg = payment.isVoid
+        ? Colors.grey.shade300
+        : (isIn ? Colors.green.shade100 : Colors.red.shade100);
+    final fg = payment.isVoid
+        ? Colors.black87
+        : (isIn ? Colors.green.shade800 : Colors.red.shade800);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(99)),
-      child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
@@ -677,11 +820,7 @@ class _MetaChip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(text),
-        ],
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(text)],
       ),
     );
   }
@@ -704,8 +843,12 @@ class _PaymentsEmptyState extends StatelessWidget {
           const Icon(Icons.receipt_long_outlined, size: 42),
           const SizedBox(height: 12),
           Text(
-            scope == _PaymentsScope.rent ? 'لا توجد سندات مرتبطة بالعقود' : 'لا توجد سندات عامة أو مصروفات حالياً',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            scope == _PaymentsScope.rent
+                ? 'لا توجد سندات مرتبطة بالعقود'
+                : 'لا توجد سندات عامة أو مصروفات حالياً',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -794,6 +937,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   bool _submitted = false;
   bool _localSubmitting = false;
 
+  bool get _isMaintenanceVoucher => _type == 'out' && (_equipmentId ?? 0) > 0;
+
   @override
   void initState() {
     super.initState();
@@ -815,6 +960,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     final c = await widget.clientsRepo.list();
     final r = await widget.rentsRepo.list();
     final e = await widget.equipmentRepo.list();
+
     if (!mounted) return;
     setState(() {
       _clients = c;
@@ -825,6 +971,20 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       _equipmentId ??= null;
       _loading = false;
     });
+  }
+
+  String _equipmentNameById(int? id) {
+    if (id == null) return '';
+    final eq = _equipments.cast<Equipment?>().firstWhere(
+      (e) => e?.id == id,
+      orElse: () => null,
+    );
+    return eq?.name ?? 'المعدة #$id';
+  }
+
+  String _buildAutoMaintenanceNote() {
+    final eqName = _equipmentNameById(_equipmentId);
+    return 'سند صيانة للمعدة: $eqName';
   }
 
   @override
@@ -838,10 +998,14 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.edit != null;
+
     return AlertDialog(
       title: Text(editing ? 'تعديل سند' : 'إضافة سند'),
       content: _loading
-          ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))
+          ? const SizedBox(
+              height: 100,
+              child: Center(child: CircularProgressIndicator()),
+            )
           : Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -851,54 +1015,145 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     if (!editing)
                       DropdownButtonFormField<String>(
                         value: _type,
-                        decoration: const InputDecoration(labelText: 'النوع'),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع السند',
+                          border: OutlineInputBorder(),
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'in', child: Text('قبض')),
-                          DropdownMenuItem(value: 'out', child: Text('صرف')),
+                          DropdownMenuItem(value: 'in', child: Text('سند قبض')),
+                          DropdownMenuItem(
+                            value: 'out',
+                            child: Text('سند صرف'),
+                          ),
                         ],
-                        onChanged: (v) => setState(() => _type = v ?? 'in'),
+                        onChanged: (v) {
+                          final value = v ?? 'in';
+                          setState(() {
+                            _type = value;
+                            if (_type == 'in') {
+                              _equipmentId = null;
+                            }
+                          });
+                        },
                       ),
                     const SizedBox(height: 10),
+
+                    if (_type == 'out')
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color:
+                              (_isMaintenanceVoucher
+                                      ? Colors.orange
+                                      : Colors.blue)
+                                  .withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                (_isMaintenanceVoucher
+                                        ? Colors.orange
+                                        : Colors.blue)
+                                    .withOpacity(0.25),
+                          ),
+                        ),
+                        child: Text(
+                          _isMaintenanceVoucher
+                              ? 'هذا السند سيُسجل كسند صيانة معدة'
+                              : 'يمكنك جعل هذا السند مصروف صيانة عبر اختيار المعدة أدناه',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+
                     TextFormField(
                       controller: _amount,
                       validator: validateAmount,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'المبلغ', border: OutlineInputBorder()),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'المبلغ',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 10),
+
                     DropdownButtonFormField<int>(
                       value: _clientId,
-                      decoration: const InputDecoration(labelText: 'العميل (اختياري)'),
+                      decoration: const InputDecoration(
+                        labelText: 'العميل (اختياري)',
+                        border: OutlineInputBorder(),
+                      ),
                       items: _clients
-                          .map((c) => DropdownMenuItem(value: c.id, child: Text('${c.id} - ${c.name}')))
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text('${c.id} - ${c.name}'),
+                            ),
+                          )
                           .toList(),
                       onChanged: (v) => setState(() => _clientId = v),
                     ),
                     const SizedBox(height: 10),
+
                     DropdownButtonFormField<int?>(
                       value: _rentId,
-                      decoration: const InputDecoration(labelText: 'العقد (اختياري)'),
+                      decoration: const InputDecoration(
+                        labelText: 'العقد (اختياري)',
+                        border: OutlineInputBorder(),
+                      ),
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('-')),
-                        ..._rents.map((r) => DropdownMenuItem<int?>(value: r.id, child: Text('عقد #${r.id}'))),
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('-'),
+                        ),
+                        ..._rents.map(
+                          (r) => DropdownMenuItem<int?>(
+                            value: r.id,
+                            child: Text('عقد #${r.id}'),
+                          ),
+                        ),
                       ],
                       onChanged: (v) => setState(() => _rentId = v),
                     ),
                     const SizedBox(height: 10),
+
                     DropdownButtonFormField<int?>(
                       value: _equipmentId,
-                      decoration: const InputDecoration(labelText: 'تخصيص صيانة معدة (مصروفات) (اختياري)'),
+                      decoration: const InputDecoration(
+                        labelText: 'المعدة المرتبطة بالصيانة (اختياري)',
+                        border: OutlineInputBorder(),
+                        helperText:
+                            'اختيار المعدة يحول السند إلى سند صيانة معدة',
+                      ),
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('- بدون تخصيص معدة -')),
-                        ..._equipments.map((eq) => DropdownMenuItem<int?>(value: eq.id, child: Text(eq.name))),
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('- بدون معدة -'),
+                        ),
+                        ..._equipments.map(
+                          (eq) => DropdownMenuItem<int?>(
+                            value: eq.id,
+                            child: Text(
+                              '${eq.name} ${eq.serialNo == null ? '' : '- ${eq.serialNo}'}',
+                            ),
+                          ),
+                        ),
                       ],
-                      onChanged: _type == 'out' ? (v) => setState(() => _equipmentId = v) : null,
-                      disabledHint: const Text('غير متاح لسندات القبض'),
+                      onChanged: _type == 'out'
+                          ? (v) => setState(() => _equipmentId = v)
+                          : null,
+                      disabledHint: const Text('متاح فقط في سندات الصرف'),
                     ),
                     const SizedBox(height: 10),
+
                     DropdownButtonFormField<String>(
                       value: _method,
-                      decoration: const InputDecoration(labelText: 'طريقة الدفع'),
+                      decoration: const InputDecoration(
+                        labelText: 'طريقة الدفع',
+                        border: OutlineInputBorder(),
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('كاش')),
                         DropdownMenuItem(value: 'bank', child: Text('تحويل')),
@@ -907,22 +1162,38 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       onChanged: (v) => setState(() => _method = v ?? 'cash'),
                     ),
                     const SizedBox(height: 10),
+
                     TextFormField(
                       controller: _ref,
-                      decoration: const InputDecoration(labelText: 'رقم مرجعي (اختياري)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'رقم مرجعي (اختياري)',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 10),
+
                     TextFormField(
                       controller: _notes,
                       maxLines: 3,
-                      decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)', border: OutlineInputBorder()),
+                      decoration: InputDecoration(
+                        labelText: _isMaintenanceVoucher
+                            ? 'تفاصيل الصيانة (اختياري)'
+                            : 'ملاحظات (اختياري)',
+                        border: const OutlineInputBorder(),
+                        helperText: _isMaintenanceVoucher
+                            ? 'إذا تركته فارغًا سيضيف النظام ملاحظة صيانة تلقائيًا'
+                            : null,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('إلغاء'),
+        ),
         BlocConsumer<PaymentsBloc, PaymentsState>(
           listener: (context, state) {
             if (state.error != null) {
@@ -942,41 +1213,56 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                   ? null
                   : () {
                       if (!_formKey.currentState!.validate()) return;
+
                       final amt = double.tryParse(_amount.text.trim()) ?? 0;
+                      final finalNotes = _notes.text.trim().isNotEmpty
+                          ? _notes.text.trim()
+                          : (_isMaintenanceVoucher
+                                ? _buildAutoMaintenanceNote()
+                                : null);
+
                       setState(() => _localSubmitting = true);
                       _submitted = true;
 
                       if (editing) {
                         context.read<PaymentsBloc>().add(
-                              PaymentUpdated(
-                                id: widget.edit!.id,
-                                amount: amt,
-                                clientId: _clientId,
-                                rentId: _rentId,
-                                equipmentId: _type == 'out' ? _equipmentId : null,
-                                method: _method,
-                                referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
-                                notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-                              ),
-                            );
+                          PaymentUpdated(
+                            id: widget.edit!.id,
+                            amount: amt,
+                            clientId: _clientId,
+                            rentId: _rentId,
+                            equipmentId: _type == 'out' ? _equipmentId : null,
+                            method: _method,
+                            referenceNo: _ref.text.trim().isEmpty
+                                ? null
+                                : _ref.text.trim(),
+                            notes: finalNotes,
+                          ),
+                        );
                       } else {
                         context.read<PaymentsBloc>().add(
-                              PaymentCreated(
-                                type: _type,
-                                amount: amt,
-                                clientId: _clientId,
-                                rentId: _rentId,
-                                equipmentId: _type == 'out' ? _equipmentId : null,
-                                method: _method,
-                                referenceNo: _ref.text.trim().isEmpty ? null : _ref.text.trim(),
-                                notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-                              ),
-                            );
+                          PaymentCreated(
+                            type: _type,
+                            amount: amt,
+                            clientId: _clientId,
+                            rentId: _rentId,
+                            equipmentId: _type == 'out' ? _equipmentId : null,
+                            method: _method,
+                            referenceNo: _ref.text.trim().isEmpty
+                                ? null
+                                : _ref.text.trim(),
+                            notes: finalNotes,
+                          ),
+                        );
                       }
                     },
               child: disabled
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('حفظ'),
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isMaintenanceVoucher ? 'حفظ سند الصيانة' : 'حفظ'),
             );
           },
         ),
