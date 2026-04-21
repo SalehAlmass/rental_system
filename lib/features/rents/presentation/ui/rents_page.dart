@@ -1186,101 +1186,101 @@ class _StatCard extends StatelessWidget {
         width: 160,
         margin: const EdgeInsetsDirectional.only(end: 10),
         padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [tone.withOpacity(0.18), tone.withOpacity(0.07)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: tone.withOpacity(0.22)),
-        boxShadow: [
-          BoxShadow(
-            color: tone.withOpacity(0.10),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [tone.withOpacity(0.18), tone.withOpacity(0.07)],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.72),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: tone, size: 18),
-              ),
-              const Spacer(),
-              if (subtitle != null)
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: tone.withOpacity(0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: tone.withOpacity(0.10),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: tone.withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(999),
+                    color: Colors.white.withOpacity(0.72),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    subtitle!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  child: Icon(icon, color: tone, size: 18),
+                ),
+                const Spacer(),
+                if (subtitle != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tone.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: tone,
+                            fontWeight: FontWeight.w800,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
                       color: tone,
-                      fontWeight: FontWeight.w800,
+                      height: 1,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: tone,
-                    height: 1,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subtitle == null) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: tone.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(999),
+                  if (subtitle == null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: tone.withOpacity(0.35),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -1834,7 +1834,7 @@ class _QuickCloseDialog extends StatefulWidget {
 class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountCtrl;
-  final _notesCtrl = TextEditingController();
+  late final TextEditingController _notesCtrl;
   String _method = 'cash';
   bool _applySpecialPricing = false;
 
@@ -1842,6 +1842,7 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   void initState() {
     super.initState();
     _amountCtrl = TextEditingController(text: widget.totalAmount.toStringAsFixed(2));
+    _notesCtrl = TextEditingController();
   }
 
   void _fill(double value) {
