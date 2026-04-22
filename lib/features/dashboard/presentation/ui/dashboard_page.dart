@@ -35,6 +35,7 @@ class DashboardPageState extends State<DashboardPage> {
 
   late final ProfileCubit _profileCubit;
   bool _checkedAutoBackup = false;
+  String _rentsFilter = 'all';
 
   final Map<DashboardTab, Map<String, bool>> _tabConfig = const {
     DashboardTab.home: {'appBar': true, 'drawer': true},
@@ -67,7 +68,21 @@ class DashboardPageState extends State<DashboardPage> {
     super.dispose();
   }
 
-  void _changeTab(DashboardTab tab) => setState(() => _currentTab = tab);
+  void _changeTab(DashboardTab tab) {
+    setState(() {
+      _currentTab = tab;
+      if (tab != DashboardTab.rents) {
+        _rentsFilter = 'all';
+      }
+    });
+  }
+
+  void _openRentsWithFilter(String filter) {
+    setState(() {
+      _rentsFilter = filter;
+      _currentTab = DashboardTab.rents;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,14 +296,15 @@ class DashboardPageState extends State<DashboardPage> {
         return DashboardHome(
           isAdmin: isAdmin,
           userName: userName,
-          onOpenRents: () => _changeTab(DashboardTab.rents),
+          onOpenRents: () => _openRentsWithFilter('all'),
+          onOpenRentsWithFilter: _openRentsWithFilter,
         );
       case DashboardTab.clients:
         return const ClientsPage();
       case DashboardTab.equipment:
         return const EquipmentPage();
       case DashboardTab.rents:
-        return const RentsPage();
+        return RentsPage(initialFilter: _rentsFilter);
       case DashboardTab.settings:
         return SettingsPage(isAdmin: isAdmin);
       // case DashboardTab.about:

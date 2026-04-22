@@ -17,20 +17,23 @@ class DashboardHome extends StatefulWidget {
   final bool isAdmin;
   final String userName;
   final VoidCallback? onOpenRents;
+  final void Function(String)? onOpenRentsWithFilter;
 
   const DashboardHome({
     super.key,
     required this.isAdmin,
     required this.userName,
     this.onOpenRents,
+    this.onOpenRentsWithFilter,
   });
 
   @override
   State<DashboardHome> createState() => _DashboardHomeState();
 }
 
+
+
 class _DashboardHomeState extends State<DashboardHome> {
-  String _statusFilter = 'all';
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
@@ -65,6 +68,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                     stats: stats,
                     rents: state.recentRents,
                     onOpenRents: widget.onOpenRents,
+                    onOpenRentsWithFilter: widget.onOpenRentsWithFilter,
                   )
                 else ...[
                   if (summary.openCount > 0 ||
@@ -73,13 +77,15 @@ class _DashboardHomeState extends State<DashboardHome> {
                     _EmployeeAlertBanner(
                       summary: summary,
                       onOpenRents: widget.onOpenRents,
+                      onOpenRentsWithFilter: widget.onOpenRentsWithFilter,
                     ),
                   if (summary.openCount > 0 ||
                       summary.overdueCount > 0 ||
                       summary.deferredCount > 0)
                     const SizedBox(height: 16),
                   SizedBox(
-                    height: 116,
+                    height: 200,
+                    width: double.infinity,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
@@ -87,19 +93,17 @@ class _DashboardHomeState extends State<DashboardHome> {
                           title: 'العقود المفتوحة',
                           value: summary.openCount.toString(),
                           icon: Icons.lock_open_rounded,
-                          onTap: widget.onOpenRents,
+                          onTap: () => widget.onOpenRentsWithFilter?.call('open'),
                         ),
+                        SizedBox(width: 16),
                         StatCard(
                           title: 'العقود المتأخرة',
                           value: summary.overdueCount.toString(),
                           icon: Icons.warning_amber_rounded,
                           color: Colors.red,
-                          onTap: () => setState(
-                            () => _statusFilter = summary.overdueCount > 0
-                                ? 'overdue'
-                                : 'deferred',
-                          ),
+                          onTap: () => widget.onOpenRentsWithFilter?.call('overdue'),
                         ),
+                          SizedBox(width: 16),
                         StatCard(
                           title: 'تسديد مؤجل',
                           value: summary.deferredCount.toString(),
@@ -107,66 +111,20 @@ class _DashboardHomeState extends State<DashboardHome> {
                               '${summary.deferredAmount.toStringAsFixed(0)} ر.س',
                           icon: Icons.account_balance_wallet_outlined,
                           color: Colors.orange,
-                          onTap: () => setState(
-                            () => _statusFilter = summary.deferredCount > 0
-                                ? 'deferred'
-                                : 'overdue',
-                          ),
+                          onTap: () => widget.onOpenRentsWithFilter?.call('deferred'),
+                        ),
+                          SizedBox(width: 16),
+                        StatCard(
+                          title: 'إيراد اليوم',
+                          value: '${summary.todayRevenue.toStringAsFixed(0)} ر.س',
+                          icon: Icons.payments_outlined,
+                          color: Colors.green,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final w = constraints.maxWidth;
-                      final crossAxisCount = w >= 1100
-                          ? 4
-                          : w >= 800
-                          ? 3
-                          : w >= 500
-                          ? 2
-                          : 1;
-
-                      return GridView.count(
-                        crossAxisCount: crossAxisCount,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: w >= 800 ? 1.45 : 1.6,
-                        children: [
-                          StatCard(
-                            title: 'عدد العملاء',
-                            value: stats.clients.toString(),
-                            icon: Icons.people,
-                            width: double.infinity,
-                          ),
-                          StatCard(
-                            title: 'عدد المعدات',
-                            value: stats.equipment.toString(),
-                            icon: Icons.construction,
-                            width: double.infinity,
-                          ),
-                          StatCard(
-                            title: 'العقود المفتوحة',
-                            value: stats.openRents.toString(),
-                            icon: Icons.description,
-                            onTap: widget.onOpenRents,
-                            width: double.infinity,
-                          ),
-                          StatCard(
-                            title: 'الإيراد',
-                            value: '${stats.revenue.toStringAsFixed(0)} ر.س',
-                            subtitle: 'إجمالي التحصيلات',
-                            icon: Icons.attach_money,
-                            color: Colors.green,
-                            width: double.infinity,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                  
                 ],
                 const SizedBox(height: 24),
                 Text(
@@ -261,12 +219,14 @@ class _AdminExecutiveDashboard extends StatelessWidget {
     required this.stats,
     required this.rents,
     this.onOpenRents,
+    this.onOpenRentsWithFilter,
   });
 
   final String userName;
   final dynamic stats;
   final List<Rent> rents;
   final VoidCallback? onOpenRents;
+  final void Function(String)? onOpenRentsWithFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +283,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   subtitle: '${summary.deferredCount} عقد مغلق بتسديد مؤجل',
                   icon: Icons.account_balance_wallet_outlined,
                   color: Colors.orange,
-                  onTap: onOpenRents,
+                  onTap: () => onOpenRentsWithFilter?.call('deferred'),
                   width: double.infinity,
                 ),
                 StatCard(
@@ -332,7 +292,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   subtitle: '${summary.openCount} عقد مفتوح حاليًا',
                   icon: Icons.warning_amber_rounded,
                   color: Colors.red,
-                  onTap: onOpenRents,
+                  onTap: () => onOpenRentsWithFilter?.call('overdue'),
                   width: double.infinity,
                 ),
               ],
@@ -1498,12 +1458,14 @@ class _EmployeeRentSummary {
     required this.overdueCount,
     required this.deferredCount,
     required this.deferredAmount,
+    required this.todayRevenue,
   });
 
   final int openCount;
   final int overdueCount;
   final int deferredCount;
   final double deferredAmount;
+  final double todayRevenue;
 
   static DateTime? _parse(String? value) {
     if (value == null || value.isEmpty) return null;
@@ -1527,16 +1489,39 @@ class _EmployeeRentSummary {
     return diff > 0 ? diff : 0;
   }
 
+  static bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  static double _cashValue(Rent rent) {
+    final closing = rent.closingPaidAmount ?? 0;
+    if (closing > 0) return closing;
+    final paid = rent.paidAmount ?? 0;
+    if ((rent.status ?? '').toLowerCase() == 'closed' && paid > 0) return paid;
+    return 0;
+  }
+
   factory _EmployeeRentSummary.fromRents(List<Rent> rents) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
     var openCount = 0;
     var overdueCount = 0;
     var deferredCount = 0;
     var deferredAmount = 0.0;
+    var todayRevenue = 0.0;
 
     for (final rent in rents) {
       final status = (rent.status ?? '').toString().toLowerCase();
+      final closeDate = _parse(rent.closedAt);
+      final cash = _cashValue(rent);
+
       if (status == 'open') openCount++;
       if (_isOverdue(rent)) overdueCount++;
+
+      if (closeDate != null && _sameDay(closeDate, todayStart)) {
+        todayRevenue += cash;
+      }
       if (status == 'closed') {
         final remaining = _remaining(rent);
         if (remaining > 0.009) {
@@ -1551,15 +1536,21 @@ class _EmployeeRentSummary {
       overdueCount: overdueCount,
       deferredCount: deferredCount,
       deferredAmount: deferredAmount,
+      todayRevenue: todayRevenue,
     );
   }
 }
 
 class _EmployeeAlertBanner extends StatelessWidget {
-  const _EmployeeAlertBanner({required this.summary, this.onOpenRents});
-
   final _EmployeeRentSummary summary;
   final VoidCallback? onOpenRents;
+  final void Function(String)? onOpenRentsWithFilter;
+
+  const _EmployeeAlertBanner({
+    required this.summary,
+    this.onOpenRents,
+    this.onOpenRentsWithFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1598,9 +1589,16 @@ class _EmployeeAlertBanner extends StatelessWidget {
               ],
             ),
           ),
-          if (onOpenRents != null)
+          if (onOpenRents != null || onOpenRentsWithFilter != null)
             FilledButton.icon(
-              onPressed: onOpenRents,
+              onPressed: () {
+                if (danger) {
+                  onOpenRentsWithFilter?.call('overdue');
+                } else {
+                  onOpenRentsWithFilter?.call('deferred');
+                }
+                onOpenRents?.call();
+              },
               icon: const Icon(Icons.open_in_new),
               label: const Text('فتح العقود'),
             ),
