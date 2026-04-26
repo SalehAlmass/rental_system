@@ -504,7 +504,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     if (hours < 3) {
       total = dailyRate * (2 / 3);
     } else {
-      total = dailyRate;
+      final billableDays = (hours / 24.0).ceil();
+      total = dailyRate * (billableDays < 1 ? 1 : billableDays);
     }
 
     return double.parse(total.toStringAsFixed(2));

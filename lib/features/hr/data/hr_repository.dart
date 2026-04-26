@@ -182,12 +182,12 @@ class HrRepository {
     );
   }
 
-  Future<void> checkIn({required String method}) async {
-    await _dio.post('attendance/checkin', data: {'method': method});
+  Future<void> checkIn({required String method, required String shift}) async {
+    await _dio.post('attendance/checkin', data: {'method': method, 'shift': shift});
   }
 
-  Future<void> checkOut({required String method}) async {
-    await _dio.post('attendance/checkout', data: {'method': method});
+  Future<void> checkOut({required String method, required String shift}) async {
+    await _dio.post('attendance/checkout', data: {'method': method, 'shift': shift});
   }
 
   Future<List<PayrollItem>> payrollSummary({required String month}) async {

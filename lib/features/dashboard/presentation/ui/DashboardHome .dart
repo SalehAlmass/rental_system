@@ -1169,8 +1169,26 @@ class _AlertStrip extends StatelessWidget {
         ? Colors.orange
         : Colors.blueGrey;
     final dt = _fmtDate(data['created_at']?.toString());
+    final entity = (data['entity'] ?? '').toString();
+    final entityId = data['entity_id'] is num
+        ? (data['entity_id'] as num).toInt()
+        : int.tryParse(data['entity_id']?.toString() ?? '');
 
-    return Container(
+    VoidCallback? onTap;
+    if (entity == 'rent' && entityId != null && entityId > 0) {
+      onTap = () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: entityId!)),
+        );
+      };
+    }
+
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1238,6 +1256,7 @@ class _AlertStrip extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

@@ -17,6 +17,7 @@ class _AttendancePageState extends State<AttendancePage> {
 
   bool _loading = true;
   bool _working = false;
+  String _selectedShift = 'morning';
 
   bool _inDuty = false;
   double _hours = 0;
@@ -122,7 +123,7 @@ class _AttendancePageState extends State<AttendancePage> {
       final ok = await _confirmManual();
       if (!ok) return;
 
-      await _repo.checkIn(method: 'manual');
+      await _repo.checkIn(method: 'manual', shift: _selectedShift);
       await _load();
       _snack('تم تسجيل دخول الدوام');
     } catch (e) {
@@ -144,7 +145,7 @@ class _AttendancePageState extends State<AttendancePage> {
       final ok = await _confirmManual();
       if (!ok) return;
 
-      await _repo.checkOut(method: 'manual');
+      await _repo.checkOut(method: 'manual', shift: _selectedShift);
       await _load();
       _snack('تم تسجيل خروج الدوام');
     } catch (e) {
@@ -182,6 +183,19 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                   const SizedBox(height: 8),
                   Text('ساعات العمل هذا الشهر: ${_hours.toStringAsFixed(2)} ساعة'),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: _selectedShift,
+                    decoration: const InputDecoration(
+                      labelText: 'اختيار وقت الدوام',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'morning', child: Text('صباحي 6:00 ص - 12:00 ظهرًا')),
+                      DropdownMenuItem(value: 'evening', child: Text('مسائي 4:00 م - 9:00 م')),
+                    ],
+                    onChanged: _inDuty ? null : (v) => setState(() => _selectedShift = v ?? 'morning'),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
