@@ -296,8 +296,14 @@ class DashboardPageState extends State<DashboardPage> {
         return DashboardHome(
           isAdmin: isAdmin,
           userName: userName,
-          onOpenRents: () => _openRentsWithFilter('all'),
+          onOpenRents: () => _openRentsWithFilter('open'),
           onOpenRentsWithFilter: _openRentsWithFilter,
+          onOpenClients: () => _changeTab(DashboardTab.clients),
+          onOpenEquipment: () => _changeTab(DashboardTab.equipment),
+          onOpenPayments: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PaymentsPage()),
+          ),
         );
       case DashboardTab.clients:
         return const ClientsPage();

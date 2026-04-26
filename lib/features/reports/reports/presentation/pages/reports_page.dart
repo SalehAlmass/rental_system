@@ -212,7 +212,7 @@ class _DashboardSummary extends StatelessWidget {
               _ReportTile(title: 'عدد العملاء', value: d.clients.toString(), icon: Icons.people),
               _ReportTile(title: 'عدد المعدات', value: d.equipment.toString(), icon: Icons.construction),
               _ReportTile(title: 'العقود المفتوحة', value: d.openContracts.toString(), icon: Icons.assignment),
-              _ReportTile(title: 'الإيرادات', value: '${d.revenue.toStringAsFixed(0)} ر.س', icon: Icons.attach_money),
+              _ReportTile(title: 'الإيرادات', value: '${d.revenue.toStringAsFixed(0)} ر.ي', icon: Icons.attach_money),
             ],
           ),
         );

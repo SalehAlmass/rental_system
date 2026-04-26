@@ -18,6 +18,9 @@ class DashboardHome extends StatefulWidget {
   final String userName;
   final VoidCallback? onOpenRents;
   final void Function(String)? onOpenRentsWithFilter;
+  final VoidCallback? onOpenClients;
+  final VoidCallback? onOpenEquipment;
+  final VoidCallback? onOpenPayments;
 
   const DashboardHome({
     super.key,
@@ -25,6 +28,9 @@ class DashboardHome extends StatefulWidget {
     required this.userName,
     this.onOpenRents,
     this.onOpenRentsWithFilter,
+    this.onOpenClients,
+    this.onOpenEquipment,
+    this.onOpenPayments,
   });
 
   @override
@@ -69,6 +75,9 @@ class _DashboardHomeState extends State<DashboardHome> {
                     rents: state.recentRents,
                     onOpenRents: widget.onOpenRents,
                     onOpenRentsWithFilter: widget.onOpenRentsWithFilter,
+                    onOpenClients: widget.onOpenClients,
+                    onOpenEquipment: widget.onOpenEquipment,
+                    onOpenPayments: widget.onOpenPayments,
                   )
                 else ...[
                   if (summary.openCount > 0 ||
@@ -108,7 +117,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           title: 'تسديد مؤجل',
                           value: summary.deferredCount.toString(),
                           subtitle:
-                              '${summary.deferredAmount.toStringAsFixed(0)} ر.س',
+                              '${summary.deferredAmount.toStringAsFixed(0)} ر.ي',
                           icon: Icons.account_balance_wallet_outlined,
                           color: Colors.orange,
                           onTap: () => widget.onOpenRentsWithFilter?.call('deferred'),
@@ -116,7 +125,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           SizedBox(width: 16),
                         StatCard(
                           title: 'إيراد اليوم',
-                          value: '${summary.todayRevenue.toStringAsFixed(0)} ر.س',
+                          value: '${summary.todayRevenue.toStringAsFixed(0)} ر.ي',
                           icon: Icons.payments_outlined,
                           color: Colors.green,
                         ),
@@ -220,6 +229,9 @@ class _AdminExecutiveDashboard extends StatelessWidget {
     required this.rents,
     this.onOpenRents,
     this.onOpenRentsWithFilter,
+    this.onOpenClients,
+    this.onOpenEquipment,
+    this.onOpenPayments,
   });
 
   final String userName;
@@ -227,6 +239,9 @@ class _AdminExecutiveDashboard extends StatelessWidget {
   final List<Rent> rents;
   final VoidCallback? onOpenRents;
   final void Function(String)? onOpenRentsWithFilter;
+  final VoidCallback? onOpenClients;
+  final VoidCallback? onOpenEquipment;
+  final VoidCallback? onOpenPayments;
 
   @override
   Widget build(BuildContext context) {
@@ -236,7 +251,10 @@ class _AdminExecutiveDashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _AdminInstantAlertsPanel(summary: summary),
+        _AdminInstantAlertsPanel(
+          summary: summary,
+          onOpenRentsWithFilter: onOpenRentsWithFilter,
+        ),
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -255,7 +273,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
               children: [
                 StatCard(
                   title: 'إيراد اليوم',
-                  value: '${money.format(summary.todayRevenue)} ر.س',
+                  value: '${money.format(summary.todayRevenue)} ر.ي',
                   subtitle: 'إغلاق وتحصيلات اليوم',
                   trend: _trendText(
                     summary.todayRevenue,
@@ -264,10 +282,11 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   icon: Icons.today_rounded,
                   color: Colors.green,
                   width: double.infinity,
+                  onTap: onOpenPayments,
                 ),
                 StatCard(
                   title: 'تحصيل هذا الأسبوع',
-                  value: '${money.format(summary.thisWeekRevenue)} ر.س',
+                  value: '${money.format(summary.thisWeekRevenue)} ر.ي',
                   subtitle: 'مقارنة بالأسبوع الماضي',
                   trend: _trendText(
                     summary.thisWeekRevenue,
@@ -276,10 +295,11 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   icon: Icons.calendar_view_week_rounded,
                   color: Colors.teal,
                   width: double.infinity,
+                  onTap: onOpenPayments,
                 ),
                 StatCard(
                   title: 'الذمم الحالية',
-                  value: '${money.format(summary.deferredAmount)} ر.س',
+                  value: '${money.format(summary.deferredAmount)} ر.ي',
                   subtitle: '${summary.deferredCount} عقد مغلق بتسديد مؤجل',
                   icon: Icons.account_balance_wallet_outlined,
                   color: Colors.orange,
@@ -292,7 +312,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   subtitle: '${summary.openCount} عقد مفتوح حاليًا',
                   icon: Icons.warning_amber_rounded,
                   color: Colors.red,
-                  onTap: () => onOpenRentsWithFilter?.call('overdue'),
+                  onTap: () => onOpenRentsWithFilter?.call('all'),
                   width: double.infinity,
                 ),
               ],
@@ -327,7 +347,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               child: _KpiLine(
                                 label: 'اليوم',
                                 value:
-                                    '${money.format(summary.todayRevenue)} ر.س',
+                                    '${money.format(summary.todayRevenue)} ر.ي',
                                 note: _trendText(
                                   summary.todayRevenue,
                                   summary.yesterdayRevenue,
@@ -340,7 +360,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               child: _KpiLine(
                                 label: 'هذا الأسبوع',
                                 value:
-                                    '${money.format(summary.thisWeekRevenue)} ر.س',
+                                    '${money.format(summary.thisWeekRevenue)} ر.ي',
                                 note: _trendText(
                                   summary.thisWeekRevenue,
                                   summary.lastWeekRevenue,
@@ -410,7 +430,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               icon: Icons.bar_chart_rounded,
                               color: Colors.purple,
                               text:
-                                  'إجمالي الإيراد المسجل: ${money.format(stats.revenue)} ر.س',
+                                  'إجمالي الإيراد المسجل: ${money.format(stats.revenue)} ر.ي',
                             ),
                             const SizedBox(height: 10),
                             _InsightChip(
@@ -452,7 +472,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _TopItemRow(
                             title: item.label,
-                            amount: '${money.format(item.amount)} ر.س',
+                            amount: '${money.format(item.amount)} ر.ي',
                             ratio: max == 0 ? 0 : item.amount / max,
                             color: Colors.deepPurple,
                           ),
@@ -477,7 +497,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _TopItemRow(
                             title: item.label,
-                            amount: '${money.format(item.amount)} ر.س',
+                            amount: '${money.format(item.amount)} ر.ي',
                             ratio: max == 0 ? 0 : item.amount / max,
                             color: Colors.indigo,
                           ),
@@ -837,9 +857,13 @@ class _LineChartPainter extends CustomPainter {
 }
 
 class _AdminInstantAlertsPanel extends StatefulWidget {
-  const _AdminInstantAlertsPanel({required this.summary});
+  const _AdminInstantAlertsPanel({
+    required this.summary,
+    this.onOpenRentsWithFilter,
+  });
 
   final _AdminDashboardSummary summary;
+  final void Function(String)? onOpenRentsWithFilter;
 
   @override
   State<_AdminInstantAlertsPanel> createState() =>
@@ -1019,30 +1043,41 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
                 value: reviewTotal,
                 icon: Icons.warning_amber_rounded,
                 color: Colors.orange,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminMonitoringPage()));
+                },
               ),
               _MiniAlertStat(
                 title: 'حرجة',
                 value: '$high',
                 icon: Icons.priority_high_rounded,
                 color: Colors.red,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminMonitoringPage()));
+                },
               ),
               _MiniAlertStat(
                 title: 'متوسطة',
                 value: '$medium',
                 icon: Icons.error_outline,
                 color: Colors.deepOrange,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminMonitoringPage()));
+                },
               ),
               _MiniAlertStat(
                 title: 'بدون سند',
                 value: '${_summary['contracts_without_receipt'] ?? 0}',
                 icon: Icons.receipt_long_outlined,
                 color: Colors.indigo,
+                onTap: () => widget.onOpenRentsWithFilter?.call('all'),
               ),
               _MiniAlertStat(
                 title: 'متأخرة',
                 value: '${widget.summary.overdueCount}',
                 icon: Icons.schedule_send_outlined,
                 color: Colors.redAccent,
+                onTap: () => widget.onOpenRentsWithFilter?.call('all'),
               ),
             ],
           ),
@@ -1070,16 +1105,18 @@ class _MiniAlertStat extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   final String title;
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       width: 150,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1103,6 +1140,16 @@ class _MiniAlertStat extends StatelessWidget {
           const SizedBox(height: 4),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
+      ),
+    );
+
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: card,
       ),
     );
   }
@@ -1270,7 +1317,7 @@ class _RentCard extends StatelessWidget {
         subtitle: Text(
           'الحالة: $statusLabel   |   البداية: ${rent.startDatetime}',
         ),
-        trailing: Text('${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.س'),
+        trailing: Text('${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.ي'),
         onTap: () {
           Navigator.push(
             context,

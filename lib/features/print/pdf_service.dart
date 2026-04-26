@@ -7,7 +7,7 @@ class PdfService {
   PdfService(this.branchName);
 
   final String branchName;
-  final _fmt = NumberFormat.currency(symbol: 'ر.س');
+  final _fmt = NumberFormat.currency(symbol: 'ر.ي');
 
   Future<Uint8List> simpleTable({
     required String title,

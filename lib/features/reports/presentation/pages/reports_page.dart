@@ -268,7 +268,7 @@ class _DashboardTab extends StatelessWidget {
             ),
             _StatTile(
               title: 'إيراد الفترة',
-              value: '${d.revenue.toStringAsFixed(0)} ر.س',
+              value: '${d.revenue.toStringAsFixed(0)} ر.ي',
               icon: Icons.attach_money,
             ),
           ],
@@ -436,7 +436,7 @@ class _TopClientsTab extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text('عدد العقود: ${r.contractsCount}'),
-                trailing: Text('${r.totalAmount.toStringAsFixed(0)} ر.س'),
+                trailing: Text('${r.totalAmount.toStringAsFixed(0)} ر.ي'),
               ),
             );
           },
@@ -522,7 +522,7 @@ class _RevenueTab extends StatelessWidget {
                   r.period,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                trailing: Text('${r.revenue.toStringAsFixed(0)} ر.س'),
+                trailing: Text('${r.revenue.toStringAsFixed(0)} ر.ي'),
               ),
             );
           },
@@ -566,7 +566,7 @@ class _RevenueByUserTab extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text('سندات قبض: ${r.receiptsCount}'),
-                trailing: Text('${r.revenue.toStringAsFixed(0)} ر.س'),
+                trailing: Text('${r.revenue.toStringAsFixed(0)} ر.ي'),
               ),
             );
           },

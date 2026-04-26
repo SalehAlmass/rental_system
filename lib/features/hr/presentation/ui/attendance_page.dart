@@ -289,7 +289,7 @@ class _AttendancePageState extends State<AttendancePage> {
                     'ساعات: ${it.workedHours.toStringAsFixed(2)} • خصومات: ${(it.deductions ?? 0).toStringAsFixed(2)}',
                   ),
                   trailing: Text(
-                    '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.س',
+                    '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.ي',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

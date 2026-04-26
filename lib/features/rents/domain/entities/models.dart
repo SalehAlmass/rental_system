@@ -24,6 +24,8 @@ class Rent {
     this.paidAmount,
     this.remainingAmount,
     this.isPaid,
+    this.discountAmount,
+    this.discountNote,
   });
 
   final int id;
@@ -54,6 +56,8 @@ class Rent {
   final double? paidAmount;
   final double? remainingAmount;
   final bool? isPaid;
+  final double? discountAmount;
+  final String? discountNote;
 
   /* =========================
      JSON
@@ -91,6 +95,8 @@ class Rent {
       paidAmount: _toDouble(json['paid_amount']),
       remainingAmount: _toDouble(json['remaining_amount'] ?? json['remaining']),
       isPaid: json['is_paid'] == null ? null : (_toInt(json['is_paid']) == 1 || json['is_paid'] == true),
+      discountAmount: _toDouble(json['discount_amount']),
+      discountNote: json['discount_note']?.toString(),
     );
   }
 
@@ -123,6 +129,8 @@ class Rent {
     double? paidAmount,
     double? remainingAmount,
     bool? isPaid,
+    double? discountAmount,
+    String? discountNote,
   }) {
     return Rent(
       id: id ?? this.id,
@@ -149,6 +157,8 @@ class Rent {
       paidAmount: paidAmount ?? this.paidAmount,
       remainingAmount: remainingAmount ?? this.remainingAmount,
       isPaid: isPaid ?? this.isPaid,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountNote: discountNote ?? this.discountNote,
     );
   }
 }

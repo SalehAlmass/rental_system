@@ -660,7 +660,7 @@ class _PaymentCard extends StatelessWidget {
                 children: [
                   _MetaChip(
                     icon: Icons.payments_outlined,
-                    text: '${payment.amount.toStringAsFixed(2)} ر.س',
+                    text: '${payment.amount.toStringAsFixed(2)} ر.ي',
                   ),
                   _MetaChip(
                     icon: Icons.person_outline_rounded,
@@ -893,9 +893,9 @@ class _PaymentsSummary {
     final net = totalIn - totalOut;
     return _PaymentsSummary(
       count: items.length,
-      totalIn: '${totalIn.toStringAsFixed(2)} ر.س',
-      totalOut: '${totalOut.toStringAsFixed(2)} ر.س',
-      net: '${net.toStringAsFixed(2)} ر.س',
+      totalIn: '${totalIn.toStringAsFixed(2)} ر.ي',
+      totalOut: '${totalOut.toStringAsFixed(2)} ر.ي',
+      net: '${net.toStringAsFixed(2)} ر.ي',
       netValue: net,
     );
   }

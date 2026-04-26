@@ -198,7 +198,7 @@ class _EquipmentCard extends StatelessWidget {
               children: [
                 Text('الرقم التسلسلي: ${equipment.serialNo ?? '-'}'),
                 Text(
-                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ر.س / يوم',
+                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ر.ي / يوم',
                 ),
               ],
             ),

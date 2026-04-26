@@ -105,7 +105,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                         const Divider(),
                         _buildDetailItem('رقم العميل', client.id.toString()),
                         const Divider(),
-                        _buildDetailItem('الائتمان المسموح', '${client.creditLimit.toStringAsFixed(0)} ر.س'),
+                        _buildDetailItem('الائتمان المسموح', '${client.creditLimit.toStringAsFixed(0)} ر.ي'),
                         const Divider(),
                         _buildDetailItem('الحالة', client.isFrozen == 0 ? 'نشط' : 'مجمد'),
                       ],

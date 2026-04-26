@@ -131,11 +131,11 @@ class PdfService {
                   _kv('عدد الساعات', (rent.hours ?? 0).toStringAsFixed(2)),
                   _kv(
                     'سعر الساعة',
-                    '${(rent.rate ?? 0).toStringAsFixed(2)} ر.س',
+                    '${(rent.rate ?? 0).toStringAsFixed(2)} ر.ي',
                   ),
                   _kv(
                     'الإجمالي',
-                    '${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.س',
+                    '${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.ي',
                   ),
                   pw.SizedBox(height: 10),
                   pw.Text(
@@ -216,9 +216,9 @@ class PdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي المستحقات: ${totalRents.toStringAsFixed(2)} ر.س'),
-                  pw.Text('إجمالي المدفوع: ${totalPaid.toStringAsFixed(2)} ر.س'),
-                  pw.Text('الرصيد: ${balance.toStringAsFixed(2)} ر.س'),
+                  pw.Text('إجمالي المستحقات: ${totalRents.toStringAsFixed(2)} ر.ي'),
+                  pw.Text('إجمالي المدفوع: ${totalPaid.toStringAsFixed(2)} ر.ي'),
+                  pw.Text('الرصيد: ${balance.toStringAsFixed(2)} ر.ي'),
                 ],
               ),
 
@@ -348,7 +348,7 @@ class PdfService {
                         _kv('النوع', isIn ? 'قبض' : 'صرف'),
                         _kv(
                           'المبلغ',
-                          '${(payment.amount ?? 0).toStringAsFixed(2)} ر.س',
+                          '${(payment.amount ?? 0).toStringAsFixed(2)} ر.ي',
                         ),
                         _kv('الطريقة', (payment.method ?? '-')),
                         _kv(

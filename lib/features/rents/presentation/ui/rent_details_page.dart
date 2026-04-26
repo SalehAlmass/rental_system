@@ -363,6 +363,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         endDatetime: DateTime.now().toIso8601String(),
         applySpecialPricing: result.applySpecialPricing,
         paidAmount: result.paidAmount,
+        discountAmount: result.discountAmount,
+        discountNote: result.discountNote,
         paymentMethod: result.paymentMethod,
         createReceipt: result.createReceipt,
         paymentNotes: result.paymentNotes,
@@ -578,17 +580,22 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                             ),
                             const Divider(height: 18),
                             _kv(
-                              'الإجمالي',
+                              'الإجمالي بعد الخصم',
                               isOpen && _effectiveTotal <= 0.0001
                                   ? 'غير نهائي (العقد جاري)'
-                                  : '${_effectiveTotal.toStringAsFixed(2)} ر.س',
+                                  : '${_effectiveTotal.toStringAsFixed(2)} ر.ي',
                             ),
-                            _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.س'),
+                            if ((rent.discountAmount ?? 0) > 0) ...[
+                              _kv('الخصم', '${(rent.discountAmount ?? 0).toStringAsFixed(2)} ر.ي'),
+                              if ((rent.discountNote ?? '').trim().isNotEmpty)
+                                _kv('سبب الخصم', rent.discountNote!.trim()),
+                            ],
+                            _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.ي'),
                             _kv(
                               'المتبقي',
                               isOpen && _effectiveTotal <= 0.0001
                                   ? '-'
-                                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.س',
+                                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.ي',
                             ),
                           ],
                         ),
@@ -605,7 +612,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                             _kv('رقم المستخدم', rent.closedByUserId?.toString() ?? '-'),
                             _kv(
                               'المبلغ عند الإغلاق',
-                              '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ر.س',
+                              '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ر.ي',
                             ),
                             _kv(
                               'طريقة الدفع',
@@ -738,13 +745,13 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
               'إجمالي العقد',
               isOpen && _effectiveTotal <= 0.0001
                   ? 'جاري'
-                  : '${_effectiveTotal.toStringAsFixed(2)} ر.س',
+                  : '${_effectiveTotal.toStringAsFixed(2)} ر.ي',
             ),
           ),
           Expanded(
             child: _miniMetric(
               'المدفوع',
-              '${_paid.toStringAsFixed(2)} ر.س',
+              '${_paid.toStringAsFixed(2)} ر.ي',
             ),
           ),
           Expanded(
@@ -752,7 +759,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
               'المتبقي',
               isOpen && _effectiveTotal <= 0.0001
                   ? '-'
-                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.س',
+                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.ي',
             ),
           ),
         ],
@@ -781,7 +788,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
           ),
           const SizedBox(height: 8),
           _kv('التاريخ', _fmtDateTime(payment.createdAt)),
-          _kv('المبلغ', '${payment.amount.toStringAsFixed(2)} ر.س'),
+          _kv('المبلغ', '${payment.amount.toStringAsFixed(2)} ر.ي'),
           _kv('رقم السند', payment.id.toString()),
           _kv('طريقة الدفع', _paymentMethodText(payment.method)),
         ],
@@ -869,7 +876,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
           ),
           const SizedBox(height: 6),
           Text('عدد العقود: ${_clientOutstandingRents.length}'),
-          Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.س'),
+          Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.ي'),
         ],
       ),
     );
@@ -897,7 +904,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                         : Icons.call_received,
                     color: p.type == 'out' ? Colors.red : Colors.green,
                   ),
-                  title: Text('${p.amount.toStringAsFixed(2)} ر.س'),
+                  title: Text('${p.amount.toStringAsFixed(2)} ر.ي'),
                   subtitle: Text(
                     '${_paymentMethodText(p.method)} • ${_fmtDateTime(p.createdAt)}',
                   ),
@@ -1304,6 +1311,8 @@ class _CloseContractResult {
     required this.paymentMethod,
     required this.createReceipt,
     this.paymentNotes,
+    this.discountAmount = 0,
+    this.discountNote,
   });
 
   final bool applySpecialPricing;
@@ -1311,6 +1320,8 @@ class _CloseContractResult {
   final String paymentMethod;
   final bool createReceipt;
   final String? paymentNotes;
+  final double discountAmount;
+  final String? discountNote;
 }
 
 class _CloseContractDialog extends StatefulWidget {
@@ -1335,6 +1346,8 @@ class _CloseContractDialog extends StatefulWidget {
 class _CloseContractDialogState extends State<_CloseContractDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _paidCtrl;
+  late final TextEditingController _discountCtrl;
+  final _discountNoteCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   bool _applySpecialPricing = false;
@@ -1371,11 +1384,22 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
     _paidCtrl = TextEditingController(
       text: initial.toStringAsFixed(2),
     );
+    _discountCtrl = TextEditingController(text: '0');
+    _discountCtrl.addListener(_applyDiscountToPaidAmount);
+  }
+
+  void _applyDiscountToPaidAmount() {
+    final discount = double.tryParse(_discountCtrl.text.trim()) ?? 0;
+    final net = (widget.totalAmount - discount).clamp(0, widget.totalAmount).toDouble();
+    _paidCtrl.text = net.toStringAsFixed(2);
   }
 
   @override
   void dispose() {
+    _discountCtrl.removeListener(_applyDiscountToPaidAmount);
     _paidCtrl.dispose();
+    _discountCtrl.dispose();
+    _discountNoteCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -1402,9 +1426,9 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي العقد: ${widget.totalAmount.toStringAsFixed(2)} ر.س'),
-                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.س'),
-                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.س'),
+                      Text('إجمالي العقد: ${widget.totalAmount.toStringAsFixed(2)} ر.ي'),
+                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.ي'),
+                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.ي'),
                     ],
                   ),
                 ),
@@ -1430,13 +1454,47 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
+                  controller: _discountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'الخصم من إجمالي العقد',
+                    helperText: 'يُخصم من إجمالي المبلغ قبل احتساب المتبقي',
+                    border: OutlineInputBorder(),
+                    prefixText: 'ر.ي ',
+                  ),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n < 0) return 'أدخل خصمًا صحيحًا';
+                    if (n > widget.totalAmount) return 'الخصم لا يمكن أن يتجاوز الإجمالي';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _discountNoteCtrl,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'سبب الخصم',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) {
+                    final discount = double.tryParse(_discountCtrl.text.trim()) ?? 0;
+                    if (discount > 0 && (v ?? '').trim().isEmpty) {
+                      return 'اكتب سبب الخصم';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
                   controller: _paidCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'المبلغ المدفوع الآن',
                     helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
                     border: OutlineInputBorder(),
-                    prefixText: 'ر.س ',
+                    prefixText: 'ر.ي ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
@@ -1498,6 +1556,10 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                 paymentNotes: _notesCtrl.text.trim().isEmpty
                     ? null
                     : _notesCtrl.text.trim(),
+                discountAmount: double.tryParse(_discountCtrl.text.trim()) ?? 0,
+                discountNote: _discountNoteCtrl.text.trim().isEmpty
+                    ? null
+                    : _discountNoteCtrl.text.trim(),
               ),
             );
           },
@@ -1577,7 +1639,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
   Widget build(BuildContext context) {
     final remainingText = widget.unlimitedWhenOpen
         ? 'العقد مفتوح والإجمالي غير نهائي بعد'
-        : 'المتبقي الحالي: ${widget.maxPayable.toStringAsFixed(2)} ر.س';
+        : 'المتبقي الحالي: ${widget.maxPayable.toStringAsFixed(2)} ر.ي';
 
     return AlertDialog(
       title: const Text('إضافة دفعة'),
@@ -1599,8 +1661,8 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي العقد: ${widget.total.toStringAsFixed(2)} ر.س'),
-                      Text('المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.س'),
+                      Text('إجمالي العقد: ${widget.total.toStringAsFixed(2)} ر.ي'),
+                      Text('المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.ي'),
                       Text(remainingText),
                     ],
                   ),
@@ -1623,7 +1685,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                     labelText: 'مبلغ الدفعة',
                     helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
                     border: OutlineInputBorder(),
-                    prefixText: 'ر.س ',
+                    prefixText: 'ر.ي ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());

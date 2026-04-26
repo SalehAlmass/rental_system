@@ -249,6 +249,8 @@ class _RentsViewState extends State<_RentsView> {
       endDatetime: DateTime.now().toIso8601String(),
       applySpecialPricing: result.applySpecialPricing,
       paidAmount: result.paidAmount,
+      discountAmount: result.discountAmount,
+      discountNote: result.discountNote,
       paymentMethod: result.paymentMethod,
       createReceipt: false,
       paymentNotes: result.paymentNotes,
@@ -256,7 +258,8 @@ class _RentsViewState extends State<_RentsView> {
     );
 
     if (!mounted) return;
-    final fullyPaid = (result.paidAmount + 0.009) >= total && total > 0;
+    final netTotal = (total - result.discountAmount).clamp(0, total).toDouble();
+    final fullyPaid = (result.paidAmount + 0.009) >= netTotal && netTotal > 0;
     if (fullyPaid) {
       final go = await showDialog<bool>(
         context: context,
@@ -497,7 +500,7 @@ class _RentsViewState extends State<_RentsView> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.س',
+                                    'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.toStringAsFixed(2)} ر.ي',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -554,7 +557,7 @@ class _RentsViewState extends State<_RentsView> {
                           tone: Colors.orange,
                           onTap: () => setState(() => _statusFilter = 'deferred'),
                           subtitle:
-                              '${stats.deferredAmount.toStringAsFixed(0)} ر.س',
+                              '${stats.deferredAmount.toStringAsFixed(0)} ر.ي',
                         ),
                       ],
                     ),
@@ -819,7 +822,7 @@ class _RentsViewState extends State<_RentsView> {
 
   String _collectionAgendaSubtitle(_CollectionAgendaItem item) {
     final lines = <String>[
-      'المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.س',
+      'المتبقي: ${item.remainingAmount.toStringAsFixed(2)} ر.ي',
     ];
 
     if (item.hasScheduledFollowupToday) {
@@ -917,9 +920,11 @@ class _RentCard extends StatelessWidget {
         ? 'أغلق بدون سند'
         : 'لم يُغلق بعد';
 
+    final discount = rent.discountAmount ?? 0;
+    final discountText = discount > 0 ? ' • خصم ${discount.toStringAsFixed(2)} ر.ي' : '';
     final financialHint = remaining > 0.009
-        ? 'متبقٍ على العميل ${remaining.toStringAsFixed(2)} ر.س'
-        : (rent.pricingRuleLabel ?? 'الاحتساب القياسي');
+        ? 'متبقٍ على العميل ${remaining.toStringAsFixed(2)} ر.ي$discountText'
+        : '${rent.pricingRuleLabel ?? 'الاحتساب القياسي'}$discountText';
 
     return Container(
       decoration: BoxDecoration(
@@ -1010,7 +1015,7 @@ class _RentCard extends StatelessWidget {
                         label: 'الإجمالي',
                         value: total <= 0 && status == 'open'
                             ? 'جاري...'
-                            : '${total.toStringAsFixed(2)} ر.س',
+                            : '${total.toStringAsFixed(2)} ر.ي',
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1018,8 +1023,8 @@ class _RentCard extends StatelessWidget {
                       child: _MiniMetric(
                         label: remaining > 0.009 ? 'المتبقي' : 'المدفوع',
                         value: remaining > 0.009
-                            ? '${remaining.toStringAsFixed(2)} ر.س'
-                            : '${paid.toStringAsFixed(2)} ر.س',
+                            ? '${remaining.toStringAsFixed(2)} ر.ي'
+                            : '${paid.toStringAsFixed(2)} ر.ي',
                       ),
                     ),
                   ],
@@ -1798,18 +1803,23 @@ class _CollectionAgendaItem {
 }
 
 
+
 class _QuickCloseResult {
   const _QuickCloseResult({
     required this.paidAmount,
     required this.paymentMethod,
     required this.applySpecialPricing,
     this.paymentNotes,
+    this.discountAmount = 0,
+    this.discountNote,
   });
 
   final double paidAmount;
   final String paymentMethod;
   final bool applySpecialPricing;
   final String? paymentNotes;
+  final double discountAmount;
+  final String? discountNote;
 }
 
 class _QuickCloseDialog extends StatefulWidget {
@@ -1834,6 +1844,8 @@ class _QuickCloseDialog extends StatefulWidget {
 class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountCtrl;
+  late final TextEditingController _discountCtrl;
+  final _discountNoteCtrl = TextEditingController();
   late final TextEditingController _notesCtrl;
   String _method = 'cash';
   bool _applySpecialPricing = false;
@@ -1842,6 +1854,8 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   void initState() {
     super.initState();
     _amountCtrl = TextEditingController(text: widget.totalAmount.toStringAsFixed(2));
+    _discountCtrl = TextEditingController(text: '0');
+    _discountCtrl.addListener(_applyDiscountToPaidAmount);
     _notesCtrl = TextEditingController();
   }
 
@@ -1850,9 +1864,18 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
     setState(() {});
   }
 
+  void _applyDiscountToPaidAmount() {
+    final discount = double.tryParse(_discountCtrl.text.trim()) ?? 0;
+    final net = (widget.totalAmount - discount).clamp(0, widget.totalAmount).toDouble();
+    _amountCtrl.text = net.toStringAsFixed(2);
+  }
+
   @override
   void dispose() {
+    _discountCtrl.removeListener(_applyDiscountToPaidAmount);
     _amountCtrl.dispose();
+    _discountCtrl.dispose();
+    _discountNoteCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -1882,9 +1905,9 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي العقد: ${total.toStringAsFixed(2)} ر.س'),
-                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.س'),
-                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.س'),
+                      Text('إجمالي العقد: ${total.toStringAsFixed(2)} ر.ي'),
+                      Text('المدفوع سابقًا: ${widget.currentPaid.toStringAsFixed(2)} ر.ي'),
+                      Text('المتبقي الحالي: ${widget.remainingAmount.toStringAsFixed(2)} ر.ي'),
                     ],
                   ),
                 ),
@@ -1906,9 +1929,33 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                   title: const Text('تطبيق الاحتساب الخاص'),
                 ),
                 TextFormField(
+                  controller: _discountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'الخصم من إجمالي العقد',
+                    helperText: 'يُخصم من إجمالي المبلغ قبل احتساب المتبقي',
+                    border: OutlineInputBorder(),
+                    prefixText: 'ر.ي ',
+                  ),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n < 0) return 'أدخل خصمًا صحيحًا';
+                    if (n > widget.totalAmount) return 'الخصم لا يمكن أن يتجاوز الإجمالي';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _discountNoteCtrl,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'سبب الخصم', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
                   controller: _amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'المبلغ المسدد', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'المبلغ المسدد', border: OutlineInputBorder(), prefixText: 'ر.ي '),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
@@ -1947,6 +1994,8 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
               paymentMethod: _method,
               applySpecialPricing: _applySpecialPricing,
               paymentNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+              discountAmount: double.tryParse(_discountCtrl.text.trim()) ?? 0,
+              discountNote: _discountNoteCtrl.text.trim().isEmpty ? null : _discountNoteCtrl.text.trim(),
             ));
           },
           child: const Text('إغلاق وتحصيل'),

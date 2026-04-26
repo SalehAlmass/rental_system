@@ -114,7 +114,7 @@ class _PayrollPageState extends State<PayrollPage> {
                                       'خصومات: ${(it.deductions ?? 0).toStringAsFixed(2)} • نوع: ${it.salaryType ?? '-'}',
                                     ),
                                     trailing: Text(
-                                      '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.س',
+                                      '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.ي',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onTap: () => _openEdit(it),
