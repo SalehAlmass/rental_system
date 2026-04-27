@@ -53,12 +53,12 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _push(context, const ClientsPage()),
           ),
           _tile(
-            context,
-            icon: Icons.construction,
-            title: 'المعدات',
-            subtitle: 'إدارة المعدات المتاحة',
-            onTap: () => _push(context, const EquipmentPage()),
-          ),
+              context,
+              icon: Icons.lock_clock,
+              title: 'إغلاق الدوام',
+              subtitle: 'إدارة شفتات الموظفين',
+              onTap: () => _push(context, const ShiftsPage()),
+            ),
           _tile(
             context,
             icon: Icons.description,
@@ -93,13 +93,14 @@ class SettingsPage extends StatelessWidget {
               subtitle: 'عرض التقارير والإحصائيات',
               onTap: () => _push(context, const ReportsPage()),
             ),
-            _tile(
-              context,
-              icon: Icons.lock_clock,
-              title: 'إغلاق الدوام',
-              subtitle: 'إدارة شفتات الموظفين',
-              onTap: () => _push(context, const ShiftsPage()),
-            ),
+             _tile(
+            context,
+            icon: Icons.construction,
+            title: 'المعدات',
+            subtitle: 'إدارة المعدات المتاحة',
+            onTap: () => _push(context, const EquipmentPage()),
+          ),
+           
             _tile(
               context,
               icon: Icons.account_balance_wallet,
@@ -154,15 +155,15 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _push(context, const AboutPage()),
           ),
 
-          const Divider(height: 28),
-          _header(context, 'الاتصال بالسيرفر'),
-          _tile(
-            context,
-            icon: Icons.api,
-            title: 'إعدادات الـ API',
-            subtitle: 'تعديل رابط الاتصال',
-            onTap: () => _push(context, const ApiSettingsPage()),
-          ),
+          // const Divider(height: 28),
+          // _header(context, 'الاتصال بالسيرفر'),
+          // _tile(
+          //   context,
+          //   icon: Icons.api,
+          //   title: 'إعدادات الـ API',
+          //   subtitle: 'تعديل رابط الاتصال',
+          //   onTap: () => _push(context, const ApiSettingsPage()),
+          // ),
 
           const Divider(height: 28),
           _header(context, 'الحساب'),
