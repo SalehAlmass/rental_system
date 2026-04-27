@@ -159,8 +159,8 @@ class AboutPage extends StatelessWidget {
             context,
             icon: Icons.email,
             title: 'البريد الإلكتروني',
-            subtitle: 'saleh.almass@gmail.com',
-            onTap: () => _launchEmail('saleh.almass@gmail.com'),
+            subtitle: 'salehalmass18@gmail.com',
+            onTap: () => _launchEmail('salehalmass18@gmail.com'),
           ),
           _buildContactItem(
             context,
