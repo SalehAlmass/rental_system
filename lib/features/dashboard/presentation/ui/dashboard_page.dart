@@ -15,6 +15,7 @@ import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/reports/presentation/pages/reports_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/settings_page.dart';
+import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 import 'package:rental_app/theme/theme_bloc.dart';
 
 import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
@@ -209,7 +210,7 @@ class DashboardPageState extends State<DashboardPage> {
                 floatingActionButtonLocation:
                     FloatingActionButtonLocation.centerDocked,
 
-                bottomNavigationBar: _buildBottomNav(),
+                bottomNavigationBar: _buildBottomNav(isAdmin),
               );
             },
           );
@@ -321,46 +322,6 @@ class DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Widget _buildRail() {
-    final railTabs = [
-      DashboardTab.home,
-      DashboardTab.equipment,
-      DashboardTab.rents,
-      DashboardTab.settings,
-    ];
-
-    final idx = railTabs.indexOf(_currentTab);
-
-    return NavigationRail(
-      backgroundColor: Theme.of(context).colorScheme.onBackground,
-      selectedIndex: idx < 0 ? 0 : idx,
-      onDestinationSelected: (i) => _changeTab(railTabs[i]),
-      labelType: NavigationRailLabelType.all,
-      destinations: const [
-        NavigationRailDestination(
-          icon: Icon(Icons.home, color: Colors.white),
-          label: Text('الرئيسية', style: TextStyle(color: Colors.white)),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.settings, color: Colors.white),
-          label: Text('المعدات', style: TextStyle(color: Colors.white)),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.wallet, color: Colors.white),
-          label: Text('العقود', style: TextStyle(color: Colors.white)),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.info, color: Colors.white),
-          label: Text('الإعدادات', style: TextStyle(color: Colors.white)),
-        ),
-
-        // NavigationRailDestination(
-        //   icon: Icon(Icons.assessment),
-        //   label: Text('التقارير'),
-        // ),
-      ],
-    );
-  }
 
   Widget _buildBody(bool isAdmin, String userName) {
     switch (_currentTab) {
@@ -380,7 +341,7 @@ class DashboardPageState extends State<DashboardPage> {
       case DashboardTab.clients:
         return const ClientsPage();
       case DashboardTab.equipment:
-        return const EquipmentPage();
+        return isAdmin ? const EquipmentPage() : const ShiftsPage();
       case DashboardTab.rents:
         return RentsPage(initialFilter: _rentsFilter);
       case DashboardTab.settings:
@@ -396,7 +357,7 @@ class DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(bool isAdmin) {
     final navTabs = [
       DashboardTab.home,
       DashboardTab.equipment,
@@ -411,23 +372,23 @@ class DashboardPageState extends State<DashboardPage> {
       indicatorColor: Theme.of(context).colorScheme.primary,
       selectedIndex: idx < 0 ? 0 : idx,
       onDestinationSelected: (index) => _changeTab(navTabs[index]),
-      destinations: const [
-        NavigationDestination(
+      destinations: [
+        const NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home),
           label: 'الرئيسية',
         ),
         NavigationDestination(
-          icon: Icon(Icons.construction_outlined),
-          selectedIcon: Icon(Icons.construction),
-          label: 'المعدات',
+          icon: Icon(isAdmin ? Icons.construction_outlined : Icons.lock_clock_outlined),
+          selectedIcon: Icon(isAdmin ? Icons.construction : Icons.lock_clock),
+          label: isAdmin ? 'المعدات' : 'إغلاق الدوام',
         ),
-        NavigationDestination(
+        const NavigationDestination(
           icon: Icon(Icons.wallet_outlined),
           selectedIcon: Icon(Icons.wallet),
           label: 'العقود',
         ),
-        NavigationDestination(
+        const NavigationDestination(
           icon: Icon(Icons.info_outlined),
           selectedIcon: Icon(Icons.info),
           label: 'الإعدادات',

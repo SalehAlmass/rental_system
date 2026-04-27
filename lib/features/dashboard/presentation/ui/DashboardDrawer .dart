@@ -75,12 +75,20 @@ class DashboardDrawer extends StatelessWidget {
               icon: Icons.people,
               page: const ClientsPage(),
             ),
-            _drawerItem(
-              context,
-              title: 'إدارة المعدات',
-              icon: Icons.construction,
-              page: const EquipmentPage(),
-            ),
+            if (isAdmin)
+              _drawerItem(
+                context,
+                title: 'إدارة المعدات',
+                icon: Icons.construction,
+                page: const EquipmentPage(),
+              )
+            else
+              _drawerItem(
+                context,
+                title: 'إغلاق الدوام',
+                icon: Icons.lock_clock,
+                page: const ShiftsPage(),
+              ),
             _drawerItem(
               context,
               title: 'إدارة العقود',
