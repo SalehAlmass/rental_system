@@ -110,11 +110,11 @@ class _PayrollPageState extends State<PayrollPage> {
                                     leading: const Icon(Icons.person),
                                     title: Text(it.username),
                                     subtitle: Text(
-                                      'ساعات: ${it.workedHours.toStringAsFixed(2)} • غياب: ${it.absentDays ?? 0} • تأخير: ${it.lateMinutes ?? 0}د\n'
-                                      'خصومات: ${(it.deductions ?? 0).toStringAsFixed(2)} • نوع: ${it.salaryType ?? '-'}',
+                                      'ساعات: ${it.workedHours.round()} • غياب: ${it.absentDays ?? 0} • تأخير: ${it.lateMinutes ?? 0}د\n'
+                                      'خصومات: ${(it.deductions ?? 0).round()} • نوع: ${it.salaryType ?? '-'}',
                                     ),
                                     trailing: Text(
-                                      '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.ي',
+                                      '${(it.netAmount ?? it.amount).round()} ر.ي',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onTap: () => _openEdit(it),
@@ -131,9 +131,9 @@ class _PayrollPageState extends State<PayrollPage> {
   Future<void> _openEdit(PayrollItem it) async {
     final typeCtrl = ValueNotifier<String>(it.salaryType ?? 'hourly');
     final hourlyCtrl =
-        TextEditingController(text: (it.hourlyRate ?? 0).toStringAsFixed(2));
+        TextEditingController(text: (it.hourlyRate ?? 0).round().toString());
     final monthlyCtrl =
-        TextEditingController(text: (it.monthlySalary ?? 0).toStringAsFixed(2));
+        TextEditingController(text: (it.monthlySalary ?? 0).round().toString());
 
     final ok = await showDialog<bool>(
       context: context,

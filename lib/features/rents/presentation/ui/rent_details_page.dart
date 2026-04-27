@@ -397,7 +397,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     }
 
     final maxPayable = _remaining > 0 ? _remaining : _effectiveRemaining;
-    final initialAmount = _effectiveTotal > 0 ? _effectiveTotal : maxPayable;
+    final initialAmount = maxPayable > 0 ? maxPayable : _effectiveTotal;
 
     await showDialog(
       context: context,
@@ -508,7 +508,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       total = dailyRate * (billableDays < 1 ? 1 : billableDays);
     }
 
-    return double.parse(total.toStringAsFixed(2));
+    return total.round().toDouble();
   }
 
   double get _effectiveTotal => _liveOpenTotal;
@@ -571,6 +571,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                             _kv('رقم العقد', '#${rent.id}'),
                             _kv('العميل', rent.clientName ?? rent.clientId.toString()),
                             _kv('المعدة', rent.equipmentName ?? rent.equipmentId.toString()),
+                            _kv('سعر اليوم', '${(rent.rate ?? 0).round()} ر.ي'),
                             _kv('الحالة', _statusText(rent.status)),
                             _kv('بداية', _fmtDateTime(rent.startDatetime)),
                             _kv(
@@ -584,19 +585,19 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                               'الإجمالي بعد الخصم',
                               isOpen && _effectiveTotal <= 0.0001
                                   ? 'غير نهائي (العقد جاري)'
-                                  : '${_effectiveTotal.toStringAsFixed(2)} ر.ي',
+                                  : '${_effectiveTotal.round()} ر.ي',
                             ),
                             if ((rent.discountAmount ?? 0) > 0) ...[
-                              _kv('الخصم', '${(rent.discountAmount ?? 0).toStringAsFixed(2)} ر.ي'),
+                              _kv('الخصم', '${(rent.discountAmount ?? 0).round()} ر.ي'),
                               if ((rent.discountNote ?? '').trim().isNotEmpty)
                                 _kv('سبب الخصم', rent.discountNote!.trim()),
                             ],
-                            _kv('المدفوع', '${_paid.toStringAsFixed(2)} ر.ي'),
+                            _kv('المدفوع', '${_paid.round()} ر.ي'),
                             _kv(
                               'المتبقي',
                               isOpen && _effectiveTotal <= 0.0001
                                   ? '-'
-                                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.ي',
+                                  : '${_effectiveRemaining.round()} ر.ي',
                             ),
                           ],
                         ),
@@ -1381,18 +1382,26 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
   @override
   void initState() {
     super.initState();
-    final initial = widget.totalAmount > 0 ? widget.totalAmount : 0;
     _paidCtrl = TextEditingController(
-      text: initial.toStringAsFixed(2),
+      text: _requiredNow().toStringAsFixed(2),
     );
     _discountCtrl = TextEditingController(text: '0');
     _discountCtrl.addListener(_applyDiscountToPaidAmount);
   }
 
-  void _applyDiscountToPaidAmount() {
+  double _discountValue() {
     final discount = double.tryParse(_discountCtrl.text.trim()) ?? 0;
-    final net = (widget.totalAmount - discount).clamp(0, widget.totalAmount).toDouble();
-    _paidCtrl.text = net.toStringAsFixed(2);
+    return discount.clamp(0, widget.totalAmount).toDouble();
+  }
+
+  double _requiredNow() {
+    final netTotal = (widget.totalAmount - _discountValue()).clamp(0, widget.totalAmount).toDouble();
+    final remaining = netTotal - widget.currentPaid;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  void _applyDiscountToPaidAmount() {
+    _paidCtrl.text = _requiredNow().toStringAsFixed(2);
   }
 
   @override
@@ -1448,9 +1457,9 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton(onPressed: () => _paidCtrl.text = widget.totalAmount.toStringAsFixed(2), child: const Text('اليوم كامل')),
-                    OutlinedButton(onPressed: () => _paidCtrl.text = (widget.totalAmount / 2).toStringAsFixed(2), child: const Text('نصف يوم')),
-                    OutlinedButton(onPressed: () => _paidCtrl.text = (widget.totalAmount * (2 / 3)).toStringAsFixed(2), child: const Text('ثلثين')),
+                    OutlinedButton(onPressed: () => _paidCtrl.text = _requiredNow().toStringAsFixed(2), child: const Text('كامل المتبقي')),
+                    OutlinedButton(onPressed: () => _paidCtrl.text = (_requiredNow() / 2).toStringAsFixed(2), child: const Text('نصف المتبقي')),
+                    OutlinedButton(onPressed: () => _paidCtrl.text = (_requiredNow() * (2 / 3)).toStringAsFixed(2), child: const Text('ثلثين المتبقي')),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1493,13 +1502,17 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'المبلغ المدفوع الآن',
-                    helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
+                    helperText: 'تم تعبئته تلقائيًا بالمتبقي بعد الخصم ويمكنك تعديله',
                     border: OutlineInputBorder(),
                     prefixText: 'ر.ي ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
+                    final required = _requiredNow();
+                    if (required > 0 && n - required > 0.009) {
+                      return 'المبلغ أكبر من المطلوب: ${required.toStringAsFixed(2)} ر.ي';
+                    }
                     return null;
                   },
                 ),
@@ -1616,6 +1629,12 @@ class _PayNowDialogState extends State<_PayNowDialog> {
     super.dispose();
   }
 
+  double _paymentLimit() {
+    if (widget.maxPayable > 0) return widget.maxPayable;
+    if (widget.total > 0) return widget.total;
+    return 0;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -1673,9 +1692,9 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = widget.total.toStringAsFixed(2)), child: const Text('اليوم كامل')),
-                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (widget.total / 2).toStringAsFixed(2)), child: const Text('نصف يوم')),
-                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (widget.total * (2 / 3)).toStringAsFixed(2)), child: const Text('ثلثين')),
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = _paymentLimit().toStringAsFixed(2)), child: const Text('كامل المتبقي')),
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (_paymentLimit() / 2).toStringAsFixed(2)), child: const Text('نصف المتبقي')),
+                    OutlinedButton(onPressed: () => setState(() => _amountCtrl.text = (_paymentLimit() * (2 / 3)).toStringAsFixed(2)), child: const Text('ثلثين المتبقي')),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1684,13 +1703,17 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'مبلغ الدفعة',
-                    helperText: 'تم تعبئته تلقائيًا بإجمالي العقد ويمكنك تعديله',
+                    helperText: 'تم تعبئته تلقائيًا بالمتبقي ويمكنك تعديله',
                     border: OutlineInputBorder(),
                     prefixText: 'ر.ي ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n <= 0) return 'أدخل مبلغًا صحيحًا';
+                    final limit = _paymentLimit();
+                    if (limit > 0 && n - limit > 0.009) {
+                      return 'المبلغ أكبر من المطلوب: ${limit.toStringAsFixed(2)} ر.ي';
+                    }
                     return null;
                   },
                 ),

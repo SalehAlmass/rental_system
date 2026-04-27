@@ -124,6 +124,9 @@ class _AttendancePageState extends State<AttendancePage> {
       if (!ok) return;
 
       await _repo.checkIn(method: 'manual', shift: _selectedShift);
+      if (mounted) {
+        setState(() => _inDuty = true);
+      }
       await _load();
       _snack('تم تسجيل دخول الدوام');
     } catch (e) {
@@ -146,6 +149,9 @@ class _AttendancePageState extends State<AttendancePage> {
       if (!ok) return;
 
       await _repo.checkOut(method: 'manual', shift: _selectedShift);
+      if (mounted) {
+        setState(() => _inDuty = false);
+      }
       await _load();
       _snack('تم تسجيل خروج الدوام');
     } catch (e) {
@@ -182,7 +188,7 @@ class _AttendancePageState extends State<AttendancePage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('ساعات العمل هذا الشهر: ${_hours.toStringAsFixed(2)} ساعة'),
+                  Text('ساعات العمل هذا الشهر: ${_hours.round()} ساعة'),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: _selectedShift,
@@ -201,7 +207,7 @@ class _AttendancePageState extends State<AttendancePage> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _working ? null : _checkIn,
+                          onPressed: (_working || _inDuty) ? null : _checkIn,
                           icon: const Icon(Icons.login),
                           label: Text(_working ? '...' : 'تسجيل حضور'),
                         ),
@@ -209,7 +215,7 @@ class _AttendancePageState extends State<AttendancePage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton.tonalIcon(
-                          onPressed: _working ? null : _checkOut,
+                          onPressed: (_working || !_inDuty) ? null : _checkOut,
                           icon: const Icon(Icons.logout),
                           label: Text(_working ? '...' : 'تسجيل انصراف'),
                         ),
@@ -300,10 +306,10 @@ class _AttendancePageState extends State<AttendancePage> {
                   title: Text(it.username),
                   subtitle: Text(
                     'حضور: ${it.presentDays ?? 0} • غياب: ${it.absentDays ?? 0} • تأخير: ${it.lateMinutes ?? 0}د\n'
-                    'ساعات: ${it.workedHours.toStringAsFixed(2)} • خصومات: ${(it.deductions ?? 0).toStringAsFixed(2)}',
+                    'ساعات: ${it.workedHours.round()} • خصومات: ${(it.deductions ?? 0).round()}',
                   ),
                   trailing: Text(
-                    '${(it.netAmount ?? it.amount).toStringAsFixed(2)} ر.ي',
+                    '${(it.netAmount ?? it.amount).round()} ر.ي',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

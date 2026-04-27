@@ -16,7 +16,7 @@ class ReportExport {
         r.id,
         '"${safe(r.createdAt)}"',
         '"${safe(r.type)}"',
-        r.amount.toStringAsFixed(2),
+        r.amount.round().toString(),
         '"${safe(r.method)}"',
         '"${safe(r.clientName)}"',
         r.rentNo ?? '',
@@ -39,7 +39,7 @@ class ReportExport {
             pw.SizedBox(height: 8),
             pw.Text('From: ${report.from ?? '-'}   To: ${report.to ?? '-'}'),
             pw.SizedBox(height: 8),
-            pw.Text('Totals: In=${report.totals.totalIn.toStringAsFixed(2)}  Out=${report.totals.totalOut.toStringAsFixed(2)}  Net=${report.totals.net.toStringAsFixed(2)}'),
+            pw.Text('Totals: In=${report.totals.totalIn.round()}  Out=${report.totals.totalOut.round()}  Net=${report.totals.net.round()}'),
             pw.SizedBox(height: 16),
             pw.Table.fromTextArray(
               headers: const ['ID', 'Date', 'Type', 'Amount', 'Client', 'Rent'],
@@ -48,7 +48,7 @@ class ReportExport {
                         r.id.toString(),
                         r.createdAt,
                         r.type,
-                        r.amount.toStringAsFixed(2),
+                        r.amount.round().toString(),
                         r.clientName ?? '-',
                         (r.rentNo ?? '').toString(),
                       ])

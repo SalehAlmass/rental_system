@@ -52,7 +52,7 @@ class PaymentDetailsPage extends StatelessWidget {
                   Text('سند رقم #${payment.id}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 8),
                   Text(
-                    '${payment.amount.toStringAsFixed(2)} ر.ي',
+                    '${payment.amount.round()} ر.ي',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w900,
                           color: isIn ? Colors.green.shade700 : Colors.red.shade700,

@@ -128,14 +128,14 @@ class PdfService {
                   ),
                   _kv('تاريخ/وقت الخروج', rent.startDatetime),
                   _kv('تاريخ/وقت الإرجاع', rent.endDatetime ?? '-'),
-                  _kv('عدد الساعات', (rent.hours ?? 0).toStringAsFixed(2)),
+                  _kv('عدد الساعات', (rent.hours ?? 0).round().toString()),
                   _kv(
                     'سعر الساعة',
-                    '${(rent.rate ?? 0).toStringAsFixed(2)} ر.ي',
+                    '${(rent.rate ?? 0).round()} ر.ي',
                   ),
                   _kv(
                     'الإجمالي',
-                    '${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.ي',
+                    '${(rent.totalAmount ?? 0).round()} ر.ي',
                   ),
                   pw.SizedBox(height: 10),
                   pw.Text(
@@ -216,9 +216,9 @@ class PdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي المستحقات: ${totalRents.toStringAsFixed(2)} ر.ي'),
-                  pw.Text('إجمالي المدفوع: ${totalPaid.toStringAsFixed(2)} ر.ي'),
-                  pw.Text('الرصيد: ${balance.toStringAsFixed(2)} ر.ي'),
+                  pw.Text('إجمالي المستحقات: ${totalRents.round()} ر.ي'),
+                  pw.Text('إجمالي المدفوع: ${totalPaid.round()} ر.ي'),
+                  pw.Text('الرصيد: ${balance.round()} ر.ي'),
                 ],
               ),
 
@@ -243,7 +243,7 @@ class PdfService {
                 data: [
                   for (final r in rents)
                     [
-                      (r.totalAmount ?? 0).toStringAsFixed(2),
+                      (r.totalAmount ?? 0).round().toString(),
                       (r.endDatetime ?? '-'),
                       (r.startDatetime ?? '-'),
                       (r.equipmentName ?? r.equipmentId.toString()),
@@ -276,7 +276,7 @@ class PdfService {
                     [
                       (p.notes ?? '-'),
                       (p.method ?? '-'),
-                      (p.amount ?? 0).toStringAsFixed(2),
+                      (p.amount ?? 0).round().toString(),
                       ((p.type ?? '') == 'in' ? 'قبض' : 'صرف'),
                       (p.createdAt ?? '-'),
                       (p.id ?? 0).toString(),
@@ -348,7 +348,7 @@ class PdfService {
                         _kv('النوع', isIn ? 'قبض' : 'صرف'),
                         _kv(
                           'المبلغ',
-                          '${(payment.amount ?? 0).toStringAsFixed(2)} ر.ي',
+                          '${(payment.amount ?? 0).round()} ر.ي',
                         ),
                         _kv('الطريقة', (payment.method ?? '-')),
                         _kv(

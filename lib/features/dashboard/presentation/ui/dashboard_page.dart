@@ -126,6 +126,13 @@ class DashboardPageState extends State<DashboardPage> {
                         showShadow: true,
                         centerTitle: true,
                         actions: [
+                          if (isAdmin)
+                            IconButton(
+                              tooltip: 'حذف كل بيانات التشغيل',
+                              icon: const Icon(Icons.delete_forever, color: Colors.red),
+                              onPressed: _confirmClearBusinessData,
+                            ),
+
                           // تبديل الوضع
                           IconButton(
                             tooltip: 'تبديل الوضع',
@@ -209,6 +216,71 @@ class DashboardPageState extends State<DashboardPage> {
         },
       ),
     );
+  }
+
+  Future<void> _confirmClearBusinessData() async {
+    final textCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف كل بيانات التشغيل'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'سيتم حذف العملاء والمعدات والعقود والسندات والحضور والتنبيهات، مع إبقاء المستخدمين والإعدادات حتى تستطيع الدخول للنظام.',
+            ),
+            const SizedBox(height: 12),
+            const Text('للتأكيد اكتب CLEAR'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: textCtrl,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'CLEAR',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, textCtrl.text.trim() == 'CLEAR'),
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('حذف البيانات'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+
+    try {
+      await context.read<ApiClient>().dio.delete(
+        'maintenance/clear-business-data',
+        data: {'confirm': 'CLEAR'},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حذف بيانات التشغيل بنجاح')),
+      );
+      context.read<DashboardBloc>().add(DashboardRequested());
+      setState(() {
+        _currentTab = DashboardTab.home;
+        _rentsFilter = 'all';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل حذف البيانات: $e')),
+      );
+    }
   }
 
   Future<void> _tryAutoBackup(BuildContext context) async {
