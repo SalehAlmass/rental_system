@@ -53,15 +53,11 @@ String? validatePhone(String? value) {
 
 String? validateNationalId(String? value) {
   if (value == null || value.isEmpty) {
-    return 'الرجاء إدخال رقم الهوية';
+    return null;
   }
 
   if (!RegExp(r'^\d+$').hasMatch(value)) {
     return 'الرجاء إدخال أرقام فقط';
-  }
-
-  if (value.length < 9) {
-    return 'رقم الهوية يجب أن يتكون من 9 أرقام على الأقل';
   }
 
   return null;
@@ -152,10 +148,11 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              final nationalId = _nid.text.trim();
               Navigator.pop(context, {
                 "name": _name.text.trim(),
                 "phone": _phone.text.trim(),
-                "nationalId": _nid.text.trim(),
+                "nationalId": nationalId.isEmpty ? null : nationalId,
                 "address": _addr.text.trim(),
               });
             }
@@ -279,12 +276,13 @@ class _EditClientDialogState extends State<EditClientDialog> {
                   ? null
                   : () {
                       if (_formKey.currentState!.validate()) {
+                        final nationalId = _nid.text.trim();
                         bloc.add(
                           ClientUpdated(
                             id: widget.client.id,
                             name: _name.text.trim(),
                             phone: _phone.text.trim(),
-                            nationalId: _nid.text.trim(),
+                            nationalId: nationalId.isEmpty ? null : nationalId,
                             address: _addr.text.trim(),
                           ),
                         );

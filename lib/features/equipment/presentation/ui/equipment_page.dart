@@ -10,25 +10,30 @@ import 'package:rental_app/features/equipment/presentation/ui/equipment_details_
 import 'package:rental_app/core/widgets/page_entrance.dart';
 
 // Import validation functions
-String? validateField(String? value, {bool isNumber = false, bool isRequired = true, int minLength = 0}) {
+String? validateField(
+  String? value, {
+  bool isNumber = false,
+  bool isRequired = true,
+  int minLength = 0,
+}) {
   if (isRequired && (value == null || value.isEmpty)) {
     return 'الرجاء إدخال قيمة';
   }
-  
+
   if (value != null && value.isNotEmpty) {
     if (isNumber && !RegExp(r'^\\d+(\\.\\d+)?$').hasMatch(value)) {
       return 'الرجاء إدخال أرقام فقط';
     }
-    
+
     if (!isNumber && RegExp(r'^\\d+$').hasMatch(value)) {
       return 'الحقل لا يمكن أن يكون أرقام فقط';
     }
-    
+
     if (minLength > 0 && value.length < minLength) {
       return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
     }
   }
-  
+
   return null;
 }
 
@@ -48,25 +53,25 @@ String? validateDailyRate(String? value) {
   if (value == null || value.isEmpty) {
     return 'الرجاء إدخال السعر اليومي';
   }
-  
+
   final numValue = double.tryParse(value);
   if (numValue == null || numValue < 0) {
     return 'الرجاء إدخال قيمة عددية صحيحة';
   }
-  
+
   return null;
 }
 
 String? validateDepreciationRate(String? value) {
   if (value == null || value.isEmpty) {
-    return 'الرجاء إدخال نسبة الإهلاك';
+    return null; // جعلها اختيارية
   }
-  
+
   final numValue = double.tryParse(value);
   if (numValue == null || numValue < 0) {
     return 'الرجاء إدخال قيمة عددية صحيحة';
   }
-  
+
   return null;
 }
 
@@ -81,9 +86,7 @@ class EquipmentPage extends StatelessWidget {
         create: (ctx) =>
             EquipmentBloc(ctx.read<EquipmentRepository>())
               ..add(EquipmentRequested()),
-        child: _EquipmentView(
-          showBackButton: Navigator.canPop(context),
-        ),
+        child: _EquipmentView(showBackButton: Navigator.canPop(context)),
       ),
     );
   }
@@ -101,16 +104,21 @@ class _EquipmentView extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'المعدات',
-        onIconPressed: showBackButton ? () {
-          Navigator.pop(context);
-        } : null,
+        onIconPressed: showBackButton
+            ? () {
+                Navigator.pop(context);
+              }
+            : null,
         icon: () async {
-        final items = context.read<EquipmentBloc>().state.items; // أو state.equipment حسب عندك
-        await showSearch(
-          context: context,
-          delegate: EquipmentSearchDelegate(items),
-        );
-      },
+          final items = context
+              .read<EquipmentBloc>()
+              .state
+              .items; // أو state.equipment حسب عندك
+          await showSearch(
+            context: context,
+            delegate: EquipmentSearchDelegate(items),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'equipment_fab', // Unique hero tag to avoid conflicts
@@ -120,31 +128,31 @@ class _EquipmentView extends StatelessWidget {
       ),
       body: PageEntrance(
         child: BlocConsumer<EquipmentBloc, EquipmentState>(
-        listener: (context, state) {
-          if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error!)),
+          listener: (context, state) {
+            if (state.error != null) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.error!)));
+            }
+          },
+          builder: (context, state) {
+            if (state.status == EquipmentStatus.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (state.items.isEmpty) {
+              return const Center(child: Text('لا توجد معدات'));
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: state.items.length,
+              itemBuilder: (context, index) {
+                final equipment = state.items[index];
+                return _EquipmentCard(equipment: equipment);
+              },
             );
-          }
-        },
-        builder: (context, state) {
-          if (state.status == EquipmentStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state.items.isEmpty) {
-            return const Center(child: Text('لا توجد معدات'));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: state.items.length,
-            itemBuilder: (context, index) {
-              final equipment = state.items[index];
-              return _EquipmentCard(equipment: equipment);
-            },
-          );
-        },
+          },
         ),
       ),
     );
@@ -211,7 +219,8 @@ class _EquipmentCard extends StatelessWidget {
                 icon: const Icon(Icons.edit),
                 color: Theme.of(context).colorScheme.primary,
                 onPressed: () {
-                  context.findAncestorWidgetOfExactType<_EquipmentView>()!
+                  context
+                      .findAncestorWidgetOfExactType<_EquipmentView>()!
                       ._openDialog(context, edit: equipment);
                 },
               ),
@@ -227,7 +236,8 @@ class _EquipmentCard extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => EquipmentDetailsPage(equipment: equipment),
+                builder: (context) =>
+                    EquipmentDetailsPage(equipment: equipment),
               ),
             );
           },
@@ -248,20 +258,16 @@ class _EquipmentCard extends StatelessWidget {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('حذف'),
           ),
-          
         ],
       ),
     );
 
     if (ok == true && context.mounted) {
-      context
-          .read<EquipmentBloc>()
-          .add(EquipmentDeleted(equipment.id));
+      context.read<EquipmentBloc>().add(EquipmentDeleted(equipment.id));
     }
   }
 
@@ -305,6 +311,42 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
   bool _active = true;
   bool _submitting = false;
 
+  void _calculateDepreciationRate() {
+    final purchase = double.tryParse(_purchase.text);
+    final salvage = double.tryParse(_salvage.text);
+    final lifeMonths = int.tryParse(_lifeMonths.text);
+
+    if (purchase != null &&
+        salvage != null &&
+        lifeMonths != null &&
+        purchase > salvage &&
+        lifeMonths > 0) {
+      final lifeYears = lifeMonths / 12.0;
+      final depRate = ((purchase - salvage) / (purchase * lifeYears)) * 100;
+      if (_dep.text.isEmpty) {
+        _dep.text = depRate.toStringAsFixed(2);
+      }
+    }
+  }
+
+  void _calculateSalvageValue() {
+    final purchase = double.tryParse(_purchase.text);
+    final depRate = double.tryParse(_dep.text);
+    final lifeMonths = int.tryParse(_lifeMonths.text);
+
+    if (purchase != null &&
+        depRate != null &&
+        lifeMonths != null &&
+        depRate > 0 &&
+        lifeMonths > 0) {
+      final lifeYears = lifeMonths / 12.0;
+      final salvage = purchase - (purchase * (depRate / 100) * lifeYears);
+      if (_salvage.text.isEmpty) {
+        _salvage.text = salvage.toStringAsFixed(2);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -322,6 +364,10 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       _usageDays.text = e.estimatedUsageDays.toString();
       _status = e.status ?? 'available';
       _active = e.isActive;
+    } else {
+      final now = DateTime.now();
+      _startDate.text =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     }
   }
 
@@ -382,6 +428,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                       controller: _dep,
                       validator: validateDepreciationRate,
                       keyboardType: TextInputType.number,
+                      onChanged: (_) => _calculateSalvageValue(),
                       decoration: const InputDecoration(
                         labelText: 'نسبة الإهلاك % (اختياري)',
                         border: OutlineInputBorder(),
@@ -390,7 +437,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -398,6 +445,10 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                     child: TextFormField(
                       controller: _purchase,
                       keyboardType: TextInputType.number,
+                      onChanged: (_) {
+                        _calculateDepreciationRate();
+                        _calculateSalvageValue();
+                      },
                       decoration: const InputDecoration(
                         labelText: 'سعر الشراء',
                         border: OutlineInputBorder(),
@@ -409,6 +460,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                     child: TextFormField(
                       controller: _salvage,
                       keyboardType: TextInputType.number,
+                      onChanged: (_) => _calculateDepreciationRate(),
                       decoration: const InputDecoration(
                         labelText: 'القيمة المتبقية',
                         border: OutlineInputBorder(),
@@ -424,6 +476,10 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                     child: TextFormField(
                       controller: _lifeMonths,
                       keyboardType: TextInputType.number,
+                      onChanged: (_) {
+                        _calculateDepreciationRate();
+                        _calculateSalvageValue();
+                      },
                       decoration: const InputDecoration(
                         labelText: 'العمر بالأشهر',
                         border: OutlineInputBorder(),
@@ -462,7 +518,9 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
                   DropdownMenuItem(value: 'available', child: Text('🟢 متاح')),
                   DropdownMenuItem(value: 'rented', child: Text('🟠 مؤجر')),
                   DropdownMenuItem(
-                      value: 'maintenance', child: Text('🔴 صيانة')),
+                    value: 'maintenance',
+                    child: Text('🔴 صيانة'),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _status = v!),
               ),
@@ -499,43 +557,45 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       final salvage = double.tryParse(_salvage.text) ?? 0;
       final lifeMonths = int.tryParse(_lifeMonths.text) ?? 60;
       final usageDays = int.tryParse(_usageDays.text) ?? 365;
-      final startDate = _startDate.text.trim().isEmpty ? null : _startDate.text.trim();
+      final startDate = _startDate.text.trim().isNotEmpty
+          ? _startDate.text.trim()
+          : '${DateTime.now().year.toString().padLeft(4, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
 
       if (editing) {
         context.read<EquipmentBloc>().add(
-              EquipmentUpdated(
-                id: widget.edit!.id,
-                name: _name.text.trim(),
-                model: _model.text.trim(),
-                serialNo: _serial.text.trim(),
-                status: _status,
-                dailyRate: rate,
-                depreciationRate: dep,
-                isActive: _active,
-                purchasePrice: purchase,
-                salvageValue: salvage,
-                usefulLifeMonths: lifeMonths,
-                depreciationStartDate: startDate,
-                estimatedUsageDays: usageDays,
-              ),
-            );
+          EquipmentUpdated(
+            id: widget.edit!.id,
+            name: _name.text.trim(),
+            model: _model.text.trim(),
+            serialNo: _serial.text.trim(),
+            status: _status,
+            dailyRate: rate,
+            depreciationRate: dep,
+            isActive: _active,
+            purchasePrice: purchase,
+            salvageValue: salvage,
+            usefulLifeMonths: lifeMonths,
+            depreciationStartDate: startDate,
+            estimatedUsageDays: usageDays,
+          ),
+        );
       } else {
         context.read<EquipmentBloc>().add(
-              EquipmentCreated(
-                name: _name.text.trim(),
-                model: _model.text.trim(),
-                serialNo: _serial.text.trim(),
-                status: _status,
-                dailyRate: rate,
-                depreciationRate: dep,
-                isActive: _active,
-                purchasePrice: purchase,
-                salvageValue: salvage,
-                usefulLifeMonths: lifeMonths,
-                depreciationStartDate: startDate,
-                estimatedUsageDays: usageDays,
-              ),
-            );
+          EquipmentCreated(
+            name: _name.text.trim(),
+            model: _model.text.trim(),
+            serialNo: _serial.text.trim(),
+            status: _status,
+            dailyRate: rate,
+            depreciationRate: dep,
+            isActive: _active,
+            purchasePrice: purchase,
+            salvageValue: salvage,
+            usefulLifeMonths: lifeMonths,
+            depreciationStartDate: startDate,
+            estimatedUsageDays: usageDays,
+          ),
+        );
       }
 
       Navigator.pop(context, true);
