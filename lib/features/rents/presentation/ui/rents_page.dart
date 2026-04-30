@@ -261,33 +261,18 @@ class _RentsViewState extends State<_RentsView> {
     );
 
     if (!mounted) return;
-    final netTotal = (total - result.discountAmount).clamp(0, total).toDouble();
-    final fullyPaid = (paid + result.paidAmount + 0.009) >= netTotal && netTotal > 0;
-    if (fullyPaid) {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('تم تسديد العقد كاملًا'),
-          content: const Text('هل تريد إنشاء سند قبض الآن؟'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('لا')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('نعم')),
-          ],
-        ),
+    if (result.paidAmount > 0) {
+      await paymentsRepo.create(
+        type: 'in',
+        amount: result.paidAmount,
+        clientId: rent.clientId,
+        rentId: rent.id,
+        method: result.paymentMethod,
+        notes: result.paymentNotes ?? 'سند قبض بعد الإغلاق السريع',
+        idempotencyKey: 'quick_close_receipt_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
       );
-      if (go == true && mounted) {
-        await paymentsRepo.create(
-          type: 'in',
-          amount: result.paidAmount,
-          clientId: rent.clientId,
-          rentId: rent.id,
-          method: result.paymentMethod,
-          notes: result.paymentNotes ?? 'سند قبض بعد الإغلاق السريع',
-          idempotencyKey: 'quick_close_receipt_${rent.id}_${DateTime.now().millisecondsSinceEpoch}',
-        );
-        if (mounted) {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentsPage()));
-        }
+      if (mounted) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentsPage()));
       }
     }
 
@@ -1856,7 +1841,7 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   @override
   void initState() {
     super.initState();
-    _discountCtrl = TextEditingController(text: '0');
+    _discountCtrl = TextEditingController(text: '');
     _amountCtrl = TextEditingController(text: _requiredNow().round().toString());
     _discountCtrl.addListener(_applyDiscountToPaidAmount);
     _notesCtrl = TextEditingController();
@@ -1951,7 +1936,9 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                     prefixText: 'ر.ي ',
                   ),
                   validator: (v) {
-                    final n = double.tryParse((v ?? '').trim());
+                    final text = (v ?? '').trim();
+                    if (text.isEmpty) return null;
+                    final n = double.tryParse(text);
                     if (n == null || n < 0) return 'أدخل خصمًا صحيحًا';
                     if (n > widget.totalAmount) return 'الخصم لا يمكن أن يتجاوز الإجمالي';
                     return null;
