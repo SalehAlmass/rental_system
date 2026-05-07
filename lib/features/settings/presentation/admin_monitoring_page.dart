@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/features/settings/presentation/admin_alert_receipt_guard.dart';
 
 class AdminMonitoringPage extends StatefulWidget {
   const AdminMonitoringPage({super.key});
@@ -123,7 +124,12 @@ class _AdminMonitoringPageState extends State<AdminMonitoringPage> {
                       if (alerts.isEmpty)
                         const _EmptyCard(message: 'لا توجد تنبيهات مهمة في هذه الفترة.')
                       else
-                        ...alerts.map((alert) => _AlertCard(data: alert)),
+                        ...alerts.map(
+                          (alert) => AdminAlertReceiptGuard(
+                            data: alert,
+                            child: _AlertCard(data: alert),
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       _SectionHeader(
                         title: 'آخر سجل تدقيق',
@@ -428,4 +434,3 @@ String _fmtDate(String? raw) {
   if (dt == null) return raw;
   return DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
 }
-

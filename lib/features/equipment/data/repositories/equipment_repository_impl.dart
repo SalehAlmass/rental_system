@@ -35,6 +35,7 @@ class EquipmentRepository {
     int usefulLifeMonths = 60,
     String? depreciationStartDate,
     int estimatedUsageDays = 365,
+    int seriesCount = 1,
   }) async {
     try {
       final res = await _api.dio.post('equipment', data: {
@@ -52,6 +53,7 @@ class EquipmentRepository {
         'useful_life_months': usefulLifeMonths,
         'depreciation_start_date': depreciationStartDate,
         'estimated_usage_days': estimatedUsageDays,
+        'series_count': seriesCount < 1 ? 1 : seriesCount,
       });
       final data = (res.data is Map) ? (res.data as Map).cast<String, dynamic>() : <String, dynamic>{};
       final rawId = data['id'];
@@ -80,6 +82,7 @@ class EquipmentRepository {
     int usefulLifeMonths = 60,
     String? depreciationStartDate,
     int estimatedUsageDays = 365,
+    int seriesCount = 1,
   }) async {
     try {
       await _api.dio.put('equipment/$id', data: {

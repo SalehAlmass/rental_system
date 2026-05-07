@@ -11,6 +11,7 @@ import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.d
 import 'package:rental_app/features/dashboard/presentation/ui/StatCard.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
+import 'package:rental_app/features/settings/presentation/admin_alert_receipt_guard.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
 
 class DashboardHome extends StatefulWidget {
@@ -1092,7 +1093,12 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
           else if (_alerts.isEmpty)
             const _InlineEmpty(message: 'لا توجد تنبيهات فورية حالياً.')
           else
-            ..._alerts.take(4).map((alert) => _AlertStrip(data: alert)),
+            ..._alerts.take(4).map(
+              (alert) => AdminAlertReceiptGuard(
+                data: alert,
+                child: _AlertStrip(data: alert),
+              ),
+            ),
         ],
       ),
     );

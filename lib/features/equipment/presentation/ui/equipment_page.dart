@@ -305,6 +305,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
   final _lifeMonths = TextEditingController();
   final _startDate = TextEditingController();
   final _usageDays = TextEditingController();
+  final _seriesCount = TextEditingController(text: '1');
   final _formKey = GlobalKey<FormState>();
 
   String _status = 'available';
@@ -362,6 +363,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       _lifeMonths.text = e.usefulLifeMonths.toString();
       _startDate.text = e.depreciationStartDate ?? '';
       _usageDays.text = e.estimatedUsageDays.toString();
+      _seriesCount.text = '1';
       _status = e.status ?? 'available';
       _active = e.isActive;
     } else {
@@ -369,6 +371,22 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       _startDate.text =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _model.dispose();
+    _serial.dispose();
+    _rate.dispose();
+    _dep.dispose();
+    _purchase.dispose();
+    _salvage.dispose();
+    _lifeMonths.dispose();
+    _startDate.dispose();
+    _usageDays.dispose();
+    _seriesCount.dispose();
+    super.dispose();
   }
 
   @override
@@ -403,11 +421,30 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
               TextFormField(
                 controller: _serial,
                 validator: validateSerialNo,
-                decoration: const InputDecoration(
-                  labelText: 'الرقم التسلسلي',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: editing ? 'الرقم التسلسلي' : 'الرقم التسلسلي الأساسي (اختياري)',
+                  helperText: editing ? null : 'عند استخدام السلسلة سيتم توليد الأرقام تلقائيًا مثل: serial 1, serial 2 ...',
+                  border: const OutlineInputBorder(),
                 ),
               ),
+              if (!editing) ...[
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _seriesCount,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'السلسلة / عدد النسخ',
+                    helperText: 'مثال: اكتب 30 لإنشاء ماطور 1 إلى ماطور 30 بنفس البيانات',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final n = int.tryParse((value ?? '').trim());
+                    if (n == null || n < 1) return 'أدخل رقمًا صحيحًا أكبر من صفر';
+                    if (n > 500) return 'الحد الأعلى للسلسلة 500 معدة في عملية واحدة';
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -557,6 +594,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
       final salvage = double.tryParse(_salvage.text) ?? 0;
       final lifeMonths = int.tryParse(_lifeMonths.text) ?? 60;
       final usageDays = int.tryParse(_usageDays.text) ?? 365;
+      final seriesCount = editing ? 1 : (int.tryParse(_seriesCount.text.trim()) ?? 1);
       final startDate = _startDate.text.trim().isNotEmpty
           ? _startDate.text.trim()
           : '${DateTime.now().year.toString().padLeft(4, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
@@ -594,6 +632,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
             usefulLifeMonths: lifeMonths,
             depreciationStartDate: startDate,
             estimatedUsageDays: usageDays,
+            seriesCount: seriesCount,
           ),
         );
       }

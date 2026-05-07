@@ -43,6 +43,7 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
         usefulLifeMonths: event.usefulLifeMonths,
         depreciationStartDate: event.depreciationStartDate,
         estimatedUsageDays: event.estimatedUsageDays,
+        seriesCount: event.seriesCount,
       );
       final items = await _repo.list();
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));

@@ -23,6 +23,7 @@ class EquipmentCreated extends EquipmentEvent {
     this.usefulLifeMonths = 60,
     this.depreciationStartDate,
     this.estimatedUsageDays = 365,
+    this.seriesCount = 1,
   });
 
   final String name;
@@ -38,9 +39,10 @@ class EquipmentCreated extends EquipmentEvent {
   final int usefulLifeMonths;
   final String? depreciationStartDate;
   final int estimatedUsageDays;
+  final int seriesCount;
 
   @override
-  List<Object?> get props => [name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive, purchasePrice, salvageValue, usefulLifeMonths, depreciationStartDate, estimatedUsageDays];
+  List<Object?> get props => [name, model, serialNo, status, dailyRate, depreciationRate, lastMaintenanceDate, isActive, purchasePrice, salvageValue, usefulLifeMonths, depreciationStartDate, estimatedUsageDays, seriesCount];
 }
 
 class EquipmentUpdated extends EquipmentEvent {
