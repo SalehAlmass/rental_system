@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,10 +19,11 @@ class _BackupPageState extends State<BackupPage> {
   late final BackupRepository repo;
 
   bool loading = true;
+  bool working = false;
   String? error;
   List<BackupItem> items = const [];
 
-  String backupType = 'full'; // full | def | log
+  String backupType = 'full';
 
   @override
   void initState() {
@@ -36,16 +40,23 @@ class _BackupPageState extends State<BackupPage> {
 
     try {
       final list = await repo.list();
+      if (!mounted) return;
       setState(() {
         items = list;
         loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = _errorMessage(e);
         loading = false;
       });
     }
+  }
+
+  String _errorMessage(Object e) {
+    if (e is ApiFailure) return e.message;
+    return e.toString();
   }
 
   String _fmtSize(int bytes) {
@@ -56,16 +67,80 @@ class _BackupPageState extends State<BackupPage> {
     return '${mb.toStringAsFixed(1)} MB';
   }
 
-  Future<void> _createBackup() async {
+  String _backupTypeLabel(String type) {
+    switch (type) {
+      case 'def':
+        return 'هيكل فقط';
+      case 'log':
+        return 'سجل فقط';
+      default:
+        return 'كامل';
+    }
+  }
+
+  String _buildLocalBackupName() {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+
+    return 'alkhair_backup_${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}.sql';
+  }
+
+  Future<void> _createBackupOnly() async {
+    setState(() => working = true);
+
     try {
       await repo.create(type: backupType);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ تم إنشاء النسخة')),
+        const SnackBar(content: Text('✅ تم إنشاء النسخة داخل النظام')),
       );
+
       await _load();
     } catch (e) {
       _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
+  Future<void> _createBackupChooseLocation() async {
+    setState(() => working = true);
+
+    try {
+      final dir = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'اختر مكان حفظ النسخة الاحتياطية',
+      );
+
+      if (dir == null || dir.trim().isEmpty) {
+        if (mounted) setState(() => working = false);
+        return;
+      }
+
+      final created = await repo.create(type: backupType);
+      final bytes = await repo.download(file: created.file);
+
+      if (bytes.isEmpty) {
+        throw  ApiFailure('تم إنشاء النسخة لكن تعذر تحميل الملف');
+      }
+
+      final fileName = _buildLocalBackupName();
+      final savePath = '$dir${Platform.pathSeparator}$fileName';
+
+      final file = File(savePath);
+      await file.writeAsBytes(bytes, flush: true);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ تم حفظ النسخة في:\n$savePath')),
+      );
+
+      await _load();
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
     }
   }
 
@@ -75,16 +150,24 @@ class _BackupPageState extends State<BackupPage> {
       body: 'سيتم استرجاع النسخة:\n$file\n\nهل تريد المتابعة؟',
       confirmText: 'استرجاع',
     );
+
     if (!ok) return;
+
+    setState(() => working = true);
 
     try {
       await repo.restore(file: file);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ تم الاسترجاع بنجاح')),
       );
+
+      await _load();
     } catch (e) {
       _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
     }
   }
 
@@ -95,51 +178,70 @@ class _BackupPageState extends State<BackupPage> {
       confirmText: 'حذف',
       danger: true,
     );
+
     if (!ok) return;
+
+    setState(() => working = true);
 
     try {
       await repo.delete(file: file);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('🗑️ تم حذف النسخة')),
       );
+
       await _load();
     } catch (e) {
       _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
     }
   }
 
   Future<void> _clearAll() async {
     final ok = await _confirm(
       title: 'حذف جميع النسخ',
-      body: 'سيتم حذف جميع النسخ الاحتياطية.\nهل أنت متأكد؟',
+      body: 'سيتم حذف جميع النسخ الاحتياطية الموجودة داخل النظام.\nهل أنت متأكد؟',
       confirmText: 'حذف الكل',
       danger: true,
     );
+
     if (!ok) return;
+
+    setState(() => working = true);
 
     try {
       await repo.clear();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('🗑️ تم حذف جميع النسخ')),
       );
+
       await _load();
     } catch (e) {
       _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
     }
   }
 
   void _showError(Object e) {
-    final msg = (e is ApiFailure) ? e.message : e.toString();
+    final msg = _errorMessage(e);
+
     if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('خطأ'),
         content: Text(msg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
         ],
       ),
     );
@@ -157,7 +259,10 @@ class _BackupPageState extends State<BackupPage> {
         title: Text(title),
         content: Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
             style: danger
                 ? FilledButton.styleFrom(backgroundColor: Colors.red)
@@ -168,55 +273,123 @@ class _BackupPageState extends State<BackupPage> {
         ],
       ),
     );
+
     return res == true;
   }
 
   @override
   Widget build(BuildContext context) {
+    final disabled = loading || working;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('النسخ الاحتياطي'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'تحديث',
+            onPressed: disabled ? null : _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Toolbar
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: backupType,
-                    decoration: const InputDecoration(
-                      labelText: 'نوع النسخة',
-                      border: OutlineInputBorder(),
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.black.withOpacity(0.08)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'إنشاء نسخة احتياطية',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'full', child: Text('Full (كامل)')),
-                      DropdownMenuItem(value: 'def', child: Text('Def (هيكل فقط)')),
-                      DropdownMenuItem(value: 'log', child: Text('Log (سجل)')),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: backupType,
+                            decoration: const InputDecoration(
+                              labelText: 'نوع النسخة',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'full',
+                                child: Text('كامل'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'def',
+                                child: Text('هيكل فقط'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'log',
+                                child: Text('سجل / بيانات'),
+                              ),
+                            ],
+                            onChanged: disabled
+                                ? null
+                                : (v) => setState(
+                                      () => backupType = v ?? 'full',
+                                    ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          onPressed: disabled ? null : _createBackupOnly,
+                          icon: const Icon(Icons.add),
+                          label: const Text('إنشاء'),
+                        ),
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          onPressed:
+                              disabled ? null : _createBackupChooseLocation,
+                          icon: const Icon(Icons.folder_open),
+                          label: const Text('اختيار مكان وحفظ'),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: disabled ? null : _clearAll,
+                          icon: const Icon(
+                            Icons.delete_forever,
+                            color: Colors.red,
+                          ),
+                          label: const Text('حذف الكل'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'زر "اختيار مكان وحفظ" ينشئ النسخة ثم يحفظها في المجلد الذي يختاره المدير مثل سطح المكتب أو فلاش USB أو قرص D.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (working) ...[
+                      const SizedBox(height: 12),
+                      const LinearProgressIndicator(),
                     ],
-                    onChanged: (v) => setState(() => backupType = v ?? 'full'),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: loading ? null : _createBackup,
-                  icon: const Icon(Icons.add),
-                  label: const Text('إنشاء'),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: loading ? null : _clearAll,
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
-                  label: const Text('حذف الكل'),
-                ),
-              ],
+              ),
             ),
           ),
 
-          if (loading) const Expanded(child: Center(child: CircularProgressIndicator())),
+          if (loading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
           if (!loading && error != null)
             Expanded(
               child: Center(
@@ -248,18 +421,39 @@ class _BackupPageState extends State<BackupPage> {
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final b = items[i];
+
                         return Card(
                           child: ListTile(
-                            title: Text(b.file, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('${_fmtSize(b.size)} • ${b.createdAt}'),
+                            leading: const CircleAvatar(
+                              child: Icon(Icons.storage),
+                            ),
+                            title: Text(
+                              b.file,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              '${_fmtSize(b.size)} • ${b.createdAt}',
+                            ),
                             trailing: PopupMenuButton<String>(
+                              enabled: !working,
                               onSelected: (v) async {
-                                if (v == 'restore') await _restoreBackup(b.file);
-                                if (v == 'delete') await _deleteBackup(b.file);
+                                if (v == 'restore') {
+                                  await _restoreBackup(b.file);
+                                }
+                                if (v == 'delete') {
+                                  await _deleteBackup(b.file);
+                                }
                               },
                               itemBuilder: (_) => const [
-                                PopupMenuItem(value: 'restore', child: Text('استرجاع')),
-                                PopupMenuItem(value: 'delete', child: Text('حذف')),
+                                PopupMenuItem(
+                                  value: 'restore',
+                                  child: Text('استرجاع'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('حذف'),
+                                ),
                               ],
                             ),
                           ),
