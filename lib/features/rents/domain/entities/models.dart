@@ -1,9 +1,63 @@
+class RentItem {
+  const RentItem({
+    required this.id,
+    required this.rentId,
+    required this.equipmentId,
+    this.rate,
+    this.notes,
+    this.status,
+    this.startDatetime,
+    this.endDatetime,
+    this.replacedById,
+    this.equipmentName,
+    this.serialNo,
+    this.internalCode,
+  });
+
+  final int id;
+  final int rentId;
+  final int equipmentId;
+  final double? rate;
+  final String? notes;
+  final String? status;
+  final String? startDatetime;
+  final String? endDatetime;
+  final int? replacedById;
+  final String? equipmentName;
+  final String? serialNo;
+  final String? internalCode;
+
+  factory RentItem.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic v) =>
+        v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+
+    double? toDouble(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+
+    return RentItem(
+      id: toInt(json['id']),
+      rentId: toInt(json['rent_id']),
+      equipmentId: toInt(json['equipment_id']),
+      rate: toDouble(json['rate']),
+      notes: json['notes']?.toString(),
+      status: json['status']?.toString(),
+      startDatetime: json['start_datetime']?.toString(),
+      endDatetime: json['end_datetime']?.toString(),
+      replacedById: json['replaced_by_id'] == null ? null : toInt(json['replaced_by_id']),
+      equipmentName: json['equipment_name']?.toString(),
+      serialNo: json['serial_no']?.toString(),
+      internalCode: json['internal_code']?.toString(),
+    );
+  }
+}
+
 class Rent {
   const Rent({
     required this.id,
     required this.clientId,
     required this.equipmentId,
     required this.startDatetime,
+    this.items = const [],
     this.endDatetime,
     this.hours,
     this.rate,
@@ -33,6 +87,7 @@ class Rent {
   final int equipmentId;
 
   final String startDatetime;
+  final List<RentItem> items;
   final String? endDatetime;
 
   final double? hours;
@@ -75,6 +130,9 @@ class Rent {
       clientId: toInt(json['client_id']),
       equipmentId: toInt(json['equipment_id']),
       startDatetime: json['start_datetime']?.toString() ?? '',
+      items: json['items'] != null
+          ? (json['items'] as List).map((e) => RentItem.fromJson(e as Map<String, dynamic>)).toList()
+          : [],
       endDatetime: json['end_datetime']?.toString(),
       hours: toDouble(json['hours']),
       rate: toDouble(json['rate']),
@@ -109,6 +167,7 @@ class Rent {
     int? clientId,
     int? equipmentId,
     String? startDatetime,
+    List<RentItem>? items,
     String? endDatetime,
     double? hours,
     double? rate,
@@ -137,6 +196,7 @@ class Rent {
       clientId: clientId ?? this.clientId,
       equipmentId: equipmentId ?? this.equipmentId,
       startDatetime: startDatetime ?? this.startDatetime,
+      items: items ?? this.items,
       endDatetime: endDatetime ?? this.endDatetime,
       hours: hours ?? this.hours,
       rate: rate ?? this.rate,

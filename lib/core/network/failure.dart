@@ -4,5 +4,5 @@ class ApiFailure implements Exception {
   final int? statusCode;
 
   @override
-  String toString() => "ApiFailure(statusCode: $statusCode, message: $message)";
+  String toString() => message;
 }

@@ -18,26 +18,40 @@ class RentsRequested extends RentsEvent {
 class RentOpened extends RentsEvent {
   const RentOpened({
     required this.clientId,
-    required this.equipmentId,
     required this.startDatetime,
-    this.dailyRate = 0,
+    this.items,
     this.notes,
   });
 
   final int clientId;
-  final int equipmentId;
   final String startDatetime;
-  final double dailyRate;
+  final List<Map<String, dynamic>>? items;
   final String? notes;
 
   @override
   List<Object?> get props => [
         clientId,
-        equipmentId,
         startDatetime,
-        dailyRate,
+        items,
         notes,
       ];
+}
+
+class RentEquipmentReplaced extends RentsEvent {
+  const RentEquipmentReplaced({
+    required this.rentId,
+    required this.oldEquipmentId,
+    required this.newEquipmentId,
+    this.notes,
+  });
+
+  final int rentId;
+  final int oldEquipmentId;
+  final int newEquipmentId;
+  final String? notes;
+
+  @override
+  List<Object?> get props => [rentId, oldEquipmentId, newEquipmentId, notes];
 }
 
 class RentClosed extends RentsEvent {

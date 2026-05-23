@@ -79,6 +79,8 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
   final _phone = TextEditingController();
   final _nid = TextEditingController();
   final _addr = TextEditingController();
+  final _creditLimit = TextEditingController(text: '0');
+  bool _isFrozen = false;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -87,6 +89,7 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
     _phone.dispose();
     _nid.dispose();
     _addr.dispose();
+    _creditLimit.dispose();
     super.dispose();
   }
 
@@ -101,7 +104,15 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
             children: [
               TextFormField(
                 controller: _name,
-                validator: validateName,
+                validator: (val) {
+                  final baseError = validateName(val);
+                  if (baseError != null) return baseError;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.name.trim() == val!.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 decoration: const InputDecoration(
                   labelText: 'الاسم',
                   border: OutlineInputBorder(),
@@ -110,7 +121,15 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _phone,
-                validator: validatePhone,
+                validator: (val) {
+                  final baseError = validatePhone(val);
+                  if (baseError != null) return baseError;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.phone?.trim() == val!.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'الجوال',
@@ -120,7 +139,16 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nid,
-                validator: validateNationalId,
+                validator: (val) {
+                  final baseError = validateNationalId(val);
+                  if (baseError != null) return baseError;
+                  if (val!.trim().isEmpty) return null;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.nationalId?.trim() == val.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'رقم الهوية',
@@ -135,6 +163,33 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
                   labelText: 'العنوان',
                   border: OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _creditLimit,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'الحد الائتماني',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (val) {
+                  if (val != null && val.isNotEmpty) {
+                    if (double.tryParse(val) == null) {
+                      return 'الرجاء إدخال رقم صحيح';
+                    }
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: const Text('إيقاف العميل (تجميد)'),
+                value: _isFrozen,
+                onChanged: (val) {
+                  setState(() {
+                    _isFrozen = val;
+                  });
+                },
               ),
             ],
           ),
@@ -154,6 +209,8 @@ class _CreateClientDialogState extends State<CreateClientDialog> {
                 "phone": _phone.text.trim(),
                 "nationalId": nationalId.isEmpty ? null : nationalId,
                 "address": _addr.text.trim(),
+                "creditLimit": double.tryParse(_creditLimit.text.trim()) ?? 0.0,
+                "isFrozen": _isFrozen ? 1 : 0,
               });
             }
           },
@@ -178,6 +235,8 @@ class _EditClientDialogState extends State<EditClientDialog> {
   late final TextEditingController _phone;
   late final TextEditingController _nid;
   late final TextEditingController _addr;
+  late final TextEditingController _creditLimit;
+  late bool _isFrozen;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -187,6 +246,8 @@ class _EditClientDialogState extends State<EditClientDialog> {
     _phone = TextEditingController(text: widget.client.phone);
     _nid = TextEditingController(text: widget.client.nationalId);
     _addr = TextEditingController(text: widget.client.address);
+    _creditLimit = TextEditingController(text: widget.client.creditLimit.toString());
+    _isFrozen = widget.client.isFrozen == 1;
   }
 
   @override
@@ -195,6 +256,7 @@ class _EditClientDialogState extends State<EditClientDialog> {
     _phone.dispose();
     _nid.dispose();
     _addr.dispose();
+    _creditLimit.dispose();
     super.dispose();
   }
 
@@ -211,7 +273,15 @@ class _EditClientDialogState extends State<EditClientDialog> {
             children: [
               TextFormField(
                 controller: _name,
-                validator: validateName,
+                validator: (val) {
+                  final baseError = validateName(val);
+                  if (baseError != null) return baseError;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.id != widget.client.id && c.name.trim() == val!.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 decoration: const InputDecoration(
                   labelText: 'الاسم',
                   border: OutlineInputBorder(),
@@ -220,7 +290,15 @@ class _EditClientDialogState extends State<EditClientDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _phone,
-                validator: validatePhone,
+                validator: (val) {
+                  final baseError = validatePhone(val);
+                  if (baseError != null) return baseError;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.id != widget.client.id && c.phone?.trim() == val!.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'الجوال',
@@ -230,7 +308,16 @@ class _EditClientDialogState extends State<EditClientDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nid,
-                validator: validateNationalId,
+                validator: (val) {
+                  final baseError = validateNationalId(val);
+                  if (baseError != null) return baseError;
+                  if (val!.trim().isEmpty) return null;
+                  final clients = context.read<ClientsBloc>().state.items;
+                  if (clients.any((c) => c.id != widget.client.id && c.nationalId?.trim() == val.trim())) {
+                    return 'تمت اضافة هذا العميل مسبقا';
+                  }
+                  return null;
+                },
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'رقم الهوية',
@@ -245,6 +332,33 @@ class _EditClientDialogState extends State<EditClientDialog> {
                   labelText: 'العنوان',
                   border: OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _creditLimit,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'الحد الائتماني',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (val) {
+                  if (val != null && val.isNotEmpty) {
+                    if (double.tryParse(val) == null) {
+                      return 'الرجاء إدخال رقم صحيح';
+                    }
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: const Text('إيقاف العميل (تجميد)'),
+                value: _isFrozen,
+                onChanged: (val) {
+                  setState(() {
+                    _isFrozen = val;
+                  });
+                },
               ),
             ],
           ),
@@ -284,6 +398,8 @@ class _EditClientDialogState extends State<EditClientDialog> {
                             phone: _phone.text.trim(),
                             nationalId: nationalId.isEmpty ? null : nationalId,
                             address: _addr.text.trim(),
+                            creditLimit: double.tryParse(_creditLimit.text.trim()) ?? 0.0,
+                            isFrozen: _isFrozen ? 1 : 0,
                           ),
                         );
                       }

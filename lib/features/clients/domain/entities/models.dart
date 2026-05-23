@@ -7,6 +7,7 @@ class Client {
     this.address,
     this.isFrozen = 0,
     this.creditLimit = 0,
+    this.totalDebt = 0,
   });
 
   final int id;
@@ -16,6 +17,10 @@ class Client {
   final String? address;
   final int isFrozen;
   final double creditLimit;
+  final double totalDebt;
+
+  /// Whether the client exceeds their credit limit (only if creditLimit > 0)
+  bool get isOverCreditLimit => creditLimit > 0 && totalDebt >= creditLimit;
 
   // 🔹 Helpers آمنة للتحويل
   static int _toInt(dynamic v) {
@@ -46,6 +51,7 @@ class Client {
       address: _toNullableString(json['address']),
       isFrozen: _toInt(json['is_frozen']),
       creditLimit: _toDouble(json['credit_limit']),
+      totalDebt: _toDouble(json['total_debt']),
     );
   }
 }

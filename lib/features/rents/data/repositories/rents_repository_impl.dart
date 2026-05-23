@@ -64,23 +64,25 @@ class RentsRepository {
 
   // باقي الدوال كما هي
   Future<int> openRent({
-  required int clientId,
-  required int equipmentId,
-  required String startDatetime,
-  double dailyRate = 0,
-  String? notes,
-}) async {
-  try {
-    final res = await _api.dio.post(
-      'rents',
-      data: {
-        'client_id': clientId,
-        'equipment_id': equipmentId,
-        'start_datetime': startDatetime,
-        if (dailyRate > 0) 'rate': dailyRate,
-        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
-      },
-    );
+    required int clientId,
+    required String startDatetime,
+    List<Map<String, dynamic>>? items,
+    int? equipmentId,
+    double dailyRate = 0,
+    String? notes,
+  }) async {
+    try {
+      final res = await _api.dio.post(
+        'rents',
+        data: {
+          'client_id': clientId,
+          'start_datetime': startDatetime,
+          if (items != null && items.isNotEmpty) 'items': items,
+          if (equipmentId != null) 'equipment_id': equipmentId,
+          if (dailyRate > 0) 'rate': dailyRate,
+          if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        },
+      );
 
     final root = ((res.data is Map ? res.data : {}) is Map)
         ? ((res.data is Map ? res.data : {}) as Map).cast<String, dynamic>()
@@ -118,6 +120,27 @@ class RentsRepository {
       final msg = (data is Map && data['error'] != null)
           ? data['error'].toString()
           : (e.message ?? 'Failed to update rent');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  Future<void> replaceEquipment({
+    required int rentId,
+    required int oldEquipmentId,
+    required int newEquipmentId,
+    String? notes,
+  }) async {
+    try {
+      await _api.dio.post('rents/$rentId/replace_item', data: {
+        'old_equipment_id': oldEquipmentId,
+        'new_equipment_id': newEquipmentId,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to replace equipment');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }

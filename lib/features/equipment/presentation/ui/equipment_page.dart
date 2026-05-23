@@ -104,6 +104,13 @@ class _EquipmentView extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'المعدات',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تحديث',
+            onPressed: () => context.read<EquipmentBloc>().add(EquipmentRequested()),
+          ),
+        ],
         onIconPressed: showBackButton
             ? () {
                 Navigator.pop(context);

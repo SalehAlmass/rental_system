@@ -90,6 +90,16 @@ class _PaymentsViewState extends State<_PaymentsView> {
                     ? () => Navigator.pop(context)
                     : null,
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'تحديث',
+                    onPressed: () {
+                      final state = context.read<PaymentsBloc>().state;
+                      context.read<PaymentsBloc>().add(
+                        PaymentsRequested(showVoided: state.showVoided),
+                      );
+                    },
+                  ),
                   BlocBuilder<PaymentsBloc, PaymentsState>(
                     builder: (context, state) {
                       return IconButton(

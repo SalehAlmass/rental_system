@@ -13,6 +13,8 @@ import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
 import 'package:rental_app/features/settings/presentation/admin_alert_receipt_guard.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
+import 'package:rental_app/features/clients/domain/entities/models.dart';
+import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
 
 class DashboardHome extends StatefulWidget {
   final bool isAdmin;
@@ -391,6 +393,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               value: '${summary.openCount}',
                               color: Colors.blue,
                               icon: Icons.lock_open_rounded,
+                              onTap: () => onOpenRentsWithFilter?.call('open'),
                             ),
                             _StatusRow(
                               label: 'أُغلقت اليوم',
@@ -403,12 +406,14 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               value: '${summary.deferredCount}',
                               color: Colors.orange,
                               icon: Icons.payments_outlined,
+                              onTap: () => onOpenRentsWithFilter?.call('deferred'),
                             ),
                             _StatusRow(
                               label: 'متأخرة',
                               value: '${summary.overdueCount}',
                               color: Colors.red,
                               icon: Icons.priority_high_rounded,
+                              onTap: () => onOpenRentsWithFilter?.call('overdue'),
                             ),
                           ],
                         ),
@@ -608,22 +613,30 @@ class _StatusRow extends StatelessWidget {
     required this.value,
     required this.color,
     required this.icon,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final Color color;
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(18),
       ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           CircleAvatar(
@@ -647,6 +660,9 @@ class _StatusRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }
@@ -1186,6 +1202,21 @@ class _AlertStrip extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: entityId)),
+        );
+      };
+    } else if (entity == 'client' && entityId != null && entityId > 0) {
+      onTap = () {
+        final clientName = (data['meta'] is Map ? data['meta']['client_name'] : null)?.toString();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ClientDetailsPage(
+              client: Client(
+                id: entityId,
+                name: clientName ?? 'العميل #$entityId',
+              ),
+            ),
+          ),
         );
       };
     }

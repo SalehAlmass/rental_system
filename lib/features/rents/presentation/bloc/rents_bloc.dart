@@ -13,6 +13,7 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     on<RentClosed>(_onClosed);
     on<RentCancelled>(_onCancelled);
     on<RentNotesUpdated>(_onNotesUpdated);
+    on<RentEquipmentReplaced>(_onEquipmentReplaced);
   }
 
   final RentsRepository _repo;
@@ -48,6 +49,40 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     }
   }
 
+  Future<void> _onEquipmentReplaced(
+    RentEquipmentReplaced event,
+    Emitter<RentsState> emit,
+  ) async {
+    emit(state.copyWith(working: true, error: null));
+
+    try {
+      await _repo.replaceEquipment(
+        rentId: event.rentId,
+        oldEquipmentId: event.oldEquipmentId,
+        newEquipmentId: event.newEquipmentId,
+        notes: event.notes,
+      );
+
+      final items = await _repo.list(status: state.filterStatus);
+
+      emit(
+        state.copyWith(
+          working: false,
+          status: RentsStatus.success,
+          items: items,
+          error: null,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          working: false,
+          error: e.toString(),
+        ),
+      );
+    }
+  }
+
   Future<void> _onOpened(
     RentOpened event,
     Emitter<RentsState> emit,
@@ -57,9 +92,8 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     try {
       await _repo.openRent(
         clientId: event.clientId,
-        equipmentId: event.equipmentId,
+        items: event.items,
         startDatetime: event.startDatetime,
-        dailyRate: event.dailyRate,
         notes: event.notes,
       );
 

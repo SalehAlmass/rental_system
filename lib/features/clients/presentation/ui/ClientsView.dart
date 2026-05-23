@@ -18,6 +18,13 @@ class ClientsView extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'العملاء',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تحديث',
+            onPressed: () => context.read<ClientsBloc>().add(ClientsRequested()),
+          ),
+        ],
         onIconPressed: showBackButton ? () {
           Navigator.pop(context);
         } : null,
@@ -72,20 +79,25 @@ class ClientsView extends StatelessWidget {
   }
 
   Future<void> _openCreateDialog(BuildContext context) async {
+    final bloc = context.read<ClientsBloc>();
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (_) => const CreateClientDialog(),
+      builder: (_) => BlocProvider.value(
+        value: bloc,
+        child: const CreateClientDialog(),
+      ),
     );
 
     if (result == null) return;
 
-    final bloc = context.read<ClientsBloc>();
     bloc.add(
       ClientCreated(
         name: result["name"],
         phone: result["phone"],
         nationalId: result["nationalId"],
         address: result["address"],
+        creditLimit: result["creditLimit"] ?? 0.0,
+        isFrozen: result["isFrozen"] ?? 0,
       ),
     );
   }

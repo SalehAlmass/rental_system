@@ -418,24 +418,46 @@ class _CloseShiftDialog extends StatefulWidget {
 }
 
 class _CloseShiftDialogState extends State<_CloseShiftDialog> {
-  final _cash = TextEditingController(text: '0');
-  final _transfer = TextEditingController(text: '0');
   final _drawer = TextEditingController();
   final _note = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   DateTime _date = DateTime.now();
   bool _submitting = false;
+  bool _loadingSummary = true;
+  double _systemCash = 0;
+  double _systemTransfer = 0;
 
-  double get _cashValue => double.tryParse(_cash.text.trim()) ?? 0;
-  double get _transferValue => double.tryParse(_transfer.text.trim()) ?? 0;
   double get _drawerValue => double.tryParse(_drawer.text.trim()) ?? 0;
-  double get _expected => _cashValue + _transferValue;
+  double get _expected => _systemCash + _systemTransfer;
   double get _difference => _drawerValue - _expected;
 
   @override
+  void initState() {
+    super.initState();
+    _fetchTodaySummary();
+  }
+
+  Future<void> _fetchTodaySummary() async {
+    setState(() => _loadingSummary = true);
+    try {
+      final api = context.read<ApiClient>();
+      final dateStr = DateFormat('yyyy-MM-dd').format(_date);
+      final res = await api.dio.get('shifts/today-summary?date=$dateStr');
+      final data = res.data is Map ? (res.data['data'] ?? res.data) : {};
+      if (mounted) {
+        setState(() {
+          _systemCash = (data['cash_total'] is num) ? (data['cash_total'] as num).toDouble() : 0;
+          _systemTransfer = (data['transfer_total'] is num) ? (data['transfer_total'] as num).toDouble() : 0;
+          _loadingSummary = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSummary = false);
+    }
+  }
+
+  @override
   void dispose() {
-    _cash.dispose();
-    _transfer.dispose();
     _drawer.dispose();
     _note.dispose();
     super.dispose();
@@ -459,33 +481,54 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
                   leading: const Icon(Icons.calendar_month),
                   title: Text(DateFormat('yyyy-MM-dd').format(_date)),
                   subtitle: const Text('تاريخ الإقفال'),
-                  trailing: TextButton(onPressed: _pickDate, child: const Text('تغيير')),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      await _pickDate();
+                      _fetchTodaySummary();
+                    },
+                    child: const Text('تغيير'),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _cash,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'إجمالي المقبوض النقدي حسب النظام',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.payments_outlined),
+                // ✅ حقول النظام - للقراءة فقط
+                if (_loadingSummary)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.withOpacity(0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.lock_outlined, size: 16, color: Colors.blue),
+                            const SizedBox(width: 6),
+                            Text('بيانات النظام (للقراءة فقط)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 12)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _calcRow('النقد حسب النظام', currency.format(_systemCash)),
+                        const SizedBox(height: 6),
+                        _calcRow('التحويلات حسب النظام', currency.format(_systemTransfer)),
+                        const SizedBox(height: 6),
+                        const Divider(),
+                        _calcRow('الإجمالي المتوقع', currency.format(_expected),
+                            valueStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                      ],
+                    ),
                   ),
-                  onChanged: (_) => setState(() {}),
-                  validator: _validateNonNegative,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _transfer,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'إجمالي التحويلات حسب النظام',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  validator: _validateNonNegative,
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 14),
+                ],
+                // ✅ الحقل الوحيد القابل للتعديل
                 TextFormField(
                   controller: _drawer,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -493,6 +536,7 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
                     labelText: 'المبلغ الفعلي الموجود في الصندوق',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.point_of_sale_outlined),
+                    helperText: 'أدخل المبلغ النقدي الفعلي الذي قمت بعده',
                   ),
                   onChanged: (_) => setState(() {}),
                   validator: (v) {
@@ -507,17 +551,17 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: diff == 0
+                        ? Theme.of(context).colorScheme.surfaceContainerHighest
+                        : (diff > 0 ? Colors.green.withOpacity(0.08) : Colors.red.withOpacity(0.08)),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
-                    children: [
-                      _calcRow('الإجمالي المتوقع', currency.format(_expected)),
-                      const SizedBox(height: 6),
-                      _calcRow('الفرق', currency.format(diff),
-                          valueColor: diff == 0 ? null : (diff > 0 ? Colors.green : Colors.red)),
-                    ],
-                  ),
+                  child: _calcRow('الفرق', currency.format(diff),
+                      valueStyle: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: diff == 0 ? null : (diff > 0 ? Colors.green : Colors.red),
+                      )),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -542,27 +586,17 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
         ElevatedButton.icon(
           icon: const Icon(Icons.save_outlined),
           label: const Text('حفظ الإغلاق'),
-          onPressed: _submitting ? null : _submit,
+          onPressed: _submitting || _loadingSummary ? null : _submit,
         ),
       ],
     );
   }
 
-  String? _validateNonNegative(String? v) {
-    if (v == null || v.trim().isEmpty) return 'مطلوب';
-    final n = double.tryParse(v);
-    if (n == null || n < 0) return 'قيمة غير صحيحة';
-    return null;
-  }
-
-  Widget _calcRow(String label, String value, {Color? valueColor}) {
+  Widget _calcRow(String label, String value, {TextStyle? valueStyle}) {
     return Row(
       children: [
         Expanded(child: Text(label)),
-        Text(
-          value,
-          style: TextStyle(fontWeight: FontWeight.w800, color: valueColor),
-        ),
+        Text(value, style: valueStyle ?? const TextStyle(fontWeight: FontWeight.w800)),
       ],
     );
   }
@@ -583,8 +617,8 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
     context.read<ShiftsBloc>().add(
           ShiftClosed(
             shiftDate: DateFormat('yyyy-MM-dd').format(_date),
-            cashTotal: _cashValue,
-            transferTotal: _transferValue,
+            cashTotal: _systemCash,
+            transferTotal: _systemTransfer,
             cashInDrawer: _drawerValue,
             note: _note.text.trim().isEmpty ? null : _note.text.trim(),
           ),

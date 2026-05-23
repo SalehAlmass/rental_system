@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
+import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/failure.dart';
@@ -325,6 +327,9 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         initialHint: todays == null
             ? null
             : 'تم التواصل اليوم بواسطة ${_followupActor(todays)} • ${todays.contactTypeLabel} • ${todays.outcomeLabel}',
+        clientName: _rent?.clientName,
+        clientPhone: null, // سيتم جلبه من API لاحقاً إن وُجد
+        rentNo: _rent?.id,
       ),
     );
 
@@ -564,14 +569,38 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      if (!isOpen && rent.closedAt != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'تم إغلاق العقد بتاريخ: ${_fmtDateTime(rent.closedAt!)}',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       _card(
                         title: 'معلومات العقد',
                         child: Column(
                           children: [
                             _kv('رقم العقد', '#${rent.id}'),
                             _kv('العميل', rent.clientName ?? rent.clientId.toString()),
-                            _kv('المعدة', rent.equipmentName ?? rent.equipmentId.toString()),
-                            _kv('سعر اليوم', '${(rent.rate ?? 0).round()} ر.ي'),
                             _kv('الحالة', _statusText(rent.status)),
                             _kv('بداية', _fmtDateTime(rent.startDatetime)),
                             _kv(
@@ -599,6 +628,44 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                                   ? '-'
                                   : '${_effectiveRemaining.round()} ر.ي',
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _card(
+                        title: 'المعدات المستأجرة',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (rent.items.isEmpty)
+                              const Text('لا توجد معدات مسجلة (بيانات قديمة)'),
+                            ...rent.items.map((it) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _kv('المعدة', '${it.equipmentName ?? it.equipmentId}${it.serialNo != null && it.serialNo!.isNotEmpty ? ' (S/N: ${it.serialNo})' : ''}${it.internalCode != null && it.internalCode!.isNotEmpty ? ' (Code: ${it.internalCode})' : ''}'),
+                                  if (it.rate != null && it.rate! > 0)
+                                    _kv('السعر اليومي', '${it.rate!.round()} ر.ي'),
+                                  if (it.notes != null && it.notes!.trim().isNotEmpty)
+                                    _kv('ملاحظات', it.notes!),
+                                  _kv('الحالة', _statusText(it.status)),
+                                  if (it.startDatetime != null)
+                                    _kv('بداية', _fmtDateTime(it.startDatetime!)),
+                                  if (it.endDatetime != null)
+                                    _kv('نهاية', _fmtDateTime(it.endDatetime!)),
+                                  if (isOpen && it.status == 'open')
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.swap_horiz, size: 16),
+                                        label: const Text('استبدال'),
+                                        onPressed: () => _replaceEquipment(context, it),
+                                      ),
+                                    ),
+                                  const Divider(),
+                                ],
+                              );
+                            }).toList(),
                           ],
                         ),
                       ),
@@ -1085,10 +1152,74 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
+  }
+
+  Future<void> _replaceEquipment(BuildContext context, RentItem item) async {
+    final equipmentRepo = context.read<EquipmentRepository>();
+    final available = (await equipmentRepo.list()).where((e) => e.status != 'rented').toList();
+
+    if (!mounted) return;
+    if (available.isEmpty) {
+      _snack('لا توجد معدات متاحة للاستبدال', isError: true);
+      return;
+    }
+
+    int? selectedId = available.first.id;
+    final notesCtrl = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('استبدال معدة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('المعدة الحالية: ${item.equipmentName ?? item.equipmentId}'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: selectedId,
+                items: available.map((e) => DropdownMenuItem(value: e.id, child: Text('${e.name} - ${e.serialNo ?? "-"}'))).toList(),
+                onChanged: (v) => setDialogState(() => selectedId = v),
+                decoration: const InputDecoration(labelText: 'المعدة الجديدة', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: notesCtrl,
+                decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('استبدال'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && selectedId != null) {
+      context.read<RentsBloc>().add(
+        RentEquipmentReplaced(
+          rentId: widget.rentId,
+          oldEquipmentId: item.equipmentId,
+          newEquipmentId: selectedId!,
+          notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        )
+      );
+      _snack('جاري استبدال المعدة...');
+    }
   }
 }
 
@@ -1107,8 +1238,11 @@ class _CollectionFollowupDraft {
 }
 
 class _CollectionFollowupDialog extends StatefulWidget {
-  const _CollectionFollowupDialog({this.initialHint});
+  const _CollectionFollowupDialog({this.initialHint, this.clientName, this.clientPhone, this.rentNo});
   final String? initialHint;
+  final String? clientName;
+  final String? clientPhone;
+  final int? rentNo;
 
   @override
   State<_CollectionFollowupDialog> createState() =>
@@ -1193,6 +1327,44 @@ class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // بيانات العميل والعقد
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.18)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.clientName != null)
+                      Row(children: [
+                        const Icon(Icons.person, size: 16, color: Colors.blue),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text('العميل: ${widget.clientName}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                    if (widget.clientPhone != null && widget.clientPhone!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        const Icon(Icons.phone, size: 16, color: Colors.green),
+                        const SizedBox(width: 6),
+                        Text('الهاتف: ${widget.clientPhone}'),
+                      ]),
+                    ],
+                    if (widget.rentNo != null) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        const Icon(Icons.receipt_long, size: 16, color: Colors.orange),
+                        const SizedBox(width: 6),
+                        Text('رقم العقد: #${widget.rentNo}'),
+                      ]),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               if ((widget.initialHint ?? '').trim().isNotEmpty) ...[
                 Container(
                   width: double.infinity,
@@ -1382,10 +1554,10 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
   @override
   void initState() {
     super.initState();
+    _discountCtrl = TextEditingController(text: '0');
     _paidCtrl = TextEditingController(
       text: _requiredNow().toStringAsFixed(2),
     );
-    _discountCtrl = TextEditingController(text: '0');
     _discountCtrl.addListener(_applyDiscountToPaidAmount);
   }
 
@@ -1443,16 +1615,7 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                if (_allowSpecialPricing)
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _applySpecialPricing,
-                    onChanged: (v) => setState(() => _applySpecialPricing = v),
-                    title: const Text('تطبيق احتساب الساعات الخاص'),
-                    subtitle: const Text(
-                      'أقل من 3 ساعات = ثلثي السعر، 3 ساعات فأكثر = يوم كامل',
-                    ),
-                  ),
+
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -1506,7 +1669,9 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                     border: OutlineInputBorder(),
                     prefixText: 'ر.ي ',
                   ),
+                  readOnly: _paymentMethod == 'deferred',
                   validator: (v) {
+                    if (_paymentMethod == 'deferred') return null;
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
                     final required = _requiredNow();
@@ -1526,9 +1691,18 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                   items: const [
                     DropdownMenuItem(value: 'cash', child: Text('نقد')),
                     DropdownMenuItem(value: 'transfer', child: Text('تحويل')),
-                    DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+                    DropdownMenuItem(value: 'deferred', child: Text('آجل')),
                   ],
-                  onChanged: (v) => setState(() => _paymentMethod = v ?? 'cash'),
+                  onChanged: (v) {
+                    setState(() {
+                      _paymentMethod = v ?? 'cash';
+                      if (_paymentMethod == 'deferred') {
+                        _paidCtrl.text = '0';
+                      } else {
+                        _paidCtrl.text = _requiredNow().toStringAsFixed(2);
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
                 if (_allowReceiptToggle)

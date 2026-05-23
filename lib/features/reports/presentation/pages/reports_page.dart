@@ -81,6 +81,20 @@ class _ReportsTabsState extends State<_ReportsTabs> {
       child: Scaffold(
         appBar: CustomAppBar(
           title: 'التقارير الذكية',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'تحديث',
+              onPressed: () {
+                final state = context.read<ReportsBloc>().state;
+                context.read<ReportsBloc>().add(
+                  ReportsRefreshAllRequested(
+                    revenueGroup: state.revenueGroup,
+                  ),
+                );
+              },
+            ),
+          ],
           onIconPressed: widget.showBackButton
               ? () => Navigator.pop(context)
               : null,

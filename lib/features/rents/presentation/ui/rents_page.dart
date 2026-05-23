@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
+import 'package:rental_app/features/clients/clients/presentation/ui/client_details_page.dart';
 
 import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
@@ -20,6 +21,7 @@ import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
 import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
 import 'package:rental_app/features/settings/data/contract_closing_settings_repository.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 
 String nowSql() {
   final n = DateTime.now();
@@ -67,12 +69,8 @@ double safeRentTotal(Rent rent) {
   final hours = minutes / 60.0;
 
   double total;
-  if (hours < 3) {
-    total = dailyRate * (2 / 3);
-  } else {
-    final billableDays = (hours / 24.0).ceil();
-    total = dailyRate * (billableDays < 1 ? 1 : billableDays);
-  }
+  final billableDays = (hours / 24.0).ceil();
+  total = dailyRate * (billableDays < 1 ? 1 : billableDays);
 
   return total.round().toDouble();
 }
@@ -419,10 +417,21 @@ class _RentsViewState extends State<_RentsView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'إدارة العقود اليومية',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'إدارة العقود اليومية',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              onPressed: _reloadEverything,
+                              tooltip: 'تحديث البيانات',
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -432,6 +441,7 @@ class _RentsViewState extends State<_RentsView> {
                         ),
                         const SizedBox(height: 16),
                         TextField(
+                          autofocus: true,
                           onChanged: (value) => setState(() => _query = value),
                           decoration: InputDecoration(
                             hintText:
@@ -1466,14 +1476,24 @@ class _OpenRentDialog extends StatefulWidget {
   State<_OpenRentDialog> createState() => _OpenRentDialogState();
 }
 
+class _SelectedEquipmentItem {
+  int? equipmentId;
+  final TextEditingController rateCtrl = TextEditingController();
+  final TextEditingController notesCtrl = TextEditingController();
+
+  void dispose() {
+    rateCtrl.dispose();
+    notesCtrl.dispose();
+  }
+}
+
 class _OpenRentDialogState extends State<_OpenRentDialog> {
   List<Client> _clients = [];
   List<Equipment> _equipment = [];
 
   int? _clientId;
-  int? _equipmentId;
+  final List<_SelectedEquipmentItem> _items = [_SelectedEquipmentItem()];
 
-  final _rateCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _loading = true;
@@ -1500,15 +1520,36 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
       _clients = c;
       _equipment = availableEquipment;
       _clientId = _clients.isNotEmpty ? _clients.first.id : null;
-      _equipmentId = _equipment.isNotEmpty ? _equipment.first.id : null;
+      if (_items.isNotEmpty && _equipment.isNotEmpty) {
+         _items.first.equipmentId = _equipment.first.id;
+      }
       _loading = false;
     });
   }
 
   @override
   void dispose() {
-    _rateCtrl.dispose();
+    for (final item in _items) {
+      item.dispose();
+    }
     super.dispose();
+  }
+
+  void _addItem() {
+    setState(() {
+      final item = _SelectedEquipmentItem();
+      if (_equipment.isNotEmpty) item.equipmentId = _equipment.first.id;
+      _items.add(item);
+    });
+  }
+
+  void _removeItem(int index) {
+    if (_items.length > 1) {
+      setState(() {
+        _items[index].dispose();
+        _items.removeAt(index);
+      });
+    }
   }
 
   @override
@@ -1520,123 +1561,105 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
               height: 100,
               child: Center(child: CircularProgressIndicator()),
             )
-          : Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownSearch<Client>(
-                    items: (filter, _) => _clients
-                        .where(
-                          (c) =>
-                              c.name.toLowerCase().contains(
-                                filter.toLowerCase(),
-                              ) ||
-                              (c.phone != null && c.phone!.contains(filter)) ||
-                              (c.nationalId != null &&
-                                  c.nationalId!.contains(filter)),
-                        )
-                        .toList(),
-                    compareFn: (i, s) => i.id == s.id,
-                    itemAsString: (Client c) => '${c.id} - ${c.name}',
-                    selectedItem: _clients.isNotEmpty
-                        ? _clients.firstWhere(
-                            (c) => c.id == _clientId,
-                            orElse: () => _clients.first,
-                          )
-                        : null,
-                    onChanged: (Client? data) {
-                      if (data != null) setState(() => _clientId = data.id);
-                    },
-                    decoratorProps: const DropDownDecoratorProps(
-                      decoration: InputDecoration(
-                        labelText: 'العميل',
-                        border: OutlineInputBorder(),
+          : SizedBox(
+              width: 500,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownSearch<Client>(
+                      items: (filter, _) => _clients
+                          .where((c) => c.name.toLowerCase().contains(filter.toLowerCase()) || (c.phone != null && c.phone!.contains(filter)) || (c.nationalId != null && c.nationalId!.contains(filter)))
+                          .toList(),
+                      compareFn: (i, s) => i.id == s.id,
+                      itemAsString: (Client c) => '${c.id} - ${c.name}',
+                      selectedItem: _clients.isNotEmpty ? _clients.firstWhere((c) => c.id == _clientId, orElse: () => _clients.first) : null,
+                      onChanged: (Client? data) {
+                        if (data != null) setState(() => _clientId = data.id);
+                      },
+                      decoratorProps: const DropDownDecoratorProps(decoration: InputDecoration(labelText: 'العميل', border: OutlineInputBorder())),
+                      popupProps: PopupProps.menu(
+                        showSearchBox: true,
+                        searchFieldProps: const TextFieldProps(decoration: InputDecoration(hintText: 'ابحث بالاسم، رقم الجوال، أو الهوية...', border: OutlineInputBorder())),
+                        itemBuilder: (context, item, isDisabled, isSelected) => ListTile(title: Text(item.name), subtitle: Text('${item.phone ?? ""} | ${item.nationalId ?? ""}'), selected: isSelected, trailing: Text('#${item.id}')),
                       ),
                     ),
-                    popupProps: PopupProps.menu(
-                      showSearchBox: true,
-                      searchFieldProps: const TextFieldProps(
-                        decoration: InputDecoration(
-                          hintText: 'ابحث بالاسم، رقم الجوال، أو الهوية...',
-                          border: OutlineInputBorder(),
-                        ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _items.length,
+                        separatorBuilder: (_, __) => const Divider(height: 32),
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text('المعدة ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  const Spacer(),
+                                  if (_items.length > 1)
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                      onPressed: () => _removeItem(index),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownSearch<Equipment>(
+                                items: (filter, _) => _equipment
+                                    .where((e) => e.name.toLowerCase().contains(filter.toLowerCase()) || (e.serialNo != null && e.serialNo!.toLowerCase().contains(filter.toLowerCase())))
+                                    .toList(),
+                                compareFn: (i, s) => i.id == s.id,
+                                itemAsString: (Equipment e) => '${e.name} - ${e.serialNo ?? "-"}',
+                                selectedItem: _equipment.isNotEmpty ? _equipment.firstWhere((e) => e.id == item.equipmentId, orElse: () => _equipment.first) : null,
+                                onChanged: (Equipment? data) {
+                                  if (data != null) setState(() => item.equipmentId = data.id);
+                                },
+                                decoratorProps: const DropDownDecoratorProps(decoration: InputDecoration(labelText: 'المعدة', border: OutlineInputBorder())),
+                                popupProps: PopupProps.menu(
+                                  showSearchBox: true,
+                                  searchFieldProps: const TextFieldProps(decoration: InputDecoration(hintText: 'ابحث باسم المعدة...', border: OutlineInputBorder())),
+                                  itemBuilder: (context, eq, isDisabled, isSelected) => ListTile(title: Text(eq.name), subtitle: Text('رقم تسلسلي: ${eq.serialNo ?? "-"}'), selected: isSelected, trailing: Text('#${eq.id}')),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextFormField(
+                                      controller: item.rateCtrl,
+                                      validator: validateRate,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      decoration: const InputDecoration(labelText: 'السعر اليومي (اختياري)', border: OutlineInputBorder()),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextFormField(
+                                      controller: item.notesCtrl,
+                                      decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)', border: OutlineInputBorder()),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                      itemBuilder: (context, item, isDisabled, isSelected) =>
-                          ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              '${item.phone ?? ""} | ${item.nationalId ?? ""}',
-                            ),
-                            selected: isSelected,
-                            trailing: Text('#${item.id}'),
-                          ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownSearch<Equipment>(
-                    items: (filter, _) => _equipment
-                        .where(
-                          (e) =>
-                              e.name.toLowerCase().contains(
-                                filter.toLowerCase(),
-                              ) ||
-                              (e.serialNo != null &&
-                                  e.serialNo!.toLowerCase().contains(
-                                    filter.toLowerCase(),
-                                  )),
-                        )
-                        .toList(),
-                    compareFn: (i, s) => i.id == s.id,
-                    itemAsString: (Equipment e) =>
-                        '${e.name} - ${e.serialNo ?? "-"}',
-                    selectedItem: _equipment.isNotEmpty
-                        ? _equipment.firstWhere(
-                            (e) => e.id == _equipmentId,
-                            orElse: () => _equipment.first,
-                          )
-                        : null,
-                    onChanged: (Equipment? data) {
-                      if (data != null) setState(() => _equipmentId = data.id);
-                    },
-                    decoratorProps: const DropDownDecoratorProps(
-                      decoration: InputDecoration(
-                        labelText: 'المعدة',
-                        border: OutlineInputBorder(),
-                      ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _addItem,
+                      icon: const Icon(Icons.add),
+                      label: const Text('إضافة معدة أخرى'),
                     ),
-                    popupProps: PopupProps.menu(
-                      showSearchBox: true,
-                      searchFieldProps: const TextFieldProps(
-                        decoration: InputDecoration(
-                          hintText: 'ابحث باسم المعدة أو الرقم التسلسلي...',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      itemBuilder: (context, item, isDisabled, isSelected) =>
-                          ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              'رقم تسلسلي: ${item.serialNo ?? "-"}',
-                            ),
-                            selected: isSelected,
-                            trailing: Text('#${item.id}'),
-                          ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _rateCtrl,
-                    validator: validateRate,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'سعر اليومي  (اتياري)خ',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
       actions: [
@@ -1661,23 +1684,94 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
             return ElevatedButton(
               onPressed: disabled
                   ? null
-                  : () {
-                      if (_clientId == null || _equipmentId == null) return;
+                  : () async {
+                      if (_clientId == null) return;
+                      for (final i in _items) {
+                        if (i.equipmentId == null) return;
+                      }
                       if (!_formKey.currentState!.validate()) return;
+
+                      // ✅ التحقق من الحد الائتماني
+                      final selectedClient = _clients.cast<Client?>().firstWhere(
+                        (c) => c?.id == _clientId,
+                        orElse: () => null,
+                      );
+
+                      if (selectedClient != null && selectedClient.isFrozen == 1) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('هذا العميل مجمّد ولا يمكن فتح عقد له'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
+
+                      if (selectedClient != null && selectedClient.isOverCreditLimit) {
+                        if (!context.mounted) return;
+                        final proceed = await showDialog<bool>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+                            title: const Text('تجاوز الحد الائتماني'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('العميل: ${selectedClient.name}'),
+                                const SizedBox(height: 8),
+                                Text('الحد الائتماني: ${selectedClient.creditLimit.toStringAsFixed(0)} ر.ي'),
+                                Text('إجمالي الدين الحالي: ${selectedClient.totalDebt.toStringAsFixed(0)} ر.ي',
+                                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 12),
+                                const Text('يرجى تسديد المبلغ الآجل أو إضافة دفعة قبل فتح عقد جديد.'),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('إلغاء'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context, false); // أغلق النافذة الحالية
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ClientDetailsPage(client: selectedClient),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.person_search_outlined),
+                                label: const Text('الذهاب لصفحة العميل'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                                child: const Text('المتابعة رغم التحذير'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (proceed != true) return;
+                      }
 
                       setState(() {
                         _localSubmitting = true;
                         _submitted = true;
                       });
 
-                      final rate = double.tryParse(_rateCtrl.text.trim()) ?? 0;
+                      final itemsList = _items.map((it) {
+                         return {
+                           'equipment_id': it.equipmentId!,
+                           if (it.rateCtrl.text.trim().isNotEmpty) 'rate': double.tryParse(it.rateCtrl.text.trim()),
+                           if (it.notesCtrl.text.trim().isNotEmpty) 'notes': it.notesCtrl.text.trim(),
+                         };
+                      }).toList();
 
                       context.read<RentsBloc>().add(
                         RentOpened(
                           clientId: _clientId!,
-                          equipmentId: _equipmentId!,
+                          items: itemsList,
                           startDatetime: nowSql(),
-                          dailyRate: rate,
                         ),
                       );
                     },
@@ -1836,7 +1930,6 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   final _discountNoteCtrl = TextEditingController();
   late final TextEditingController _notesCtrl;
   String _method = 'cash';
-  bool _applySpecialPricing = false;
 
   @override
   void initState() {
@@ -1858,13 +1951,44 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
     return remaining > 0 ? remaining : 0;
   }
 
-  void _fill(double value) {
-    _amountCtrl.text = value.round().toString();
-    setState(() {});
+  void _applyDiscountToPaidAmount() {
+    if (_method != 'deferred') {
+      _amountCtrl.text = _requiredNow().round().toString();
+    }
   }
 
-  void _applyDiscountToPaidAmount() {
-    _amountCtrl.text = _requiredNow().round().toString();
+  double get _dailyRateSum {
+    if (widget.rent.items.isEmpty) return widget.rent.rate ?? 0;
+    return widget.rent.items.fold(0.0, (sum, item) => sum + (item.rate ?? 0));
+  }
+
+  void _applyDiscountPreset(String preset) {
+    double discount = 0;
+    final total = widget.totalAmount;
+    final rate = _dailyRateSum > 0 ? _dailyRateSum : total;
+    
+    switch (preset) {
+      case 'نصف المتبقي':
+        final rem = total - widget.currentPaid;
+        discount = rem / 2;
+        break;
+      case '30% من اليوم':
+        discount = rate * 0.3;
+        break;
+      case 'ثلثي اليوم':
+        discount = rate * (2 / 3);
+        break;
+      case 'بدون خصم':
+        discount = 0;
+        break;
+    }
+    
+    if (discount > total) discount = total;
+    if (discount < 0) discount = 0;
+    
+    _discountCtrl.text = discount > 0 ? discount.toStringAsFixed(2) : '';
+    _discountNoteCtrl.text = discount > 0 ? preset : '';
+    // _applyDiscountToPaidAmount is called via listener
   }
 
   @override
@@ -1880,9 +2004,8 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
   @override
   Widget build(BuildContext context) {
     final total = widget.totalAmount;
-    final requiredNow = _requiredNow();
-    final half = requiredNow / 2;
-    final twoThirds = requiredNow * (2 / 3);
+    final isDeferred = _method == 'deferred';
+
     return AlertDialog(
       title: const Text('تسديد وإغلاق العقد'),
       content: SizedBox(
@@ -1903,35 +2026,32 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي العقد: ${total.round()} ر.ي'),
+                      Text('إجمالي العقد الأساسي: ${total.round()} ر.ي'),
                       Text('المدفوع سابقًا: ${widget.currentPaid.round()} ر.ي'),
-                      Text('المتبقي الحالي: ${widget.remainingAmount.round()} ر.ي'),
+                      Text('المتبقي الحالي (قبل الخصم): ${(total - widget.currentPaid).round()} ر.ي'),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
+                const Align(alignment: Alignment.centerRight, child: Text('خيارات الاحتساب الخاص:', style: TextStyle(fontWeight: FontWeight.bold))),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton(onPressed: () => _fill(_requiredNow()), child: const Text('كامل المتبقي')),
-                    OutlinedButton(onPressed: () => _fill(half), child: const Text('نصف المتبقي')),
-                    OutlinedButton(onPressed: () => _fill(twoThirds), child: const Text('ثلثين المتبقي')),
+                    OutlinedButton(onPressed: () => _applyDiscountPreset('نصف المتبقي'), child: const Text('نصف المتبقي')),
+                    OutlinedButton(onPressed: () => _applyDiscountPreset('30% من اليوم'), child: const Text('30% من اليوم')),
+                    OutlinedButton(onPressed: () => _applyDiscountPreset('ثلثي اليوم'), child: const Text('ثلثي اليوم')),
+                    OutlinedButton(onPressed: () => _applyDiscountPreset('بدون خصم'), child: const Text('بدون خصم')),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _applySpecialPricing,
-                  onChanged: (v) => setState(() => _applySpecialPricing = v),
-                  title: const Text('تطبيق الاحتساب الخاص'),
-                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _discountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'الخصم من إجمالي العقد',
-                    helperText: 'يُخصم من إجمالي المبلغ قبل احتساب المتبقي',
+                    labelText: 'الخصم الفعلي (يدوي أو تلقائي)',
+                    helperText: 'يُخصم من إجمالي العقد الأساسي',
                     border: OutlineInputBorder(),
                     prefixText: 'ر.ي ',
                   ),
@@ -1958,22 +2078,7 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _amountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'المبلغ المسدد', border: OutlineInputBorder(), prefixText: 'ر.ي '),
-                  validator: (v) {
-                    final n = double.tryParse((v ?? '').trim());
-                    if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
-                    final required = _requiredNow();
-                    if (required > 0 && n - required > 0.009) {
-                      return 'المبلغ أكبر من المطلوب: ${required.round()} ر.ي';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
+                const Divider(height: 32),
                 DropdownButtonFormField<String>(
                   initialValue: _method,
                   decoration: const InputDecoration(labelText: 'طريقة الدفع', border: OutlineInputBorder()),
@@ -1981,14 +2086,46 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                     DropdownMenuItem(value: 'cash', child: Text('نقد')),
                     DropdownMenuItem(value: 'transfer', child: Text('تحويل')),
                     DropdownMenuItem(value: 'card', child: Text('بطاقة')),
+                    DropdownMenuItem(value: 'deferred', child: Text('آجل')),
                   ],
-                  onChanged: (v) => setState(() => _method = v ?? 'cash'),
+                  onChanged: (v) {
+                    setState(() {
+                      _method = v ?? 'cash';
+                      if (_method == 'deferred') {
+                        _amountCtrl.text = '0';
+                      } else {
+                        _applyDiscountToPaidAmount();
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _amountCtrl,
+                  readOnly: isDeferred,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'المبلغ المسدد الآن', 
+                    border: const OutlineInputBorder(), 
+                    prefixText: 'ر.ي ',
+                    fillColor: isDeferred ? Colors.grey.shade200 : null,
+                    filled: isDeferred,
+                  ),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
+                    final required = _requiredNow();
+                    if (!isDeferred && required > 0 && n - required > 0.009) {
+                      return 'المبلغ أكبر من المطلوب: ${required.round()} ر.ي';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _notesCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'ملاحظة', border: OutlineInputBorder()),
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'ملاحظة عامة على الدفعة (اختياري)', border: OutlineInputBorder()),
                 ),
               ],
             ),
@@ -2003,13 +2140,13 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
             Navigator.pop(context, _QuickCloseResult(
               paidAmount: double.tryParse(_amountCtrl.text.trim()) ?? 0,
               paymentMethod: _method,
-              applySpecialPricing: _applySpecialPricing,
+              applySpecialPricing: false, // Legacy, no longer used
               paymentNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
               discountAmount: double.tryParse(_discountCtrl.text.trim()) ?? 0,
               discountNote: _discountNoteCtrl.text.trim().isEmpty ? null : _discountNoteCtrl.text.trim(),
             ));
           },
-          child: const Text('إغلاق وتحصيل'),
+          child: const Text('تأكيد الإغلاق'),
         ),
       ],
     );

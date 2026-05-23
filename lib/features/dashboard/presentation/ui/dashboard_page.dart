@@ -311,7 +311,7 @@ class DashboardPageState extends State<DashboardPage> {
       }
 
       final diff = DateTime.now().difference(latest);
-      if (diff.inHours >= 24) {
+      if (diff.inHours >= 12) {
         await repo.create();
       }
     } catch (_) {
