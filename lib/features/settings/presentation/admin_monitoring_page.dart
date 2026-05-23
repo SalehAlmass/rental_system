@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/features/settings/presentation/admin_alert_receipt_guard.dart';
+import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
+import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
+import 'package:rental_app/features/clients/domain/entities/models.dart';
 
 class AdminMonitoringPage extends StatefulWidget {
   const AdminMonitoringPage({super.key});
@@ -254,54 +257,58 @@ class _AlertCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: color.withOpacity(0.12),
-                  child: Icon(Icons.notification_important_outlined, color: color),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    data['title']?.toString() ?? 'تنبيه',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+      child: InkWell(
+        onTap: () => _handleAuditTap(context, data),
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: color.withOpacity(0.12),
+                    child: Icon(Icons.notification_important_outlined, color: color),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(999),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      data['title']?.toString() ?? 'تنبيه',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
-                  child: Text(
-                    _severityLabel(severity),
-                    style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _severityLabel(severity),
+                      style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(data['subtitle']?.toString() ?? ''),
-            const SizedBox(height: 6),
-            Text(
-              data['details']?.toString() ?? '',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 16),
-                const SizedBox(width: 6),
-                Text(createdAt, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(data['subtitle']?.toString() ?? ''),
+              const SizedBox(height: 6),
+              Text(
+                data['details']?.toString() ?? '',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.schedule, size: 16),
+                  const SizedBox(width: 6),
+                  Text(createdAt, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -323,6 +330,7 @@ class _AuditCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ListTile(
+        onTap: () => _handleAuditTap(context, data),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         leading: const CircleAvatar(child: Icon(Icons.verified_user_outlined)),
         title: Text(
@@ -433,4 +441,54 @@ String _fmtDate(String? raw) {
   final dt = DateTime.tryParse(raw.replaceAll(' ', 'T'));
   if (dt == null) return raw;
   return DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
+}
+
+void _handleAuditTap(BuildContext context, Map<String, dynamic> data) {
+  final entity = data['entity']?.toString().toLowerCase();
+  final entityIdStr = data['entity_id']?.toString();
+  final entityId = int.tryParse(entityIdStr ?? '');
+
+  if (entityId == null || entityId <= 0) return;
+
+  if (entity == 'rent') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: entityId)),
+    );
+  } else if (entity == 'client') {
+    final dio = context.read<ApiClient>().dio;
+    dio.get('/clients/$entityId').then((res) {
+      if (res.data is Map && res.data['success'] == true) {
+        final clientJson = res.data['data'] as Map<String, dynamic>;
+        final client = Client.fromJson(clientJson);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ClientDetailsPage(client: client)),
+          );
+        }
+      }
+    }).catchError((e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل جلب بيانات العميل: $e')),
+        );
+      }
+    });
+  } else if (entity == 'payment') {
+    final meta = data['meta'];
+    if (meta is Map && meta['rent_id'] != null) {
+      final rId = int.tryParse(meta['rent_id'].toString());
+      if (rId != null && rId > 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: rId)),
+        );
+        return;
+      }
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('يرجى فتح العقد المرتبط لعرض السند')),
+    );
+  }
 }

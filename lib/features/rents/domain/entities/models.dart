@@ -65,6 +65,7 @@ class Rent {
     this.notes,
     this.status,
     this.clientName,
+    this.clientPhone,
     this.equipmentName,
     this.closedAt,
     this.closedByUserId,
@@ -98,6 +99,7 @@ class Rent {
   final String? status;
 
   final String? clientName;
+  final String? clientPhone;
   final String? equipmentName;
   final String? closedAt;
   final int? closedByUserId;
@@ -140,6 +142,7 @@ class Rent {
       notes: json['notes']?.toString(),
       status: json['status']?.toString(),
       clientName: json['client_name']?.toString(),
+      clientPhone: json['client_phone']?.toString(),
       equipmentName: json['equipment_name']?.toString(),
       closedAt: json['closed_at']?.toString(),
       closedByUserId: json['closed_by_user_id'] == null ? null : toInt(json['closed_by_user_id']),

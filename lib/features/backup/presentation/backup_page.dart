@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -108,29 +109,41 @@ class _BackupPageState extends State<BackupPage> {
     setState(() => working = true);
 
     try {
-      final dir = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'اختر مكان حفظ النسخة الاحتياطية',
-      );
-
-      if (dir == null || dir.trim().isEmpty) {
-        if (mounted) setState(() => working = false);
-        return;
-      }
-
+      // أولاً: إنشاء النسخة الاحتياطية في الخادم وتحميلها
       final created = await repo.create(type: backupType);
-      final bytes = await repo.download(file: created.file);
+      final rawBytes = await repo.download(file: created.file);
+      final bytes = Uint8List.fromList(rawBytes);
 
       if (bytes.isEmpty) {
-        throw  ApiFailure('تم إنشاء النسخة لكن تعذر تحميل الملف');
+        throw ApiFailure('تم إنشاء النسخة لكن تعذر تحميل الملف');
       }
 
       final fileName = _buildLocalBackupName();
-      final savePath = '$dir${Platform.pathSeparator}$fileName';
 
-      final file = File(savePath);
-      await file.writeAsBytes(bytes, flush: true);
+      // فتح نافذة "حفظ باسم" لاختيار المكان واسم الملف
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'احفظ النسخة الاحتياطية',
+        fileName: fileName,
+        type: FileType.any,
+        bytes: bytes, // Uint8List - النوع الصحيح
+      );
 
       if (!mounted) return;
+
+      if (savePath == null) {
+        // المستخدم ألغى العملية
+        return;
+      }
+
+      // على Windows/Linux/macOS: نكتب الملف يدوياً
+      if (!savePath.contains('://')) {
+        try {
+          final file = File(savePath);
+          await file.writeAsBytes(bytes, flush: true);
+        } catch (_) {
+          // على الويب: file_picker يكتب الملف تلقائياً عبر bytes
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✅ تم حفظ النسخة في:\n$savePath')),

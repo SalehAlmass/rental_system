@@ -58,7 +58,11 @@ double safeRentTotal(Rent rent) {
   final status = (rent.status ?? '').toLowerCase();
   if (status != 'open') return 0;
 
-  final dailyRate = rent.rate ?? 0;
+  double dailyRate = rent.rate ?? 0;
+  if (dailyRate <= 0 && rent.items.isNotEmpty) {
+    dailyRate = rent.items.first.rate ?? 0;
+  }
+  
   final start = _tryParseRentDate(rent.startDatetime);
   if (dailyRate <= 0 || start == null) return 0;
 
@@ -233,9 +237,9 @@ class _RentsViewState extends State<_RentsView> {
     final settings = await settingsRepo.fetch();
     if (!mounted) return;
 
-    final result = await showDialog<_QuickCloseResult>(
+    final result = await showDialog<QuickCloseResult>(
       context: context,
-      builder: (_) => _QuickCloseDialog(
+      builder: (_) => QuickCloseDialog(
         rent: rent,
         settings: settings,
         totalAmount: total,
@@ -1886,8 +1890,8 @@ class _CollectionAgendaItem {
 
 
 
-class _QuickCloseResult {
-  const _QuickCloseResult({
+class QuickCloseResult {
+  const QuickCloseResult({
     required this.paidAmount,
     required this.paymentMethod,
     required this.applySpecialPricing,
@@ -1904,8 +1908,8 @@ class _QuickCloseResult {
   final String? discountNote;
 }
 
-class _QuickCloseDialog extends StatefulWidget {
-  const _QuickCloseDialog({
+class QuickCloseDialog extends StatefulWidget {
+  const QuickCloseDialog({
     required this.rent,
     required this.settings,
     required this.totalAmount,
@@ -1920,10 +1924,10 @@ class _QuickCloseDialog extends StatefulWidget {
   final double remainingAmount;
 
   @override
-  State<_QuickCloseDialog> createState() => _QuickCloseDialogState();
+  State<QuickCloseDialog> createState() => QuickCloseDialogState();
 }
 
-class _QuickCloseDialogState extends State<_QuickCloseDialog> {
+class QuickCloseDialogState extends State<QuickCloseDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountCtrl;
   late final TextEditingController _discountCtrl;
@@ -2137,7 +2141,7 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
         FilledButton(
           onPressed: () {
             if (!_formKey.currentState!.validate()) return;
-            Navigator.pop(context, _QuickCloseResult(
+            Navigator.pop(context, QuickCloseResult(
               paidAmount: double.tryParse(_amountCtrl.text.trim()) ?? 0,
               paymentMethod: _method,
               applySpecialPricing: false, // Legacy, no longer used

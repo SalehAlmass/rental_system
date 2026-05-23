@@ -442,12 +442,15 @@ class _CloseShiftDialogState extends State<_CloseShiftDialog> {
     try {
       final api = context.read<ApiClient>();
       final dateStr = DateFormat('yyyy-MM-dd').format(_date);
-      final res = await api.dio.get('shifts/today-summary?date=$dateStr');
+      final res = await api.dio.get(
+        'shifts/today-summary',
+        queryParameters: {'date': dateStr},
+      );
       final data = res.data is Map ? (res.data['data'] ?? res.data) : {};
       if (mounted) {
         setState(() {
-          _systemCash = (data['cash_total'] is num) ? (data['cash_total'] as num).toDouble() : 0;
-          _systemTransfer = (data['transfer_total'] is num) ? (data['transfer_total'] as num).toDouble() : 0;
+          _systemCash = double.tryParse(data['cash_total']?.toString() ?? '0') ?? 0.0;
+          _systemTransfer = double.tryParse(data['transfer_total']?.toString() ?? '0') ?? 0.0;
           _loadingSummary = false;
         });
       }
