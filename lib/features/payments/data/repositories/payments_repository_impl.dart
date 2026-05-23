@@ -20,8 +20,9 @@ class PaymentsRepository {
       );
 
       dynamic raw = res.data;
-      if (raw is Map)
+      if (raw is Map) {
         raw = raw['data'] ?? raw['items'] ?? raw['payments'] ?? [];
+      }
       if (raw is! List) throw ApiFailure("Unexpected response: ${res.data}");
 
       return raw
@@ -71,8 +72,9 @@ class PaymentsRepository {
       final id = (rawId is num)
           ? rawId.toInt()
           : int.tryParse(rawId.toString()) ?? 0;
-      if (id <= 0)
+      if (id <= 0) {
         throw ApiFailure("Create payment: invalid id returned: $rawId");
+      }
       return id;
     } on DioException catch (e) {
       final data = e.response?.data;

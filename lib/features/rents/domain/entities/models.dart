@@ -64,38 +64,38 @@ class Rent {
   ========================= */
 
   factory Rent.fromJson(Map<String, dynamic> json) {
-    int _toInt(dynamic v) =>
+    int toInt(dynamic v) =>
         v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
 
-    double? _toDouble(dynamic v) =>
+    double? toDouble(dynamic v) =>
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
 
     return Rent(
-      id: _toInt(json['id']),
-      clientId: _toInt(json['client_id']),
-      equipmentId: _toInt(json['equipment_id']),
+      id: toInt(json['id']),
+      clientId: toInt(json['client_id']),
+      equipmentId: toInt(json['equipment_id']),
       startDatetime: json['start_datetime']?.toString() ?? '',
       endDatetime: json['end_datetime']?.toString(),
-      hours: _toDouble(json['hours']),
-      rate: _toDouble(json['rate']),
-      totalAmount: _toDouble(json['total_amount']),
+      hours: toDouble(json['hours']),
+      rate: toDouble(json['rate']),
+      totalAmount: toDouble(json['total_amount']),
       notes: json['notes']?.toString(),
       status: json['status']?.toString(),
       clientName: json['client_name']?.toString(),
       equipmentName: json['equipment_name']?.toString(),
       closedAt: json['closed_at']?.toString(),
-      closedByUserId: json['closed_by_user_id'] == null ? null : _toInt(json['closed_by_user_id']),
-      closingPaidAmount: _toDouble(json['closing_paid_amount']),
+      closedByUserId: json['closed_by_user_id'] == null ? null : toInt(json['closed_by_user_id']),
+      closingPaidAmount: toDouble(json['closing_paid_amount']),
       closingPaymentMethod: json['closing_payment_method']?.toString(),
       closingPaymentStatus: json['closing_payment_status']?.toString(),
-      closingPaymentId: json['closing_payment_id'] == null ? null : _toInt(json['closing_payment_id']),
+      closingPaymentId: json['closing_payment_id'] == null ? null : toInt(json['closing_payment_id']),
       pricingRuleCode: json['pricing_rule_code']?.toString(),
       pricingRuleLabel: json['pricing_rule_label']?.toString(),
-      pricingRuleApplied: json['pricing_rule_applied'] == null ? null : (_toInt(json['pricing_rule_applied']) == 1),
-      paidAmount: _toDouble(json['paid_amount']),
-      remainingAmount: _toDouble(json['remaining_amount'] ?? json['remaining']),
-      isPaid: json['is_paid'] == null ? null : (_toInt(json['is_paid']) == 1 || json['is_paid'] == true),
-      discountAmount: _toDouble(json['discount_amount']),
+      pricingRuleApplied: json['pricing_rule_applied'] == null ? null : (toInt(json['pricing_rule_applied']) == 1),
+      paidAmount: toDouble(json['paid_amount']),
+      remainingAmount: toDouble(json['remaining_amount'] ?? json['remaining']),
+      isPaid: json['is_paid'] == null ? null : (toInt(json['is_paid']) == 1 || json['is_paid'] == true),
+      discountAmount: toDouble(json['discount_amount']),
       discountNote: json['discount_note']?.toString(),
     );
   }

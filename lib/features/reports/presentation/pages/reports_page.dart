@@ -6,7 +6,6 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../data/repositories/reports_repository_impl.dart';
 import '../../domain/entities/payment_report.dart';
-import '../../domain/entities/smart_reports.dart';
 import '../bloc/reports_bloc.dart';
 import '../bloc/reports_event.dart';
 import '../bloc/reports_state.dart';

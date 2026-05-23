@@ -72,5 +72,5 @@ class ChangeUserPassword extends UserManagementEvent {
   final int id;
   final String newPassword;
 
-  ChangeUserPassword({required this.id, required this.newPassword});
+  const ChangeUserPassword({required this.id, required this.newPassword});
 }

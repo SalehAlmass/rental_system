@@ -1207,7 +1207,7 @@ class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
                 const SizedBox(height: 12),
               ],
               DropdownButtonFormField<String>(
-                value: _contactType,
+                initialValue: _contactType,
                 decoration: const InputDecoration(
                   labelText: 'نوع المتابعة',
                   border: OutlineInputBorder(),
@@ -1223,7 +1223,7 @@ class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _outcome,
+                initialValue: _outcome,
                 decoration: const InputDecoration(
                   labelText: 'النتيجة',
                   border: OutlineInputBorder(),
@@ -1518,7 +1518,7 @@ class _CloseContractDialogState extends State<_CloseContractDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _paymentMethod,
+                  initialValue: _paymentMethod,
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
                     border: OutlineInputBorder(),
@@ -1719,7 +1719,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _method,
+                  initialValue: _method,
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
                     border: OutlineInputBorder(),

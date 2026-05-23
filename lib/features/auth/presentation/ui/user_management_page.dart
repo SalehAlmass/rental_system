@@ -106,8 +106,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (value) {
-            if (value == 'edit') _showEditUserDialog(context, user);
-            else if (value == 'delete') _showDeleteDialog(context, user);
+            if (value == 'edit') {
+              _showEditUserDialog(context, user);
+            } else if (value == 'delete') _showDeleteDialog(context, user);
             else if (value == 'toggle') {
               context.read<UserManagementBloc>().add(
                     UpdateUser(id: user.id, isActive: !user.isActive),
@@ -194,7 +195,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         const Text('صلاحيات إغلاق العقود', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: hourMode,
+          initialValue: hourMode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             labelText: 'احتساب الساعات عند الإغلاق',
@@ -206,7 +207,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         Text('الوضع الحالي: ${_modeLabel(hourMode)}', style: TextStyle(color: Colors.grey.shade700)),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: receiptMode,
+          initialValue: receiptMode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             labelText: 'سند القبض عند إغلاق العقد',
@@ -299,7 +300,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField(
-                  value: role,
+                  initialValue: role,
                   decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
                   items: const [
                     DropdownMenuItem(value: 'employee', child: Text('موظف')),
@@ -367,7 +368,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم المستخدم')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: role,
+                  initialValue: role,
                   decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
                   items: const [
                     DropdownMenuItem(value: 'employee', child: Text('موظف')),

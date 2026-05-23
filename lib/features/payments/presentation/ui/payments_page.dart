@@ -1017,7 +1017,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                   children: [
                     if (!editing)
                       DropdownButtonFormField<String>(
-                        value: _type,
+                        initialValue: _type,
                         decoration: const InputDecoration(
                           labelText: 'نوع السند',
                           border: OutlineInputBorder(),
@@ -1089,7 +1089,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     const SizedBox(height: 10),
 
                     DropdownButtonFormField<int>(
-                      value: _clientId,
+                      initialValue: _clientId,
                       decoration: const InputDecoration(
                         labelText: 'العميل (اختياري)',
                         border: OutlineInputBorder(),
@@ -1139,7 +1139,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     const SizedBox(height: 10),
 
                     DropdownButtonFormField<int?>(
-                      value: _equipmentId,
+                      initialValue: _equipmentId,
                       decoration: const InputDecoration(
                         labelText: 'المعدة المرتبطة بالصيانة (اختياري)',
                         border: OutlineInputBorder(),
@@ -1168,7 +1168,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     const SizedBox(height: 10),
 
                     DropdownButtonFormField<String>(
-                      value: _method,
+                      initialValue: _method,
                       decoration: const InputDecoration(
                         labelText: 'طريقة الدفع',
                         border: OutlineInputBorder(),

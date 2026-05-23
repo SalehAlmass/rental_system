@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
       }
       
       if (minLength > 0 && value.length < minLength) {
-        return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
+        return 'القيمة يجب أن تحتوي على $minLength أحرف على الأقل';
       }
     }
     

@@ -17,7 +17,6 @@ import 'package:rental_app/features/reports/presentation/pages/reports_page.dart
 import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
-import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/contract_closing_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/team_monitoring_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';

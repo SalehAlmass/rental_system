@@ -320,7 +320,7 @@ class _BackupPageState extends State<BackupPage> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: backupType,
+                            initialValue: backupType,
                             decoration: const InputDecoration(
                               labelText: 'نوع النسخة',
                               border: OutlineInputBorder(),

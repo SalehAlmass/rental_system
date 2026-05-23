@@ -30,7 +30,7 @@ String? validateField(
     }
 
     if (minLength > 0 && value.length < minLength) {
-      return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
+      return 'القيمة يجب أن تحتوي على $minLength أحرف على الأقل';
     }
   }
 
@@ -546,7 +546,7 @@ class _EquipmentDialogState extends State<EquipmentDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'الحالة',
                   border: OutlineInputBorder(),

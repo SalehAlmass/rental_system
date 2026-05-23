@@ -191,7 +191,7 @@ class _AttendancePageState extends State<AttendancePage> {
                   Text('ساعات العمل هذا الشهر: ${_hours.round()} ساعة'),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _selectedShift,
+                    initialValue: _selectedShift,
                     decoration: const InputDecoration(
                       labelText: 'اختيار وقت الدوام',
                       border: OutlineInputBorder(),

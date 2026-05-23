@@ -176,7 +176,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 DropdownButtonFormField<String>(
-                                  value: _role,
+                                  initialValue: _role,
                                   items: const [
                                     DropdownMenuItem(value: 'employee', child: Text('موظف')),
                                     DropdownMenuItem(value: 'admin', child: Text('مدير')),

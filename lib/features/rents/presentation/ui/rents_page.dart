@@ -1975,7 +1975,7 @@ class _QuickCloseDialogState extends State<_QuickCloseDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _method,
+                  initialValue: _method,
                   decoration: const InputDecoration(labelText: 'طريقة الدفع', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'cash', child: Text('نقد')),

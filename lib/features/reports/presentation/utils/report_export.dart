@@ -15,7 +15,7 @@ class ReportExport {
     buffer.writeln('ID,Date,Type,Amount,Method,Client,Rent,Reference,Notes');
 
     for (final r in report.rows) {
-      final safe = (String? s) => (s ?? '').replaceAll('"', '""');
+      String safe(String? s) => (s ?? '').replaceAll('"', '""');
       buffer.writeln(
         [
           r.id,

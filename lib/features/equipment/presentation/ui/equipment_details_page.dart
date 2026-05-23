@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
-import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
 
 class EquipmentDetailsPage extends StatelessWidget {
   const EquipmentDetailsPage({super.key, required this.equipment});

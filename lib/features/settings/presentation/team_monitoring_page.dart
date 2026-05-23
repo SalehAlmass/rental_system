@@ -588,6 +588,6 @@ String _sortValue(Map<String, dynamic> user, String sort) {
     case 'issues':
       return '${user['issue_count'] ?? 0}';
     default:
-      return '${((user['score'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
+      return ((user['score'] as num?)?.toDouble() ?? 0).toStringAsFixed(0);
   }
 }

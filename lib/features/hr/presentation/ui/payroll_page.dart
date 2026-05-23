@@ -145,7 +145,7 @@ class _PayrollPageState extends State<PayrollPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: t,
+                initialValue: t,
                 decoration: const InputDecoration(labelText: 'نوع الراتب'),
                 items: const [
                   DropdownMenuItem(value: 'hourly', child: Text('بالساعة')),

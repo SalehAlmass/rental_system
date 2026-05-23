@@ -57,7 +57,7 @@ class EquipmentSearchDelegate extends SearchDelegate<void> {
           title: Text(e.name ?? ''),
           subtitle: Text(
             [e.model, e.serialNo, e.status]
-                .where((x) => x != null && x!.isNotEmpty)
+                .where((x) => x != null && x.isNotEmpty)
                 .map((x) => x!)
                 .join(' • '),
           ),

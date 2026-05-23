@@ -19,7 +19,7 @@ String? validateField(String? value, {bool isNumber = false, bool isRequired = t
     }
     
     if (minLength > 0 && value.length < minLength) {
-      return 'القيمة يجب أن تحتوي على ${minLength} أحرف على الأقل';
+      return 'القيمة يجب أن تحتوي على $minLength أحرف على الأقل';
     }
   }
   

@@ -57,7 +57,7 @@ class ClientSearchDelegate extends SearchDelegate<Client?> {
           title: Text(c.name),
           subtitle: Text(
             [c.phone, c.nationalId]
-                .where((e) => e != null && e!.isNotEmpty)
+                .where((e) => e != null && e.isNotEmpty)
                 .map((e) => e!)
                 .join(' • '),
           ),

@@ -1185,7 +1185,7 @@ class _AlertStrip extends StatelessWidget {
       onTap = () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: entityId!)),
+          MaterialPageRoute(builder: (_) => RentDetailsPage(rentId: entityId)),
         );
       };
     }
@@ -1309,7 +1309,7 @@ class _InlineEmpty extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.4),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
