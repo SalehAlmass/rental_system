@@ -691,6 +691,11 @@ class _PaymentCard extends StatelessWidget {
                       icon: Icons.build_circle_outlined,
                       text: 'صيانة معدة',
                     ),
+                  if (payment.userName != null && payment.userName!.isNotEmpty)
+                    _MetaChip(
+                      icon: Icons.badge_outlined,
+                      text: 'بواسطة: ${payment.userName}',
+                    ),
                 ],
               ),
               if ((payment.notes ?? '').trim().isNotEmpty) ...[

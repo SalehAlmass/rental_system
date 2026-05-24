@@ -15,6 +15,7 @@ class Payment {
     this.rentNo,
     this.equipmentId,
     this.createdAt,
+    this.userName,
   });
 
   final int id;
@@ -32,6 +33,7 @@ class Payment {
   final int? rentNo;
   final int? equipmentId;
   final String? createdAt;
+  final String? userName;
 
   factory Payment.fromJson(Map<String, dynamic> json) {
     int toI(dynamic v) => v == null
@@ -69,6 +71,7 @@ class Payment {
       rentNo: toINull(json['rent_no']),
       equipmentId: toINull(json['equipment_id']),
       createdAt: json['created_at']?.toString(),
+      userName: json['username']?.toString(),
     );
   }
 }

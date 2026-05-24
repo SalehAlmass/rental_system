@@ -69,6 +69,7 @@ class PaymentDetailsPage extends StatelessWidget {
                 _buildInfoRow('طريقة الدفع', _methodLabel(payment.method)),
                 _buildInfoRow('المرجع', payment.referenceNo ?? '-'),
                 _buildInfoRow('تاريخ الإنشاء', _formatDateTimeString(payment.createdAt)),
+                _buildInfoRow('الموظف المنشئ', payment.userName ?? '-'),
                 _buildInfoRow('وقت الإلغاء', payment.voidedAt != null ? _formatDateTimeString(payment.voidedAt) : '-'),
                 _buildInfoRow('سبب الإلغاء', payment.voidReason ?? '-'),
                 _buildInfoRow('الملاحظات', payment.notes ?? '-'),
