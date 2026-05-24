@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../storage/base_url_storage.dart';
@@ -11,7 +12,7 @@ class ApiClient {
         baseUrl: AppConfig.baseUrl,
         connectTimeout: const Duration(seconds: 45),
         receiveTimeout: const Duration(seconds: 45),
-        sendTimeout: const Duration(seconds: 45),
+        sendTimeout: kIsWeb ? null : const Duration(seconds: 45),
         headers: const {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
