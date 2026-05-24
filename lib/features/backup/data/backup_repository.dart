@@ -106,6 +106,38 @@ class BackupRepository {
     }
   }
 
+  // ✅ رفع واسترجاع نسخة من ملف محلي
+  Future<void> uploadAndRestore({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'sql_file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+
+      // 1. Upload file
+      final res = await _api.dio.post('backup/upload', data: formData);
+      dynamic raw = res.data;
+      if (raw is Map) raw = raw['data'] ?? raw;
+      
+      if (raw == null || raw['file'] == null) {
+        throw ApiFailure('فشل استخراج اسم الملف المرفوع');
+      }
+      
+      final savedName = raw['file'].toString();
+
+      // 2. Restore it
+      await restore(file: savedName);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Upload and restore failed');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
   // ✅ حذف نسخة واحدة
   Future<void> delete({required String file}) async {
     try {

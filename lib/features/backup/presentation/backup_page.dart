@@ -2,8 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../core/utils/downloader/downloader.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/failure.dart';
@@ -120,7 +123,17 @@ class _BackupPageState extends State<BackupPage> {
 
       final fileName = _buildLocalBackupName();
 
-      // فتح نافذة "حفظ باسم" لاختيار المكان واسم الملف
+      if (kIsWeb) {
+        await downloadBytesWeb(bytes, fileName);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ تم بدء تحميل النسخة')),
+        );
+        await _load();
+        return;
+      }
+
+      // فتح نافذة "حفظ باسم" لاختيار المكان واسم الملف (للديسكتوب فقط)
       final savePath = await FilePicker.platform.saveFile(
         dialogTitle: 'احفظ النسخة الاحتياطية',
         fileName: fileName,
@@ -147,6 +160,53 @@ class _BackupPageState extends State<BackupPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✅ تم حفظ النسخة في:\n$savePath')),
+      );
+
+      await _load();
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
+  Future<void> _restoreFromLocalFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['sql'],
+        withData: true,
+        dialogTitle: 'اختر ملف النسخة الاحتياطية',
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final bytes = file.bytes;
+
+      if (bytes == null || bytes.isEmpty) {
+        throw ApiFailure('تعذر قراءة محتوى الملف');
+      }
+
+      final ok = await _confirm(
+        title: 'استرجاع من ملف خارجي',
+        body: 'سيتم مسح قاعدة البيانات الحالية واسترجاع البيانات من الملف:\n${file.name}\n\nهل أنت متأكد؟',
+        confirmText: 'نعم، استرجاع',
+        danger: true,
+      );
+
+      if (!ok) return;
+
+      setState(() => working = true);
+
+      await repo.uploadAndRestore(
+        bytes: bytes,
+        filename: file.name,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ تم استرجاع النسخة بنجاح')),
       );
 
       await _load();
@@ -371,6 +431,12 @@ class _BackupPageState extends State<BackupPage> {
                               disabled ? null : _createBackupChooseLocation,
                           icon: const Icon(Icons.folder_open),
                           label: const Text('اختيار مكان وحفظ'),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: disabled ? null : _restoreFromLocalFile,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('استرجاع من ملف'),
                         ),
                         const SizedBox(width: 10),
                         OutlinedButton.icon(

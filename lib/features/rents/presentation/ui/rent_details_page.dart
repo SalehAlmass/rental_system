@@ -580,6 +580,28 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     final status = (rent?.status ?? '').toLowerCase();
     final isOpen = status == 'open';
 
+    String daysText = '';
+    if (rent != null) {
+      final start = _tryParse(rent.startDatetime);
+      if (start != null) {
+        final end = _tryParse(rent.endDatetime) ?? DateTime.now();
+        final diff = end.difference(start);
+        final hours = diff.inMinutes / 60.0;
+        int days = (hours / 24.0).ceil();
+        if (days < 1) days = 1;
+
+        if (days == 1) {
+          daysText = 'يوم واحد';
+        } else if (days == 2) {
+          daysText = 'يومين';
+        } else if (days >= 3 && days <= 10) {
+          daysText = '$days أيام';
+        } else {
+          daysText = '$days يوم';
+        }
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('تفاصيل العقد'), centerTitle: true),
       body: _loading
@@ -640,6 +662,8 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                               ? '-'
                               : _fmtDateTime(rent.endDatetime!),
                         ),
+                        if (daysText.isNotEmpty)
+                          _kv('مدة التأجير', daysText),
                         const Divider(height: 18),
                         _kv(
                           'الإجمالي بعد الخصم',

@@ -902,6 +902,26 @@ class _RentCard extends StatelessWidget {
     final paid = safeRentPaid(rent);
     final remaining = safeRentRemaining(rent);
 
+    final start = _tryParseRentDate(rent.startDatetime);
+    String daysText = '';
+    if (start != null) {
+      final end = _tryParseRentDate(rent.endDatetime) ?? DateTime.now();
+      final diff = end.difference(start);
+      final hours = diff.inMinutes / 60.0;
+      int days = (hours / 24.0).ceil();
+      if (days < 1) days = 1;
+      
+      if (days == 1) {
+        daysText = 'يوم واحد';
+      } else if (days == 2) {
+        daysText = 'يومين';
+      } else if (days >= 3 && days <= 10) {
+        daysText = '$days أيام';
+      } else {
+        daysText = '$days يوم';
+      }
+    }
+
     final accent = isCancelled
         ? Colors.grey
         : isClosed
@@ -1007,6 +1027,11 @@ class _RentCard extends StatelessWidget {
                       icon: Icons.logout_rounded,
                       text: rent.endDatetime ?? 'العقد جاري',
                     ),
+                    if (daysText.isNotEmpty)
+                      _InfoPill(
+                        icon: Icons.timer_outlined,
+                        text: daysText,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 14),
