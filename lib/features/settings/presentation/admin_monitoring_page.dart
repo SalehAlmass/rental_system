@@ -319,6 +319,19 @@ class _AuditCard extends StatelessWidget {
   final Map<String, dynamic> data;
   const _AuditCard({required this.data});
 
+  String _entityLabel(String entity) {
+    switch (entity.toLowerCase()) {
+      case 'payment':
+        return 'سند';
+      case 'rent':
+        return 'عقد';
+      case 'shift_closing':
+        return 'إغلاق وردية';
+      default:
+        return entity;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final createdAt = _fmtDate(data['created_at']?.toString());
@@ -326,6 +339,11 @@ class _AuditCard extends StatelessWidget {
     final username = data['username']?.toString() ?? 'مستخدم غير معروف';
     final entity = data['entity']?.toString() ?? '';
     final entityId = data['entity_id']?.toString() ?? '-';
+    
+    final entityText = entity.isNotEmpty 
+        ? (entityId != '-' ? '${_entityLabel(entity)} رقم $entityId' : _entityLabel(entity))
+        : '';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -339,7 +357,9 @@ class _AuditCard extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text('$username • $entity #$entityId\n$createdAt'),
+          child: Text(entityText.isNotEmpty 
+              ? '$username • $entityText\n$createdAt'
+              : '$username\n$createdAt'),
         ),
       ),
     );
