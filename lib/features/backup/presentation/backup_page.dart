@@ -374,6 +374,38 @@ class _BackupPageState extends State<BackupPage> {
     return res == true;
   }
 
+  Future<void> _pickDirectory(TextEditingController ctrl) async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ميزة اختيار المجلد غير مدعومة على متصفح الويب. يرجى كتابة المسار يدوياً.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      final String? dir = await FilePicker.platform.getDirectoryPath();
+      if (dir != null && mounted) {
+        setState(() {
+          ctrl.text = dir;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء اختيار المجلد: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final disabled = loading || working;
@@ -514,10 +546,15 @@ class _BackupPageState extends State<BackupPage> {
                           child: TextFormField(
                             controller: _path1Ctrl,
                             enabled: !disabled && !_savingSettings,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'مسار الحفظ المخصص الأول (مثال: D:/backups)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.folder_outlined),
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.folder_outlined),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.folder_open),
+                                onPressed: () => _pickDirectory(_path1Ctrl),
+                                tooltip: 'اختيار مجلد',
+                              ),
                             ),
                           ),
                         ),
@@ -526,10 +563,15 @@ class _BackupPageState extends State<BackupPage> {
                           child: TextFormField(
                             controller: _path2Ctrl,
                             enabled: !disabled && !_savingSettings,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'مسار الحفظ المخصص الثاني (مثال: E:/backups)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.folder_outlined),
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.folder_outlined),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.folder_open),
+                                onPressed: () => _pickDirectory(_path2Ctrl),
+                                tooltip: 'اختيار مجلد',
+                              ),
                             ),
                           ),
                         ),
