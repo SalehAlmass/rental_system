@@ -315,7 +315,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                   subtitle: '${summary.openCount} عقد مفتوح حاليًا',
                   icon: Icons.warning_amber_rounded,
                   color: Colors.red,
-                  onTap: () => onOpenRentsWithFilter?.call('all'),
+                  onTap: () => onOpenRentsWithFilter?.call('overdue'),
                   width: double.infinity,
                 ),
               ],
@@ -1087,14 +1087,14 @@ class _AdminInstantAlertsPanelState extends State<_AdminInstantAlertsPanel> {
                 value: '${_summary['contracts_without_receipt'] ?? 0}',
                 icon: Icons.receipt_long_outlined,
                 color: Colors.indigo,
-                onTap: () => widget.onOpenRentsWithFilter?.call('all'),
+                onTap: () => widget.onOpenRentsWithFilter?.call('review'),
               ),
               _MiniAlertStat(
                 title: 'متأخرة',
                 value: '${widget.summary.overdueCount}',
                 icon: Icons.schedule_send_outlined,
                 color: Colors.redAccent,
-                onTap: () => widget.onOpenRentsWithFilter?.call('all'),
+                onTap: () => widget.onOpenRentsWithFilter?.call('overdue'),
               ),
             ],
           ),
@@ -1440,9 +1440,9 @@ class _AdminDashboardSummary {
 
   static bool _isOverdue(Rent rent, DateTime now) {
     if ((rent.status ?? '').toLowerCase() != 'open') return false;
-    final end = _parse(rent.endDatetime) ?? _parse(rent.startDatetime);
-    if (end == null) return false;
-    return end.isBefore(now);
+    final start = _parse(rent.startDatetime?.toString());
+    if (start == null) return false;
+    return now.difference(start).inHours >= 24;
   }
 
   static double _remaining(Rent rent) {

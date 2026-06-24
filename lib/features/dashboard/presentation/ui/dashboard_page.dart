@@ -33,7 +33,7 @@ class DashboardPageState extends State<DashboardPage> {
 
   late final ProfileCubit _profileCubit;
   bool _checkedAutoBackup = false;
-  String _rentsFilter = 'all';
+  String _rentsFilter = 'open';
 
   final Map<DashboardTab, Map<String, bool>> _tabConfig = const {
     DashboardTab.home: {'appBar': true, 'drawer': true},
@@ -70,7 +70,7 @@ class DashboardPageState extends State<DashboardPage> {
     setState(() {
       _currentTab = tab;
       if (tab != DashboardTab.rents) {
-        _rentsFilter = 'all';
+        _rentsFilter = 'open';
       }
     });
   }

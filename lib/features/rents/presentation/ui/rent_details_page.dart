@@ -463,6 +463,14 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   double _remainingFor(Rent rent) {
+    final status = (rent.status ?? '').toLowerCase();
+    if (status == 'open') {
+      final total = _liveOpenTotal;
+      final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
+      final remaining = total - paid;
+      return remaining > 0 ? remaining : 0;
+    }
+
     final direct = rent.remainingAmount;
     if (direct != null) return direct < 0 ? 0 : direct;
 
@@ -516,32 +524,43 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     final rent = _rent;
     if (rent == null) return 0;
 
-    final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
-    if (savedTotal > 0) return savedTotal;
-
     final status = (rent.status ?? '').toLowerCase();
+    final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
+    if (savedTotal > 0 && status != 'open') return savedTotal;
+
     if (status != 'open') return 0;
 
-    double dailyRate = rent.rate ?? 0;
-    if (dailyRate <= 0 && rent.items.isNotEmpty) {
-      dailyRate = rent.items.first.rate ?? 0;
+    final now = DateTime.now();
+
+    if (rent.items.isNotEmpty) {
+      double total = 0;
+      for (final item in rent.items) {
+        final rate = item.rate ?? 0;
+        final start = _tryParse(item.startDatetime) ?? _tryParse(rent.startDatetime);
+        if (start == null) continue;
+
+        final end = _tryParse(item.endDatetime) ?? now;
+        final diff = end.difference(start);
+        final hours = diff.inMinutes / 60.0;
+        int billableDays = (hours / 24.0).ceil();
+        if (billableDays < 1) billableDays = 1;
+
+        total += rate * billableDays;
+      }
+      return total.round().toDouble();
+    } else {
+      final rate = rent.rate ?? 0;
+      final start = _tryParse(rent.startDatetime);
+      if (start == null) return 0;
+
+      final end = _tryParse(rent.endDatetime) ?? now;
+      final diff = end.difference(start);
+      final hours = diff.inMinutes / 60.0;
+      int billableDays = (hours / 24.0).ceil();
+      if (billableDays < 1) billableDays = 1;
+
+      return (rate * billableDays).round().toDouble();
     }
-
-    if (dailyRate <= 0) return 0;
-
-    final start = _tryParse(rent.startDatetime);
-    if (start == null) return 0;
-
-    final minutes = DateTime.now().difference(start).inMinutes;
-    if (minutes <= 0) return 0;
-
-    final hours = minutes / 60.0;
-
-    double total;
-    final billableDays = (hours / 24.0).ceil();
-    total = dailyRate * (billableDays < 1 ? 1 : billableDays);
-
-    return total.round().toDouble();
   }
 
   double get _effectiveTotal => _liveOpenTotal;

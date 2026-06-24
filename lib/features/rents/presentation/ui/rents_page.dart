@@ -53,33 +53,54 @@ double safeRentPaid(Rent rent) {
 }
 
 double safeRentTotal(Rent rent) {
-  if ((rent.totalAmount ?? 0) > 0) return rent.totalAmount!;
-
   final status = (rent.status ?? '').toLowerCase();
-  if (status != 'open') return 0;
-
-  double dailyRate = rent.rate ?? 0;
-  if (dailyRate <= 0 && rent.items.isNotEmpty) {
-    dailyRate = rent.items.first.rate ?? 0;
+  if (status == 'closed' && (rent.totalAmount ?? 0) > 0) {
+    return rent.totalAmount!;
   }
-  
-  final start = _tryParseRentDate(rent.startDatetime);
-  if (dailyRate <= 0 || start == null) return 0;
+  if (status == 'cancelled') return 0;
 
   final now = DateTime.now();
-  final minutes = now.difference(start).inMinutes;
-  if (minutes <= 0) return 0;
 
-  final hours = minutes / 60.0;
-
-  double total;
-  final billableDays = (hours / 24.0).ceil();
-  total = dailyRate * (billableDays < 1 ? 1 : billableDays);
-
-  return total.round().toDouble();
+  if (rent.items.isNotEmpty) {
+    double total = 0;
+    for (final item in rent.items) {
+      final rate = item.rate ?? 0;
+      final start = _tryParseRentDate(item.startDatetime) ?? _tryParseRentDate(rent.startDatetime);
+      if (start == null) continue;
+      
+      final end = _tryParseRentDate(item.endDatetime) ?? now;
+      final diff = end.difference(start);
+      final hours = diff.inMinutes / 60.0;
+      int billableDays = (hours / 24.0).ceil();
+      if (billableDays < 1) billableDays = 1;
+      
+      total += rate * billableDays;
+    }
+    return total.round().toDouble();
+  } else {
+    final rate = rent.rate ?? 0;
+    final start = _tryParseRentDate(rent.startDatetime);
+    if (start == null) return 0;
+    
+    final end = _tryParseRentDate(rent.endDatetime) ?? now;
+    final diff = end.difference(start);
+    final hours = diff.inMinutes / 60.0;
+    int billableDays = (hours / 24.0).ceil();
+    if (billableDays < 1) billableDays = 1;
+    
+    return (rate * billableDays).round().toDouble();
+  }
 }
 
 double safeRentRemaining(Rent rent) {
+  final status = (rent.status ?? '').toLowerCase();
+  if (status == 'open') {
+    final total = safeRentTotal(rent);
+    final paid = safeRentPaid(rent);
+    final remaining = total - paid;
+    return remaining > 0 ? remaining : 0;
+  }
+
   final direct = rent.remainingAmount;
   if (direct != null) {
     return direct < 0 ? 0 : direct;
@@ -96,7 +117,7 @@ class RentsPage extends StatelessWidget {
 
   const RentsPage({
     super.key,
-    this.initialFilter = 'all',
+    this.initialFilter = 'open',
   });
 
   @override
@@ -132,7 +153,7 @@ class RentsPage extends StatelessWidget {
 class _RentsView extends StatefulWidget {
   const _RentsView({
     this.showBackButton = true,
-    this.initialFilter = 'all',
+    this.initialFilter = 'open',
   });
   final bool showBackButton;
   final String initialFilter;
@@ -145,6 +166,10 @@ class _RentsViewState extends State<_RentsView> {
   String _statusFilter = 'all';
   String _query = '';
   String _collectionSort = 'oldest';
+
+  /// Lazy loading: how many items to display from the filtered list
+  int _displayLimit = 50;
+  bool _archiving = false;
 
   bool _loadingAgenda = false;
   List<_CollectionAgendaItem> _agendaItems = const [];
@@ -709,38 +734,37 @@ class _RentsViewState extends State<_RentsView> {
                       _FilterChip(
                         label: 'الكل',
                         selected: _statusFilter == 'all',
-                        onTap: () => setState(() => _statusFilter = 'all'),
+                        onTap: () => setState(() { _statusFilter = 'all'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'مفتوحة',
                         selected: _statusFilter == 'open',
-                        onTap: () => setState(() => _statusFilter = 'open'),
+                        onTap: () => setState(() { _statusFilter = 'open'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'مغلقة',
                         selected: _statusFilter == 'closed',
-                        onTap: () => setState(() => _statusFilter = 'closed'),
+                        onTap: () => setState(() { _statusFilter = 'closed'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'ملغاة',
                         selected: _statusFilter == 'cancelled',
-                        onTap: () =>
-                            setState(() => _statusFilter = 'cancelled'),
+                        onTap: () => setState(() { _statusFilter = 'cancelled'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'متأخرة',
                         selected: _statusFilter == 'overdue',
-                        onTap: () => setState(() => _statusFilter = 'overdue'),
+                        onTap: () => setState(() { _statusFilter = 'overdue'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'بحاجة مراجعة',
                         selected: _statusFilter == 'review',
-                        onTap: () => setState(() => _statusFilter = 'review'),
+                        onTap: () => setState(() { _statusFilter = 'review'; _displayLimit = 50; }),
                       ),
                       _FilterChip(
                         label: 'تسديد مؤجل',
                         selected: _statusFilter == 'deferred',
-                        onTap: () => setState(() => _statusFilter = 'deferred'),
+                        onTap: () => setState(() { _statusFilter = 'deferred'; _displayLimit = 50; }),
                       ),
                     ],
                   ),
@@ -753,6 +777,33 @@ class _RentsViewState extends State<_RentsView> {
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const Spacer(),
+                      // Archive button (admin only)
+                      Builder(
+                        builder: (ctx) {
+                          final pstate = ctx.read<ProfileCubit>().state;
+                          final isAdmin = pstate is ProfileLoaded &&
+                              pstate.user['role']?.toString() == 'admin';
+                          if (!isAdmin) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: _archiving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : ActionChip(
+                                    avatar: Icon(
+                                      Icons.archive_outlined,
+                                      size: 18,
+                                      color: colorScheme.primary,
+                                    ),
+                                    label: const Text('أرشفة المكتملة'),
+                                    onPressed: () => _archiveClosedRents(context),
+                                  ),
+                          );
+                        },
+                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -792,8 +843,9 @@ class _RentsViewState extends State<_RentsView> {
                         ],
                       ),
                     )
-                  else
-                    ...filtered.map(
+                  else ...[
+                    // Lazy loading: show only _displayLimit items
+                    ...filtered.take(_displayLimit).map(
                       (rent) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _RentCard(
@@ -813,6 +865,21 @@ class _RentsViewState extends State<_RentsView> {
                         ),
                       ),
                     ),
+                    // "Show more" button when there are more items
+                    if (filtered.length > _displayLimit)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 16),
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => setState(() => _displayLimit += 50),
+                            icon: const Icon(Icons.expand_more),
+                            label: Text(
+                              'عرض المزيد (${filtered.length - _displayLimit} متبقي)',
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             );
@@ -820,6 +887,54 @@ class _RentsViewState extends State<_RentsView> {
         ),
       ),
     );
+  }
+
+  Future<void> _archiveClosedRents(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        icon: const Icon(Icons.archive_outlined, size: 36),
+        title: const Text('أرشفة العقود المكتملة'),
+        content: const Text(
+          'سيتم إخفاء جميع العقود المغلقة والمدفوعة بالكامل من القائمة.\n'
+          'البيانات تبقى محفوظة في التقارير ويمكن استعادتها.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.archive_outlined),
+            label: const Text('أرشفة الآن'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _archiving = true);
+
+    try {
+      final repo = context.read<RentsRepository>();
+      final count = await repo.archiveClosed();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم أرشفة $count عقد بنجاح')),
+      );
+
+      await _reloadEverything();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل الأرشفة: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _archiving = false);
+    }
   }
 
   String _collectionAgendaSubtitle(_CollectionAgendaItem item) {

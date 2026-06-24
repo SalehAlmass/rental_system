@@ -193,4 +193,21 @@ class RentsRepository {
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
+
+  /// Archive all closed & fully-paid rents (admin only).
+  /// Returns the number of archived contracts.
+  Future<int> archiveClosed() async {
+    try {
+      final res = await _api.dio.post('rents/archive-closed');
+      final data = (res.data is Map) ? res.data as Map : {};
+      final payload = (data['data'] is Map) ? data['data'] as Map : data;
+      return (payload['archived_count'] as num?)?.toInt() ?? 0;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'فشل أرشفة العقود');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
 }
