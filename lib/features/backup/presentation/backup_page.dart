@@ -29,11 +29,22 @@ class _BackupPageState extends State<BackupPage> {
 
   String backupType = 'full';
 
+  final _path1Ctrl = TextEditingController();
+  final _path2Ctrl = TextEditingController();
+  bool _savingSettings = false;
+
   @override
   void initState() {
     super.initState();
     repo = BackupRepository(context.read<ApiClient>());
     _load();
+  }
+
+  @override
+  void dispose() {
+    _path1Ctrl.dispose();
+    _path2Ctrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -44,9 +55,12 @@ class _BackupPageState extends State<BackupPage> {
 
     try {
       final list = await repo.list();
+      final settings = await repo.getSettings();
       if (!mounted) return;
       setState(() {
         items = list;
+        _path1Ctrl.text = settings['backup_custom_path_1'] ?? '';
+        _path2Ctrl.text = settings['backup_custom_path_2'] ?? '';
         loading = false;
       });
     } catch (e) {
@@ -55,6 +69,24 @@ class _BackupPageState extends State<BackupPage> {
         error = _errorMessage(e);
         loading = false;
       });
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _savingSettings = true);
+    try {
+      await repo.saveSettings(
+        path1: _path1Ctrl.text.trim(),
+        path2: _path2Ctrl.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ تم حفظ مسارات النسخ الاحتياطي بنجاح')),
+      );
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _savingSettings = false);
     }
   }
 
@@ -71,16 +103,6 @@ class _BackupPageState extends State<BackupPage> {
     return '${mb.toStringAsFixed(1)} MB';
   }
 
-  String _backupTypeLabel(String type) {
-    switch (type) {
-      case 'def':
-        return 'هيكل فقط';
-      case 'log':
-        return 'سجل فقط';
-      default:
-        return 'كامل';
-    }
-  }
 
   String _buildLocalBackupName() {
     final now = DateTime.now();
@@ -157,6 +179,8 @@ class _BackupPageState extends State<BackupPage> {
           // على الويب: file_picker يكتب الملف تلقائياً عبر bytes
         }
       }
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✅ تم حفظ النسخة في:\n$savePath')),
@@ -458,6 +482,71 @@ class _BackupPageState extends State<BackupPage> {
                       const SizedBox(height: 12),
                       const LinearProgressIndicator(),
                     ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.black.withOpacity(0.08)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'مسارات حفظ النسخ الاحتياطية تلقائياً وعبر الجدولة (على السيرفر)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _path1Ctrl,
+                            enabled: !disabled && !_savingSettings,
+                            decoration: const InputDecoration(
+                              labelText: 'مسار الحفظ المخصص الأول (مثال: D:/backups)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.folder_outlined),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _path2Ctrl,
+                            enabled: !disabled && !_savingSettings,
+                            decoration: const InputDecoration(
+                              labelText: 'مسار الحفظ المخصص الثاني (مثال: E:/backups)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.folder_outlined),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          onPressed: (disabled || _savingSettings) ? null : _saveSettings,
+                          icon: _savingSettings
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.save),
+                          label: const Text('حفظ الإعدادات'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

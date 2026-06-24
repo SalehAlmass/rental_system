@@ -64,6 +64,9 @@ double safeRentTotal(Rent rent) {
   if (rent.items.isNotEmpty) {
     double total = 0;
     for (final item in rent.items) {
+      // Skip replaced items — successor item covers its period, avoid double counting
+      if ((item.status ?? '').toLowerCase() == 'replaced') continue;
+
       final rate = item.rate ?? 0;
       final start = _tryParseRentDate(item.startDatetime) ?? _tryParseRentDate(rent.startDatetime);
       if (start == null) continue;
@@ -108,7 +111,7 @@ double safeRentRemaining(Rent rent) {
 
   final total = safeRentTotal(rent);
   final paid = safeRentPaid(rent);
-  final remaining = total - paid;
+  final remaining = total - (rent.discountAmount ?? 0) - paid;
   return remaining > 0 ? remaining : 0;
 }
 
@@ -226,6 +229,7 @@ class _RentsViewState extends State<_RentsView> {
       case 'open':
       case 'closed':
       case 'cancelled':
+      case 'archived':
         return _statusFilter;
       default:
         return null;
@@ -236,6 +240,15 @@ class _RentsViewState extends State<_RentsView> {
     if (!mounted) return;
     context.read<RentsBloc>().add(RentsRequested(status: _statusParam));
     await _fetchCollectionAgenda();
+  }
+
+  void _setFilter(String filter) {
+    if (_statusFilter == filter) return;
+    setState(() {
+      _statusFilter = filter;
+      _displayLimit = 50;
+    });
+    _reloadEverything();
   }
 
   Future<void> _openDetails(BuildContext context, int rentId) async {
@@ -539,10 +552,7 @@ class _RentsViewState extends State<_RentsView> {
                               ),
                             ),
                             FilledButton.icon(
-                              onPressed: () => setState(
-                                () => _statusFilter =
-                                    isOverdue ? 'overdue' : 'deferred',
-                              ),
+                              onPressed: () => _setFilter(isOverdue ? 'overdue' : 'deferred'),
                               icon: const Icon(Icons.open_in_new),
                               label: const Text('عرض الآن'),
                             ),
@@ -561,28 +571,28 @@ class _RentsViewState extends State<_RentsView> {
                           value: stats.total.toString(),
                           icon: Icons.assignment_outlined,
                           tone: colorScheme.primary,
-                          onTap: () => setState(() => _statusFilter = 'all'),
+                          onTap: () => _setFilter('all'),
                         ),
                         _StatCard(
                           title: 'مفتوحة',
                           value: stats.open.toString(),
                           icon: Icons.lock_open_rounded,
                           tone: Colors.blue,
-                          onTap: () => setState(() => _statusFilter = 'open'),
+                          onTap: () => _setFilter('open'),
                         ),
                         _StatCard(
                           title: 'متأخرة',
                           value: stats.overdue.toString(),
                           icon: Icons.warning_amber_rounded,
                           tone: Colors.red,
-                          onTap: () => setState(() => _statusFilter = 'overdue'),
+                          onTap: () => _setFilter('overdue'),
                         ),
                         _StatCard(
                           title: 'تسديد مؤجل',
                           value: stats.deferredCount.toString(),
                           icon: Icons.account_balance_wallet_outlined,
                           tone: Colors.orange,
-                          onTap: () => setState(() => _statusFilter = 'deferred'),
+                          onTap: () => _setFilter('deferred'),
                           subtitle:
                               '${stats.deferredAmount.toStringAsFixed(0)} ر.ي',
                         ),
@@ -715,8 +725,7 @@ class _RentsViewState extends State<_RentsView> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton.icon(
-                              onPressed: () =>
-                                  setState(() => _statusFilter = 'deferred'),
+                              onPressed: () => _setFilter('deferred'),
                               icon: const Icon(Icons.open_in_new),
                               label: Text(
                                 'عرض كل عقود التحصيل (${collectionToday.length})',
@@ -734,37 +743,42 @@ class _RentsViewState extends State<_RentsView> {
                       _FilterChip(
                         label: 'الكل',
                         selected: _statusFilter == 'all',
-                        onTap: () => setState(() { _statusFilter = 'all'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('all'),
                       ),
                       _FilterChip(
                         label: 'مفتوحة',
                         selected: _statusFilter == 'open',
-                        onTap: () => setState(() { _statusFilter = 'open'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('open'),
                       ),
                       _FilterChip(
                         label: 'مغلقة',
                         selected: _statusFilter == 'closed',
-                        onTap: () => setState(() { _statusFilter = 'closed'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('closed'),
                       ),
                       _FilterChip(
                         label: 'ملغاة',
                         selected: _statusFilter == 'cancelled',
-                        onTap: () => setState(() { _statusFilter = 'cancelled'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('cancelled'),
                       ),
                       _FilterChip(
                         label: 'متأخرة',
                         selected: _statusFilter == 'overdue',
-                        onTap: () => setState(() { _statusFilter = 'overdue'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('overdue'),
                       ),
                       _FilterChip(
                         label: 'بحاجة مراجعة',
                         selected: _statusFilter == 'review',
-                        onTap: () => setState(() { _statusFilter = 'review'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('review'),
                       ),
                       _FilterChip(
                         label: 'تسديد مؤجل',
                         selected: _statusFilter == 'deferred',
-                        onTap: () => setState(() { _statusFilter = 'deferred'; _displayLimit = 50; }),
+                        onTap: () => _setFilter('deferred'),
+                      ),
+                      _FilterChip(
+                        label: 'مؤرشفة',
+                        selected: _statusFilter == 'archived',
+                        onTap: () => _setFilter('archived'),
                       ),
                     ],
                   ),
@@ -1665,10 +1679,20 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
       _equipment = availableEquipment;
       _clientId = _clients.isNotEmpty ? _clients.first.id : null;
       if (_items.isNotEmpty && _equipment.isNotEmpty) {
-         _items.first.equipmentId = _equipment.first.id;
+         final selectedIds = _items.map((x) => x.equipmentId).whereType<int>().toSet();
+         _items.first.equipmentId = _getFirstUnselectedEquipmentId(selectedIds);
       }
       _loading = false;
     });
+  }
+
+  int? _getFirstUnselectedEquipmentId(Set<int> selectedIds) {
+    for (final eq in _equipment) {
+      if (!selectedIds.contains(eq.id)) {
+        return eq.id;
+      }
+    }
+    return null;
   }
 
   @override
@@ -1682,7 +1706,8 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
   void _addItem() {
     setState(() {
       final item = _SelectedEquipmentItem();
-      if (_equipment.isNotEmpty) item.equipmentId = _equipment.first.id;
+      final selectedIds = _items.map((x) => x.equipmentId).whereType<int>().toSet();
+      item.equipmentId = _getFirstUnselectedEquipmentId(selectedIds);
       _items.add(item);
     });
   }
@@ -1752,13 +1777,25 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              DropdownSearch<Equipment>(
-                                items: (filter, _) => _equipment
-                                    .where((e) => e.name.toLowerCase().contains(filter.toLowerCase()) || (e.serialNo != null && e.serialNo!.toLowerCase().contains(filter.toLowerCase())))
-                                    .toList(),
+                               DropdownSearch<Equipment>(
+                                items: (filter, _) {
+                                  final selectedIds = _items
+                                      .where((x) => x != item && x.equipmentId != null)
+                                      .map((x) => x.equipmentId!)
+                                      .toSet();
+                                  return _equipment
+                                      .where((e) => !selectedIds.contains(e.id))
+                                      .where((e) => e.name.toLowerCase().contains(filter.toLowerCase()) || (e.serialNo != null && e.serialNo!.toLowerCase().contains(filter.toLowerCase())))
+                                      .toList();
+                                },
                                 compareFn: (i, s) => i.id == s.id,
                                 itemAsString: (Equipment e) => '${e.name} - ${e.serialNo ?? "-"}',
-                                selectedItem: _equipment.isNotEmpty ? _equipment.firstWhere((e) => e.id == item.equipmentId, orElse: () => _equipment.first) : null,
+                                selectedItem: item.equipmentId == null || _equipment.isEmpty
+                                    ? null
+                                    : _equipment.firstWhere(
+                                        (e) => e.id == item.equipmentId,
+                                        orElse: () => _equipment.first,
+                                      ),
                                 onChanged: (Equipment? data) {
                                   if (data != null) setState(() => item.equipmentId = data.id);
                                 },

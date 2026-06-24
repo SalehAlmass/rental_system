@@ -476,7 +476,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
     final total = rent.totalAmount ?? 0;
     final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
-    final remaining = total - paid;
+    final remaining = total - (rent.discountAmount ?? 0) - paid;
     return remaining > 0 ? remaining : 0;
   }
 
@@ -535,6 +535,10 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     if (rent.items.isNotEmpty) {
       double total = 0;
       for (final item in rent.items) {
+        // Skip replaced items — they already have an end_datetime and
+        // a successor item. Counting them would double the total.
+        if ((item.status ?? '').toLowerCase() == 'replaced') continue;
+
         final rate = item.rate ?? 0;
         final start = _tryParse(item.startDatetime) ?? _tryParse(rent.startDatetime);
         if (start == null) continue;
@@ -622,7 +626,20 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل العقد'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('تفاصيل العقد'),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const RentsPage()),
+              (route) => route.isFirst,
+            );
+          },
+        ),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : rent == null
@@ -688,7 +705,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                           'الإجمالي بعد الخصم',
                           isOpen && _effectiveTotal <= 0.0001
                               ? 'غير نهائي (العقد جاري)'
-                              : '${_effectiveTotal.round()} ر.ي',
+                              : '${(_effectiveTotal - (rent.discountAmount ?? 0)).round()} ر.ي',
                         ),
                         if ((rent.discountAmount ?? 0) > 0) ...[
                           _kv(
@@ -737,14 +754,21 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                               if (isOpen && it.status == 'open')
                                 Align(
                                   alignment: Alignment.centerLeft,
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(
-                                      Icons.swap_horiz,
-                                      size: 16,
-                                    ),
-                                    label: const Text('استبدال'),
-                                    onPressed: () =>
-                                        _replaceEquipment(context, it),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      if (rent.items.where((e) => e.status == 'open').length > 1)
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.assignment_return_outlined, size: 16),
+                                          label: const Text('إرجاع المعدة'),
+                                          onPressed: () => _returnEquipment(context, it),
+                                        ),
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.swap_horiz, size: 16),
+                                        label: const Text('استبدال'),
+                                        onPressed: () => _replaceEquipment(context, it),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               const Divider(),
@@ -1018,25 +1042,153 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
       (sum, r) => sum + _remainingFor(r),
     );
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.08),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (_clientOutstandingRents.isEmpty) return;
+          if (_clientOutstandingRents.length == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RentDetailsPage(rentId: _clientOutstandingRents.first.id),
+              ),
+            );
+          } else {
+            _showOutstandingRentsSheet(context);
+          }
+        },
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'هذا العميل لديه عقود أخرى غير مسددة',
-            style: TextStyle(fontWeight: FontWeight.w700),
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.withOpacity(0.25)),
           ),
-          const SizedBox(height: 6),
-          Text('عدد العقود: ${_clientOutstandingRents.length}'),
-          Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.ي'),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'هذا العميل لديه عقود أخرى غير مسددة',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.orange.shade700,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('عدد العقود: ${_clientOutstandingRents.length}'),
+              Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.ي'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showOutstandingRentsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'العقود الأخرى غير المسددة للعميل',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: _clientOutstandingRents.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, index) {
+                    final r = _clientOutstandingRents[index];
+                    final remaining = _remainingFor(r);
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.receipt_outlined,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        title: Text(
+                          'عقد #${r.id} - ${r.equipmentName ?? "معدة غير معروفة"}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          'تاريخ البدء: ${_fmtDateTime(r.startDatetime)}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${remaining.toStringAsFixed(2)} ر.ي',
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx); // Close sheet
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RentDetailsPage(rentId: r.id),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1234,6 +1386,37 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
+  }
+
+  Future<void> _returnEquipment(BuildContext context, RentItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد إرجاع المعدة'),
+        content: Text('هل أنت متأكد أنك تريد إرجاع المعدة (${item.equipmentName ?? item.equipmentId}) وإيقاف حسابها؟ سيبقى العقد مفتوحاً لبقية المعدات.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('إرجاع'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await _rentsRepo.returnEquipment(rentId: widget.rentId, equipmentId: item.equipmentId!);
+      if (!mounted) return;
+      _snack('تم إرجاع المعدة بنجاح');
+      _load(); // Reload details
+    } catch (e) {
+      if (mounted) _snack(_friendlyError(e), isError: true);
+    }
   }
 
   Future<void> _replaceEquipment(BuildContext context, RentItem item) async {

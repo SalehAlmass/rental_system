@@ -163,4 +163,46 @@ class BackupRepository {
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
+
+  // ✅ جلب إعدادات مسارات النسخ الاحتياطي
+  Future<Map<String, String>> getSettings() async {
+    try {
+      final res = await _api.dio.get('backup/settings');
+      final map = (res.data is Map ? res.data : {}) is Map
+          ? (res.data as Map).cast<String, dynamic>()
+          : <String, dynamic>{};
+      final payload = (map['data'] is Map)
+          ? (map['data'] as Map).cast<String, dynamic>()
+          : <String, dynamic>{};
+      return {
+        'backup_custom_path_1': payload['backup_custom_path_1']?.toString() ?? '',
+        'backup_custom_path_2': payload['backup_custom_path_2']?.toString() ?? '',
+      };
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to load backup settings');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  // ✅ حفظ إعدادات مسارات النسخ الاحتياطي
+  Future<void> saveSettings({
+    required String path1,
+    required String path2,
+  }) async {
+    try {
+      await _api.dio.post('backup/settings', data: {
+        'backup_custom_path_1': path1,
+        'backup_custom_path_2': path2,
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to save backup settings');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
 }

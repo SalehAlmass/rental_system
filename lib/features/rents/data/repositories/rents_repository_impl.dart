@@ -35,14 +35,15 @@ class RentsRepository {
   }
 }
 
-  Future<List<Rent>> list({int? clientId, String? status, int? limit}) async {
+  Future<List<Rent>> list({int? clientId, String? status, int? limit, bool archivedOnly = false}) async {
     try {
       final res = await _api.dio.get(
         'rents',
         queryParameters: {
           if (clientId != null) 'client_id': clientId,
-          if (status != null && status.isNotEmpty) 'status': status,
+          if (status != null && status.isNotEmpty && status != 'archived') 'status': status,
           if (limit != null && limit > 0) 'limit': limit,
+          if (archivedOnly || status == 'archived') 'archived_only': 1,
         },
       );
 
@@ -141,6 +142,23 @@ class RentsRepository {
       final msg = (data is Map && data['error'] != null)
           ? data['error'].toString()
           : (e.message ?? 'Failed to replace equipment');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  Future<void> returnEquipment({
+    required int rentId,
+    required int equipmentId,
+  }) async {
+    try {
+      await _api.dio.post('rents/$rentId/return_item', data: {
+        'equipment_id': equipmentId,
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to return equipment');
       throw ApiFailure(msg, statusCode: e.response?.statusCode);
     }
   }
