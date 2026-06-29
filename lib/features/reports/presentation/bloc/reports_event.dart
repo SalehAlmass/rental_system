@@ -83,3 +83,54 @@ class ReportsRefreshAllRequested extends ReportsEvent {
   @override
   List<Object?> get props => [from, to, revenueGroup];
 }
+
+// ── Phase 7 Financial Events ───────────────────────────────────────────────
+
+class ReportsFinancialSummaryRequested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  final bool compare;
+  const ReportsFinancialSummaryRequested({this.from, this.to, this.compare = false});
+  @override
+  List<Object?> get props => [from, to, compare];
+}
+
+class ReportsProfitLossRequested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  const ReportsProfitLossRequested({this.from, this.to});
+  @override
+  List<Object?> get props => [from, to];
+}
+
+class ReportsCashFlowRequested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  const ReportsCashFlowRequested({this.from, this.to});
+  @override
+  List<Object?> get props => [from, to];
+}
+
+class ReportsEmployeePerformanceRequested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  const ReportsEmployeePerformanceRequested({this.from, this.to});
+  @override
+  List<Object?> get props => [from, to];
+}
+
+class ReportsRevenueByUserSummaryRequested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  const ReportsRevenueByUserSummaryRequested({this.from, this.to});
+  @override
+  List<Object?> get props => [from, to];
+}
+
+class ReportsEquipmentProfitV2Requested extends ReportsEvent {
+  final String? from;
+  final String? to;
+  const ReportsEquipmentProfitV2Requested({this.from, this.to});
+  @override
+  List<Object?> get props => [from, to];
+}

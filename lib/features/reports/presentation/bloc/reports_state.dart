@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/financial_reports.dart';
 import '../../domain/entities/payment_report.dart';
 import '../../domain/entities/report_dashboard.dart';
 import '../../domain/entities/smart_reports.dart';
@@ -40,6 +41,30 @@ class ReportsState extends Equatable {
     this.revenueByUser = const [],
     this.revenueByUserError,
 
+    required this.financialSummaryStatus,
+    this.financialSummary,
+    this.financialSummaryError,
+
+    required this.profitLossStatus,
+    this.profitLoss,
+    this.profitLossError,
+
+    required this.cashFlowStatus,
+    this.cashFlow,
+    this.cashFlowError,
+
+    required this.employeePerformanceStatus,
+    this.employeePerformance = const [],
+    this.employeePerformanceError,
+
+    required this.revenueByUserSummaryStatus,
+    this.revenueByUserSummary = const [],
+    this.revenueByUserSummaryError,
+
+    required this.equipmentProfitV2Status,
+    this.equipmentProfitV2 = const [],
+    this.equipmentProfitV2Error,
+
     this.working = false,
   });
 
@@ -69,6 +94,24 @@ class ReportsState extends Equatable {
         revenueByUserStatus = ReportsStatus.initial,
         revenueByUser = const [],
         revenueByUserError = null,
+        financialSummaryStatus = ReportsStatus.initial,
+        financialSummary = null,
+        financialSummaryError = null,
+        profitLossStatus = ReportsStatus.initial,
+        profitLoss = null,
+        profitLossError = null,
+        cashFlowStatus = ReportsStatus.initial,
+        cashFlow = null,
+        cashFlowError = null,
+        employeePerformanceStatus = ReportsStatus.initial,
+        employeePerformance = const [],
+        employeePerformanceError = null,
+        revenueByUserSummaryStatus = ReportsStatus.initial,
+        revenueByUserSummary = const [],
+        revenueByUserSummaryError = null,
+        equipmentProfitV2Status = ReportsStatus.initial,
+        equipmentProfitV2 = const [],
+        equipmentProfitV2Error = null,
         working = false;
 
   final ReportsStatus dashboardStatus;
@@ -103,6 +146,31 @@ class ReportsState extends Equatable {
   final ReportsStatus revenueByUserStatus;
   final List<RevenueByUserRow> revenueByUser;
   final String? revenueByUserError;
+
+  // Phase 7 Financial Reports
+  final ReportsStatus financialSummaryStatus;
+  final FinancialSummary? financialSummary;
+  final String? financialSummaryError;
+
+  final ReportsStatus profitLossStatus;
+  final ProfitLoss? profitLoss;
+  final String? profitLossError;
+
+  final ReportsStatus cashFlowStatus;
+  final CashFlow? cashFlow;
+  final String? cashFlowError;
+
+  final ReportsStatus employeePerformanceStatus;
+  final List<EmployeePerformanceRow> employeePerformance;
+  final String? employeePerformanceError;
+
+  final ReportsStatus revenueByUserSummaryStatus;
+  final List<RevenueByUserSummaryRow> revenueByUserSummary;
+  final String? revenueByUserSummaryError;
+
+  final ReportsStatus equipmentProfitV2Status;
+  final List<EquipmentProfitRowV2> equipmentProfitV2;
+  final String? equipmentProfitV2Error;
 
   final bool working;
 
@@ -140,6 +208,30 @@ class ReportsState extends Equatable {
     List<RevenueByUserRow>? revenueByUser,
     String? revenueByUserError,
 
+    ReportsStatus? financialSummaryStatus,
+    FinancialSummary? financialSummary,
+    String? financialSummaryError,
+
+    ReportsStatus? profitLossStatus,
+    ProfitLoss? profitLoss,
+    String? profitLossError,
+
+    ReportsStatus? cashFlowStatus,
+    CashFlow? cashFlow,
+    String? cashFlowError,
+
+    ReportsStatus? employeePerformanceStatus,
+    List<EmployeePerformanceRow>? employeePerformance,
+    String? employeePerformanceError,
+
+    ReportsStatus? revenueByUserSummaryStatus,
+    List<RevenueByUserSummaryRow>? revenueByUserSummary,
+    String? revenueByUserSummaryError,
+
+    ReportsStatus? equipmentProfitV2Status,
+    List<EquipmentProfitRowV2>? equipmentProfitV2,
+    String? equipmentProfitV2Error,
+
     bool? working,
   }) {
     return ReportsState(
@@ -176,37 +268,50 @@ class ReportsState extends Equatable {
       revenueByUser: revenueByUser ?? this.revenueByUser,
       revenueByUserError: revenueByUserError,
 
+      financialSummaryStatus: financialSummaryStatus ?? this.financialSummaryStatus,
+      financialSummary: financialSummary ?? this.financialSummary,
+      financialSummaryError: financialSummaryError,
+
+      profitLossStatus: profitLossStatus ?? this.profitLossStatus,
+      profitLoss: profitLoss ?? this.profitLoss,
+      profitLossError: profitLossError,
+
+      cashFlowStatus: cashFlowStatus ?? this.cashFlowStatus,
+      cashFlow: cashFlow ?? this.cashFlow,
+      cashFlowError: cashFlowError,
+
+      employeePerformanceStatus: employeePerformanceStatus ?? this.employeePerformanceStatus,
+      employeePerformance: employeePerformance ?? this.employeePerformance,
+      employeePerformanceError: employeePerformanceError,
+
+      revenueByUserSummaryStatus: revenueByUserSummaryStatus ?? this.revenueByUserSummaryStatus,
+      revenueByUserSummary: revenueByUserSummary ?? this.revenueByUserSummary,
+      revenueByUserSummaryError: revenueByUserSummaryError,
+
+      equipmentProfitV2Status: equipmentProfitV2Status ?? this.equipmentProfitV2Status,
+      equipmentProfitV2: equipmentProfitV2 ?? this.equipmentProfitV2,
+      equipmentProfitV2Error: equipmentProfitV2Error,
+
       working: working ?? this.working,
     );
   }
 
   @override
   List<Object?> get props => [
-        dashboardStatus,
-        dashboard,
-        dashboardError,
-        paymentsStatus,
-        payments,
-        paymentsError,
-        equipmentProfitStatus,
-        equipmentProfit,
-        equipmentProfitError,
-        topEquipmentStatus,
-        topEquipment,
-        topEquipmentError,
-        topClientsStatus,
-        topClients,
-        topClientsError,
-        lateClientsStatus,
-        lateClients,
-        lateClientsError,
-        revenueStatus,
-        revenue,
-        revenueError,
-        revenueGroup,
-        revenueByUserStatus,
-        revenueByUser,
-        revenueByUserError,
+        dashboardStatus, dashboard, dashboardError,
+        paymentsStatus, payments, paymentsError,
+        equipmentProfitStatus, equipmentProfit, equipmentProfitError,
+        topEquipmentStatus, topEquipment, topEquipmentError,
+        topClientsStatus, topClients, topClientsError,
+        lateClientsStatus, lateClients, lateClientsError,
+        revenueStatus, revenue, revenueError, revenueGroup,
+        revenueByUserStatus, revenueByUser, revenueByUserError,
+        financialSummaryStatus, financialSummary, financialSummaryError,
+        profitLossStatus, profitLoss, profitLossError,
+        cashFlowStatus, cashFlow, cashFlowError,
+        employeePerformanceStatus, employeePerformance, employeePerformanceError,
+        revenueByUserSummaryStatus, revenueByUserSummary, revenueByUserSummaryError,
+        equipmentProfitV2Status, equipmentProfitV2, equipmentProfitV2Error,
         working,
       ];
 }

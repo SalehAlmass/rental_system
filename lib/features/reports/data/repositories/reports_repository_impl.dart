@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/failure.dart';
+import '../../domain/entities/financial_reports.dart';
 import '../../domain/entities/payment_report.dart';
 import '../../domain/entities/report_dashboard.dart';
 import '../../domain/entities/smart_reports.dart';
@@ -60,7 +61,6 @@ class ReportsRepository {
       );
 
       final m = _asMap(res.data);
-      // keep compatibility: some APIs might still return "data" instead of "rows"
       if (m['rows'] == null && m['data'] != null) {
         m['rows'] = m['data'];
       }
@@ -88,6 +88,23 @@ class ReportsRepository {
       final m = _asMap(res.data);
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(EquipmentProfitRow.fromJson).toList();
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load equipment profit');
+    }
+  }
+
+  Future<List<EquipmentProfitRowV2>> equipmentProfitV2({String? from, String? to}) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/equipment-profit',
+        queryParameters: {
+          if (from != null) 'from': from,
+          if (to != null) 'to': to,
+        },
+      );
+      final m = _asMap(res.data);
+      final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
+      return list.map(EquipmentProfitRowV2.fromJson).toList();
     } on DioException catch (e) {
       throw _dioFailure(e, 'Failed to load equipment profit');
     }
@@ -179,6 +196,92 @@ class ReportsRepository {
       return list.map(RevenueByUserRow.fromJson).toList();
     } on DioException catch (e) {
       throw _dioFailure(e, 'Failed to load revenue by user');
+    }
+  }
+
+  // ── Phase 7 Financial Reports ──────────────────────────────────────────────
+
+  Future<FinancialSummary> financialSummary({
+    String? from,
+    String? to,
+    bool compare = false,
+  }) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/financial-summary',
+        queryParameters: {
+          if (from != null) 'from_date': from,
+          if (to != null) 'to_date': to,
+          if (compare) 'compare': 'true',
+        },
+      );
+      return FinancialSummary.fromJson(_asMap(res.data));
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load financial summary');
+    }
+  }
+
+  Future<ProfitLoss> profitLoss({String? from, String? to}) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/profit-loss',
+        queryParameters: {
+          if (from != null) 'from_date': from,
+          if (to != null) 'to_date': to,
+        },
+      );
+      return ProfitLoss.fromJson(_asMap(res.data));
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load profit & loss');
+    }
+  }
+
+  Future<CashFlow> cashFlow({String? from, String? to}) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/cash-flow',
+        queryParameters: {
+          if (from != null) 'from_date': from,
+          if (to != null) 'to_date': to,
+        },
+      );
+      return CashFlow.fromJson(_asMap(res.data));
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load cash flow');
+    }
+  }
+
+  Future<List<EmployeePerformanceRow>> employeePerformance({String? from, String? to}) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/employee-performance',
+        queryParameters: {
+          if (from != null) 'from_date': from,
+          if (to != null) 'to_date': to,
+        },
+      );
+      final m = _asMap(res.data);
+      final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items'] ?? []);
+      return list.map(EmployeePerformanceRow.fromJson).toList();
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load employee performance');
+    }
+  }
+
+  Future<List<RevenueByUserSummaryRow>> revenueByUserSummary({String? from, String? to}) async {
+    try {
+      final res = await _api.dio.get(
+        'reports/revenue-by-user-summary',
+        queryParameters: {
+          if (from != null) 'from_date': from,
+          if (to != null) 'to_date': to,
+        },
+      );
+      final m = _asMap(res.data);
+      final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items'] ?? []);
+      return list.map(RevenueByUserSummaryRow.fromJson).toList();
+    } on DioException catch (e) {
+      throw _dioFailure(e, 'Failed to load revenue by user summary');
     }
   }
 }

@@ -47,3 +47,77 @@
 
 ## خلاصة
 نظام التأجير هذا هو تطبيق شامل ومبني على أسس برمجية قوية ونظيفة. لا يقتصر على تأجير الأصول فقط، بل يتعداه ليكون نظاماً متكاملاً (ERP مصغر) يشمل إدارة الموارد البشرية، متابعة الورديات، إدارة مالية للمدفوعات، مع دعم كامل لتوليد التقارير وطباعتها.
+
+---
+
+## المرحلة السابعة (Phase 7): الذكاء المالي وتقارير الإدارة ✅ مكتملة
+
+### الهدف
+تحويل نظام التقارير الحالي إلى وحدة تقارير مالية متكاملة (Financial Intelligence Module) توفر رؤية إدارية واضحة وشاملة.
+
+### المنجزات
+
+#### الخلفية (Backend PHP)
+- **`helpers_financial.php`** (جديد): مكتبة مشتركة لحساب الأرقام المالية (single source of truth):
+  - `calculate_total_revenue()` — إجمالي الإيرادات (غير الملغية)
+  - `calculate_rental_revenue()` — إيرادات الإيجار المرتبطة بالعقود
+  - `calculate_other_revenue()` — الإيرادات غير المرتبطة بالعقود
+  - `calculate_maintenance_expenses()` — مصروفات الصيانة
+  - `calculate_operational_expenses()` — المصروفات التشغيلية الخارجة
+  - `calculate_payroll_expenses()` — الرواتب المقدرة للفترة (يومية ساعية ومرتب ثابت)
+  - `calculate_depreciation_expenses()` — الاستهلاك المحاسبي الشهري
+  - `calculate_total_expenses()` — إجمالي كل المصروفات مصنفة
+  - `calculate_profit_loss()` — هيكل كامل لقائمة الأرباح والخسائر
+  - `calculate_cash_flow()` — التدفقات النقدية مع الرصيد الافتتاحي والختامي
+  - `calculate_outstanding_amount()` — إجمالي المستحقات غير المسددة
+  - `calculate_total_asset_value()` — القيمة الدفترية الإجمالية للأصول
+
+- **`reports.php`** (محسّن): إضافة 5 واجهات برمجية جديدة محمية بصلاحية `financial_reports`:
+  - `GET /reports/financial-summary` — ملخص KPIs + مقارنة بالفترة السابقة
+  - `GET /reports/profit-loss` — قائمة الأرباح والخسائر المحاسبية
+  - `GET /reports/cash-flow` — تدفقات نقدية (رصيد افتتاحي/حركات/رصيد ختامي)
+  - `GET /reports/employee-performance` — أداء الموظفين مالياً
+  - `GET /reports/revenue-by-user-summary` — ملخص إيرادات المستخدم (نقد/تحويل)
+  - تحسين `GET /reports/equipment-profit` بإضافة: سعر الشراء، أيام الإيجار، عائد الاستثمار ROI
+
+- **`helpers.php`** (محسّن):
+  - إضافة صلاحية `financial_reports` لكل الأدوار (admin: true، manager: true، employee: false)
+  - إضافة فهارس أداء: `idx_payments_type`، `idx_payments_method`، `idx_payments_is_void`، `idx_rents_status_created`
+
+#### Flutter
+- **`pubspec.yaml`**: إضافة حزمة `fl_chart ^0.69.0` للرسوم البيانية
+- **`financial_reports.dart`** (جديد): كيانات النطاق لـ FinancialSummary، ProfitLoss، CashFlow، EquipmentProfitRowV2، EmployeePerformanceRow، RevenueByUserSummaryRow
+- **`reports_repository_impl.dart`**: إضافة 5 methods جديدة للواجهات البرمجية المالية
+- **`reports_event.dart`**: إضافة 6 events: FinancialSummary، ProfitLoss، CashFlow، EmployeePerformance، RevenueByUserSummary، EquipmentProfitV2
+- **`reports_state.dart`**: توسيع بـ 18 حقل جديد
+- **`reports_bloc.dart`**: معالجات 6 events جديدة
+- **`reports_page.dart`** (مُعاد بناؤه بالكامل):
+  - 12 تبويب (tabs) مع دعم التصفية بالتاريخ
+  - **تب الملخص المالي**: شبكة KPI cards، رسم بياني دائري للمصروفات، تفاصيل الإيرادات
+  - **تب الأرباح والخسائر**: هيكل محاسبي P&L مع تلوين ذكي
+  - **تب التدفقات النقدية**: رصيد افتتاحي/داخل/خارج/ختامي
+  - **تب أرباح المعدات**: بار جارت + تفاصيل ROI لكل معدة
+  - **تب أداء الموظفين**: بار جارت + بطاقات الأداء التفصيلية
+  - **تب إيرادات المستخدم**: نقد/تحويل/عدد المعاملات
+  - **تب الإيرادات**: خط رسم بياني للاتجاه الزمني
+  - 5 تبويبات موروثة محسّنة (السندات، أفضل معدات، أفضل عملاء، المتأخرون، الإيرادات بالموظف)
+- **`report_export.dart`** (محسّن): 4 قوالب PDF جديدة (A4، Cairo font):
+  - `exportFinancialSummary`
+  - `exportProfitLoss`
+  - `exportCashFlow`
+  - `exportEmployeePerformance`
+
+#### الاختبار
+- **`test_financial_reports.php`**: 29 اختبار جميعها ناجحة ✅
+  - اختبار الإيرادات (صحة إقصاء السندات الملغية)
+  - اختبار المصروفات (صحة المجاميع)
+  - اختبار التدفقات النقدية (رصيد افتتاحي + حركة = رصيد ختامي)
+  - اختبار P&L (الربح الإجمالي والتشغيلي الصحيح)
+  - اختبار الصلاحيات (admin=true، manager=true، employee=false)
+  - اختبار سلامة البيانات
+  - التحقق من وجود الفهارس
+
+#### الأمان
+- صلاحية `financial_reports` منفصلة تحمي جميع الواجهات البرمجية المالية
+- الموظفون العاديون ممنوعون تلقائياً من التقارير المالية (403)
+- عزل بيانات الموظفين: لا يمكن لموظف رؤية بيانات موظف آخر دون صلاحية `hr`

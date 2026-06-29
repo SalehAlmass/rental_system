@@ -1,6 +1,9 @@
+import 'dart:math';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 
@@ -167,7 +170,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         appBar: const CustomAppBar(
           title: 'سجل التدقيق المالي والعمليات',
@@ -374,7 +377,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.between,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -436,7 +439,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       color: theme.cardColor,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.between,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ElevatedButton(
             onPressed: _offset > 0

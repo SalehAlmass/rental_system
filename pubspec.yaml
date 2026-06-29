@@ -30,6 +30,7 @@ dependencies:
   path_provider: 
   share_plus: 
   url_launcher: 
+  fl_chart: ^0.69.0
   flutter_localizations:
     sdk: flutter
 

@@ -15,6 +15,13 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
     on<ReportsRevenueRequested>(_onRevenue);
     on<ReportsRevenueByUserRequested>(_onRevenueByUser);
     on<ReportsRefreshAllRequested>(_onRefreshAll);
+    // Phase 7 financial events
+    on<ReportsFinancialSummaryRequested>(_onFinancialSummary);
+    on<ReportsProfitLossRequested>(_onProfitLoss);
+    on<ReportsCashFlowRequested>(_onCashFlow);
+    on<ReportsEmployeePerformanceRequested>(_onEmployeePerformance);
+    on<ReportsRevenueByUserSummaryRequested>(_onRevenueByUserSummary);
+    on<ReportsEquipmentProfitV2Requested>(_onEquipmentProfitV2);
   }
 
   final ReportsRepository _repo;
@@ -108,5 +115,73 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
     add(ReportsLateClientsRequested(from: event.from, to: event.to));
     add(ReportsRevenueRequested(group: event.revenueGroup, from: event.from, to: event.to));
     add(ReportsRevenueByUserRequested(from: event.from, to: event.to));
+    add(ReportsFinancialSummaryRequested(from: event.from, to: event.to));
+    add(ReportsProfitLossRequested(from: event.from, to: event.to));
+    add(ReportsCashFlowRequested(from: event.from, to: event.to));
+    add(ReportsEmployeePerformanceRequested(from: event.from, to: event.to));
+    add(ReportsRevenueByUserSummaryRequested(from: event.from, to: event.to));
+    add(ReportsEquipmentProfitV2Requested(from: event.from, to: event.to));
+  }
+
+  // ── Phase 7 Financial Handlers ─────────────────────────────────────────────
+
+  Future<void> _onFinancialSummary(ReportsFinancialSummaryRequested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(financialSummaryStatus: ReportsStatus.loading, financialSummaryError: null));
+    try {
+      final d = await _repo.financialSummary(from: event.from, to: event.to, compare: event.compare);
+      emit(state.copyWith(financialSummaryStatus: ReportsStatus.success, financialSummary: d));
+    } catch (e) {
+      emit(state.copyWith(financialSummaryStatus: ReportsStatus.failure, financialSummaryError: e.toString()));
+    }
+  }
+
+  Future<void> _onProfitLoss(ReportsProfitLossRequested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(profitLossStatus: ReportsStatus.loading, profitLossError: null));
+    try {
+      final d = await _repo.profitLoss(from: event.from, to: event.to);
+      emit(state.copyWith(profitLossStatus: ReportsStatus.success, profitLoss: d));
+    } catch (e) {
+      emit(state.copyWith(profitLossStatus: ReportsStatus.failure, profitLossError: e.toString()));
+    }
+  }
+
+  Future<void> _onCashFlow(ReportsCashFlowRequested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(cashFlowStatus: ReportsStatus.loading, cashFlowError: null));
+    try {
+      final d = await _repo.cashFlow(from: event.from, to: event.to);
+      emit(state.copyWith(cashFlowStatus: ReportsStatus.success, cashFlow: d));
+    } catch (e) {
+      emit(state.copyWith(cashFlowStatus: ReportsStatus.failure, cashFlowError: e.toString()));
+    }
+  }
+
+  Future<void> _onEmployeePerformance(ReportsEmployeePerformanceRequested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(employeePerformanceStatus: ReportsStatus.loading, employeePerformanceError: null));
+    try {
+      final rows = await _repo.employeePerformance(from: event.from, to: event.to);
+      emit(state.copyWith(employeePerformanceStatus: ReportsStatus.success, employeePerformance: rows));
+    } catch (e) {
+      emit(state.copyWith(employeePerformanceStatus: ReportsStatus.failure, employeePerformanceError: e.toString()));
+    }
+  }
+
+  Future<void> _onRevenueByUserSummary(ReportsRevenueByUserSummaryRequested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(revenueByUserSummaryStatus: ReportsStatus.loading, revenueByUserSummaryError: null));
+    try {
+      final rows = await _repo.revenueByUserSummary(from: event.from, to: event.to);
+      emit(state.copyWith(revenueByUserSummaryStatus: ReportsStatus.success, revenueByUserSummary: rows));
+    } catch (e) {
+      emit(state.copyWith(revenueByUserSummaryStatus: ReportsStatus.failure, revenueByUserSummaryError: e.toString()));
+    }
+  }
+
+  Future<void> _onEquipmentProfitV2(ReportsEquipmentProfitV2Requested event, Emitter<ReportsState> emit) async {
+    emit(state.copyWith(equipmentProfitV2Status: ReportsStatus.loading, equipmentProfitV2Error: null));
+    try {
+      final rows = await _repo.equipmentProfitV2(from: event.from, to: event.to);
+      emit(state.copyWith(equipmentProfitV2Status: ReportsStatus.success, equipmentProfitV2: rows));
+    } catch (e) {
+      emit(state.copyWith(equipmentProfitV2Status: ReportsStatus.failure, equipmentProfitV2Error: e.toString()));
+    }
   }
 }

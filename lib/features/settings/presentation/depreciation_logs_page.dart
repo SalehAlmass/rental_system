@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/features/profile/profile_cubit.dart';
 
 class DepreciationLogsPage extends StatefulWidget {
@@ -270,7 +272,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.between,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   name,
@@ -291,7 +293,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
             ],
             const Divider(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.between,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,10 +328,10 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
             ),
             const SizedBox(height: 10),
             Row(
-              mainAxisAlignment: MainAxisAlignment.between,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildValueIndicator('القيمة الدفترية قبل', bookBefore),
-                const Icon(Icons.arrow_left_alt, color: Colors.grey),
+                const Icon(Icons.arrow_left, color: Colors.grey),
                 _buildValueIndicator('القيمة الدفترية بعد', bookAfter),
               ],
             ),
@@ -369,7 +371,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       color: theme.cardColor,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.between,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ElevatedButton(
             onPressed: _offset > 0
