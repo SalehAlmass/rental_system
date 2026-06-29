@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/storage/token_storage.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
 import 'package:rental_app/features/clients/presentation/ui/clients_page.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/dashboard_tab.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
@@ -15,7 +17,7 @@ import 'package:rental_app/features/settings/presentation/settings_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 import 'package:rental_app/theme/theme_bloc.dart';
 
-import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
+
 
 import 'package:rental_app/features/profile/profile_cubit.dart';
 import 'package:rental_app/features/profile/profile_repository.dart';
@@ -47,16 +49,13 @@ class DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
 
-    // ننشئ ProfileCubit مرة واحدة فقط
     final api = context.read<ApiClient>().dio;
     final tokenStorage = context.read<TokenStorage>();
     _profileCubit = ProfileCubit(
       repo: ProfileRepository(api),
-      // IMPORTANT: use the same TokenStorage instance created in main.dart
       storage: tokenStorage,
     )..load();
 
-    // حمّل بيانات الداشبورد بعد تسجيل الدخول
     context.read<DashboardBloc>().add(DashboardRequested());
   }
 
@@ -86,7 +85,6 @@ class DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
 
-    // لو لم يكن مسجل دخول، لا نعرض شيء (main/router يتكفل)
     if (authState.status != AuthStatus.authenticated) {
       return const SizedBox.shrink();
     }
@@ -106,17 +104,38 @@ class DashboardPageState extends State<DashboardPage> {
               ? (pstate.user['role']?.toString() == 'admin')
               : false;
 
-          // ✅ نسخ احتياطي تلقائي (مرة واحدة في الجلسة) للمشرف
+          // Automatic fallback if current tab is not allowed
+          if (pstate is ProfileLoaded) {
+            final showDashboard = pstate.hasScreenPermission('dashboard');
+            final showEquipment = pstate.hasScreenPermission('equipment');
+            final showShifts = pstate.hasScreenPermission('shifts');
+            final showRents = pstate.hasScreenPermission('rents');
+            final showSettings = pstate.hasScreenPermission('settings');
+
+            final allowedTabs = <DashboardTab>[];
+            if (showDashboard) allowedTabs.add(DashboardTab.home);
+            if (showEquipment || showShifts) allowedTabs.add(DashboardTab.equipment);
+            if (showRents) allowedTabs.add(DashboardTab.rents);
+            if (showSettings) allowedTabs.add(DashboardTab.settings);
+
+            if (allowedTabs.isNotEmpty && !allowedTabs.contains(_currentTab)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _currentTab = allowedTabs.first;
+                  });
+                }
+              });
+            }
+          }
+
           if (isAdmin && !_checkedAutoBackup) {
             _checkedAutoBackup = true;
-            // لا ننتظر هنا حتى لا نعلق UI
             _tryAutoBackup(context);
           }
 
           return LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 900;
-
               return Scaffold(
                 appBar: currentConfig['appBar'] == true
                     ? CustomAppBar(
@@ -131,7 +150,6 @@ class DashboardPageState extends State<DashboardPage> {
                               onPressed: _confirmClearBusinessData,
                             ),
 
-                          // تبديل الوضع
                           IconButton(
                             tooltip: 'تبديل الوضع',
                             icon: BlocBuilder<ThemeBloc, ThemeState>(
@@ -147,7 +165,6 @@ class DashboardPageState extends State<DashboardPage> {
                                 context.read<ThemeBloc>().add(ThemeToggled()),
                           ),
 
-                          // تغيير كلمة المرور
                           IconButton(
                             tooltip: 'تغيير كلمة المرور',
                             icon: const Icon(Icons.lock_reset),
@@ -161,7 +178,6 @@ class DashboardPageState extends State<DashboardPage> {
                             },
                           ),
 
-                          // تسجيل خروج
                           IconButton(
                             tooltip: 'تسجيل الخروج',
                             icon: const Icon(Icons.logout),
@@ -172,7 +188,6 @@ class DashboardPageState extends State<DashboardPage> {
                       )
                     : null,
 
-                // Drawer removed - all navigation moved to Settings page
                 body: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   switchInCurve: Curves.easeOutCubic,
@@ -189,25 +204,28 @@ class DashboardPageState extends State<DashboardPage> {
                   },
                   child: KeyedSubtree(
                     key: ValueKey(_currentTab),
-                    child: _buildBody(isAdmin, userName),
+                    child: _buildBody(isAdmin, userName, pstate),
                   ),
                 ),
 
-                floatingActionButton: FloatingActionButton(
-                  heroTag: 'dashboard_fab',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ClientsPage()),
-                    );
-                  },
-                  child: const Icon(Icons.person),
+                floatingActionButton: PermissionGuard(
+                  permissionKey: 'clients',
+                  child: FloatingActionButton(
+                    heroTag: 'dashboard_fab',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ClientsPage()),
+                      );
+                    },
+                    child: const Icon(Icons.person),
+                  ),
                 ),
 
                 floatingActionButtonLocation:
                     FloatingActionButtonLocation.centerDocked,
 
-                bottomNavigationBar: _buildBottomNav(isAdmin),
+                bottomNavigationBar: _buildBottomNav(isAdmin, pstate),
               );
             },
           );
@@ -290,7 +308,6 @@ class DashboardPageState extends State<DashboardPage> {
         return;
       }
 
-      // createdAt format: 'YYYY-MM-DD HH:MM:SS'
       DateTime? parsed(String s) {
         try {
           final normalized = s.replaceAll(' ', 'T');
@@ -314,83 +331,118 @@ class DashboardPageState extends State<DashboardPage> {
       if (diff.inHours >= 12) {
         await repo.create();
       }
-    } catch (_) {
-      // نتجاهل الأخطاء حتى لا نعطل التطبيق
-    }
+    } catch (_) {}
   }
 
-
-  Widget _buildBody(bool isAdmin, String userName) {
+  Widget _buildBody(bool isAdmin, String userName, ProfileState pstate) {
     switch (_currentTab) {
       case DashboardTab.home:
-        return DashboardHome(
-          isAdmin: isAdmin,
-          userName: userName,
-          onOpenRents: () => _openRentsWithFilter('open'),
-          onOpenRentsWithFilter: _openRentsWithFilter,
-          onOpenClients: () => _changeTab(DashboardTab.clients),
-          onOpenEquipment: () => _changeTab(DashboardTab.equipment),
-          onOpenPayments: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PaymentsPage()),
+        return PermissionGuard(
+          permissionKey: 'dashboard',
+          fallback: const Center(child: Text('غير مصرح لك بالوصول إلى الرئيسية')),
+          child: DashboardHome(
+            isAdmin: isAdmin,
+            userName: userName,
+            onOpenRents: () => _openRentsWithFilter('open'),
+            onOpenRentsWithFilter: _openRentsWithFilter,
+            onOpenClients: () => _changeTab(DashboardTab.clients),
+            onOpenEquipment: () => _changeTab(DashboardTab.equipment),
+            onOpenPayments: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PaymentsPage()),
+            ),
           ),
         );
       case DashboardTab.clients:
-        return const ClientsPage();
+        return const PermissionGuard(
+          permissionKey: 'clients',
+          fallback: Center(child: Text('غير مصرح لك بالوصول إلى العملاء')),
+          child: ClientsPage(),
+        );
       case DashboardTab.equipment:
-        return isAdmin ? const EquipmentPage() : const ShiftsPage();
+        final showEquipment = pstate.hasScreenPermission('equipment');
+        if (showEquipment) {
+          return const PermissionGuard(
+            permissionKey: 'equipment',
+            fallback: Center(child: Text('غير مصرح لك بالوصول إلى المعدات')),
+            child: EquipmentPage(),
+          );
+        } else {
+          return const PermissionGuard(
+            permissionKey: 'shifts',
+            fallback: Center(child: Text('غير مصرح لك بالوصول إلى إغلاق الدوام')),
+            child: ShiftsPage(),
+          );
+        }
       case DashboardTab.rents:
-        return RentsPage(initialFilter: _rentsFilter);
+        return PermissionGuard(
+          permissionKey: 'rents',
+          fallback: const Center(child: Text('غير مصرح لك بالوصول إلى العقود')),
+          child: RentsPage(initialFilter: _rentsFilter),
+        );
       case DashboardTab.settings:
-        return SettingsPage(isAdmin: isAdmin);
-      // case DashboardTab.about:
-      //   return const AboutPage();
-      // case DashboardTab.users:
-      //   return const UserManagementPage();
-      // case DashboardTab.reports:
-      //   return const ReportsPage();
-      // case DashboardTab.settings:
-      //   return const SettingsPage();
+        return PermissionGuard(
+          permissionKey: 'settings',
+          fallback: const Center(child: Text('غير مصرح لك بالوصول إلى الإعدادات')),
+          child: SettingsPage(isAdmin: isAdmin),
+        );
     }
   }
 
-  Widget _buildBottomNav(bool isAdmin) {
-    final navTabs = [
-      DashboardTab.home,
-      DashboardTab.equipment,
-      DashboardTab.rents,
-      DashboardTab.settings,
-    ];
+  Widget _buildBottomNav(bool isAdmin, ProfileState pstate) {
+    final showDashboard = pstate.hasScreenPermission('dashboard');
+    final showEquipment = pstate.hasScreenPermission('equipment');
+    final showShifts = pstate.hasScreenPermission('shifts');
+    final showRents = pstate.hasScreenPermission('rents');
+    final showSettings = pstate.hasScreenPermission('settings');
+
+    final navTabs = <DashboardTab>[];
+    if (showDashboard) navTabs.add(DashboardTab.home);
+    if (showEquipment || showShifts) navTabs.add(DashboardTab.equipment);
+    if (showRents) navTabs.add(DashboardTab.rents);
+    if (showSettings) navTabs.add(DashboardTab.settings);
 
     final idx = navTabs.indexOf(_currentTab);
+
+    final destinations = <NavigationDestination>[];
+    if (showDashboard) {
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'الرئيسية',
+      ));
+    }
+    if (showEquipment || showShifts) {
+      final isEquip = showEquipment;
+      destinations.add(NavigationDestination(
+        icon: Icon(isEquip ? Icons.construction_outlined : Icons.lock_clock_outlined),
+        selectedIcon: Icon(isEquip ? Icons.construction : Icons.lock_clock),
+        label: isEquip ? 'المعدات' : 'إغلاق الدوام',
+      ));
+    }
+    if (showRents) {
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.wallet_outlined),
+        selectedIcon: Icon(Icons.wallet),
+        label: 'العقود',
+      ));
+    }
+    if (showSettings) {
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.info_outlined),
+        selectedIcon: Icon(Icons.info),
+        label: 'الإعدادات',
+      ));
+    }
+
+    if (destinations.isEmpty) return const SizedBox.shrink();
 
     return NavigationBar(
       backgroundColor: Theme.of(context).colorScheme.surface,
       indicatorColor: Theme.of(context).colorScheme.primary,
       selectedIndex: idx < 0 ? 0 : idx,
       onDestinationSelected: (index) => _changeTab(navTabs[index]),
-      destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: 'الرئيسية',
-        ),
-        NavigationDestination(
-          icon: Icon(isAdmin ? Icons.construction_outlined : Icons.lock_clock_outlined),
-          selectedIcon: Icon(isAdmin ? Icons.construction : Icons.lock_clock),
-          label: isAdmin ? 'المعدات' : 'إغلاق الدوام',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.wallet_outlined),
-          selectedIcon: Icon(Icons.wallet),
-          label: 'العقود',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.info_outlined),
-          selectedIcon: Icon(Icons.info),
-          label: 'الإعدادات',
-        ),
-      ],
+      destinations: destinations,
     );
   }
 }

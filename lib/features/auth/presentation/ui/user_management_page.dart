@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 import '../bloc/user_management_bloc.dart';
 import '../../domain/entities/user_model.dart';
 
@@ -22,6 +23,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final profileState = context.read<ProfileCubit>().state;
+    int? currentUserId;
+    if (profileState is ProfileLoaded) {
+      currentUserId = int.tryParse(profileState.user['id']?.toString() ?? '');
+    }
+
     return BlocConsumer<UserManagementBloc, UserManagementState>(
       listener: (context, state) {
         if (state is UserManagementError) {
@@ -49,13 +56,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ],
           ),
           floatingActionButton: _buildFAB(),
-          body: _buildBody(state),
+          body: _buildBody(state, currentUserId),
         );
       },
     );
   }
 
-  Widget _buildBody(UserManagementState state) {
+  Widget _buildBody(UserManagementState state, int? currentUserId) {
     if (state is UserManagementLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -72,7 +79,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         child: ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 12),
           itemCount: state.users.length,
-          itemBuilder: (context, index) => _buildUserCard(state.users[index]),
+          itemBuilder: (context, index) => _buildUserCard(state.users[index], currentUserId),
         ),
       );
     }
@@ -81,7 +88,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   // =================== User Card ===================
-  Widget _buildUserCard(User user) {
+  Widget _buildUserCard(User user, int? currentUserId) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -107,9 +114,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
           icon: const Icon(Icons.more_vert),
           onSelected: (value) {
             if (value == 'edit') {
-              _showEditUserDialog(context, user);
-            } else if (value == 'delete') _showDeleteDialog(context, user);
-            else if (value == 'toggle') {
+              _showEditUserDialog(context, user, currentUserId);
+            } else if (value == 'delete') {
+              _showDeleteDialog(context, user);
+            } else if (value == 'toggle') {
               context.read<UserManagementBloc>().add(
                     UpdateUser(id: user.id, isActive: !user.isActive),
                   );
@@ -119,11 +127,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
           },
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'edit', child: Text('تعديل')),
-            const PopupMenuItem(value: 'delete', child: Text('حذف')),
-            PopupMenuItem(
-              value: 'toggle',
-              child: Text(user.isActive ? 'تعطيل المستخدم' : 'تفعيل المستخدم'),
-            ),
+            if (user.id != currentUserId)
+              const PopupMenuItem(value: 'delete', child: Text('حذف')),
+            if (user.id != currentUserId)
+              PopupMenuItem(
+                value: 'toggle',
+                child: Text(user.isActive ? 'تعطيل المستخدم' : 'تفعيل المستخدم'),
+              ),
             const PopupMenuItem(value: 'change_password', child: Text('تغيير كلمة المرور')),
           ],
         ),
@@ -165,11 +175,101 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
-  Map<String, dynamic> _buildPermissions({required String hourMode, required String receiptMode}) {
+  static const Map<String, List<Map<String, String>>> _permissionGroups = {
+    'الخدمات الأساسية (Core)': [
+      {'key': 'dashboard', 'label': 'لوحة التحكم (Dashboard)'},
+      {'key': 'rents', 'label': 'العقود (Rentals)'},
+      {'key': 'clients', 'label': 'العملاء (Clients)'},
+      {'key': 'equipment', 'label': 'المعدات (Equipment)'},
+    ],
+    'المالية والتقارير (Financials)': [
+      {'key': 'payments', 'label': 'السندات (Payments)'},
+      {'key': 'receipts', 'label': 'سندات القبض (Receipts)'},
+      {'key': 'reports', 'label': 'التقارير (Reports)'},
+    ],
+    'الموارد البشرية والدوام (HR & Operations)': [
+      {'key': 'hr', 'label': 'الموارد البشرية والرواتب (HR/Payroll)'},
+      {'key': 'attendance', 'label': 'الحضور والانصراف (Attendance)'},
+      {'key': 'shifts', 'label': 'الورديات (Shifts)'},
+    ],
+    'أدوات وإعدادات النظام (System & Tools)': [
+      {'key': 'backup', 'label': 'النسخ الاحتياطي (Backup)'},
+      {'key': 'settings', 'label': 'الإعدادات (Settings)'},
+      {'key': 'user_management', 'label': 'إدارة المستخدمين (User Management)'},
+      {'key': 'print', 'label': 'الطباعة (Print)'},
+      {'key': 'export', 'label': 'تصدير البيانات (Export)'},
+    ],
+  };
+
+  static List<Map<String, String>> get _allPermissionKeys {
+    final list = <Map<String, String>>[];
+    _permissionGroups.forEach((_, perms) {
+      list.addAll(perms);
+    });
+    return list;
+  }
+
+  Map<String, dynamic> _buildPermissions({
+    required String hourMode,
+    required String receiptMode,
+    required Map<String, bool> screenPermissions,
+  }) {
     return {
       'contract_hour_pricing_mode': hourMode,
       'contract_payment_receipt_mode': receiptMode,
+      'screen_permissions': screenPermissions,
     };
+  }
+
+  Widget _screenPermissionsSection({
+    required StateSetter setModalState,
+    required Map<String, bool> screenPermissions,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        const Divider(),
+        const SizedBox(height: 8),
+        const Text(
+          'صلاحيات الشاشات والوصول',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueAccent),
+        ),
+        const SizedBox(height: 8),
+        ..._permissionGroups.entries.map((group) {
+          final groupTitle = group.key;
+          final permissions = group.value;
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: ExpansionTile(
+              title: Text(
+                groupTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              childrenPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              children: permissions.map((p) {
+                final key = p['key']!;
+                final label = p['label']!;
+                return SwitchListTile(
+                  title: Text(label, style: const TextStyle(fontSize: 13)),
+                  value: screenPermissions[key] ?? false,
+                  dense: true,
+                  activeThumbColor: Colors.blueAccent,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) {
+                    setModalState(() {
+                      screenPermissions[key] = val;
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          );
+        }),
+      ],
+    );
   }
 
   Widget _permissionSection({
@@ -195,7 +295,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         const Text('صلاحيات إغلاق العقود', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          initialValue: hourMode,
+          value: hourMode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             labelText: 'احتساب الساعات عند الإغلاق',
@@ -207,7 +307,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         Text('الوضع الحالي: ${_modeLabel(hourMode)}', style: TextStyle(color: Colors.grey.shade700)),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          initialValue: receiptMode,
+          value: receiptMode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             labelText: 'سند القبض عند إغلاق العقد',
@@ -270,13 +370,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-
   void _showCreateUserDialog(BuildContext context) {
     final username = TextEditingController();
     final password = TextEditingController();
     String role = 'employee';
     String hourMode = 'inherit';
     String receiptMode = 'inherit';
+    final Map<String, bool> screenPermissions = {
+      for (final p in _allPermissionKeys) p['key']!: true,
+    };
 
     showDialog(
       context: context,
@@ -300,7 +402,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField(
-                  initialValue: role,
+                  value: role,
                   decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
                   items: const [
                     DropdownMenuItem(value: 'employee', child: Text('موظف')),
@@ -309,13 +411,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   ],
                   onChanged: (v) => setModalState(() => role = v.toString()),
                 ),
-                _permissionSection(
-                  setModalState: setModalState,
-                  hourMode: hourMode,
-                  receiptMode: receiptMode,
-                  onHourChanged: (v) => hourMode = v,
-                  onReceiptChanged: (v) => receiptMode = v,
-                ),
+                if (role != 'admin') ...[
+                  _permissionSection(
+                    setModalState: setModalState,
+                    hourMode: hourMode,
+                    receiptMode: receiptMode,
+                    onHourChanged: (v) => hourMode = v,
+                    onReceiptChanged: (v) => receiptMode = v,
+                  ),
+                  _screenPermissionsSection(
+                    setModalState: setModalState,
+                    screenPermissions: screenPermissions,
+                  ),
+                ],
               ],
             ),
           ),
@@ -334,7 +442,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         username: username.text.trim(),
                         password: password.text,
                         role: role,
-                        permissions: _buildPermissions(hourMode: hourMode, receiptMode: receiptMode),
+                        permissions: _buildPermissions(
+                          hourMode: hourMode,
+                          receiptMode: receiptMode,
+                          screenPermissions: screenPermissions,
+                        ),
                       ),
                     );
                 Navigator.pop(context);
@@ -347,13 +459,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-
-  void _showEditUserDialog(BuildContext context, User user) {
+  void _showEditUserDialog(BuildContext context, User user, int? currentUserId) {
     final username = TextEditingController(text: user.username);
     bool isActive = user.isActive;
     String role = user.role;
     String hourMode = user.contractHourPricingMode;
     String receiptMode = user.contractPaymentReceiptMode;
+    final Map<String, bool> screenPermissions = Map<String, bool>.from(user.screenPermissions);
+    for (final p in _allPermissionKeys) {
+      screenPermissions.putIfAbsent(p['key']!, () => false);
+    }
 
     showDialog(
       context: context,
@@ -368,29 +483,35 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم المستخدم')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: role,
+                  value: role,
                   decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'الدور'),
                   items: const [
                     DropdownMenuItem(value: 'employee', child: Text('موظف')),
                     DropdownMenuItem(value: 'manager', child: Text('مشرف')),
                     DropdownMenuItem(value: 'admin', child: Text('مدير')),
                   ],
-                  onChanged: (v) => setModalState(() => role = v ?? user.role),
+                  onChanged: (user.id == currentUserId) ? null : (v) => setModalState(() => role = v ?? user.role),
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('المستخدم نشط'),
                   value: isActive,
-                  onChanged: (val) => setModalState(() => isActive = val),
+                  onChanged: (user.id == currentUserId) ? null : (val) => setModalState(() => isActive = val),
                 ),
-                _permissionSection(
-                  setModalState: setModalState,
-                  hourMode: hourMode,
-                  receiptMode: receiptMode,
-                  onHourChanged: (v) => hourMode = v,
-                  onReceiptChanged: (v) => receiptMode = v,
-                ),
+                if (role != 'admin') ...[
+                  _permissionSection(
+                    setModalState: setModalState,
+                    hourMode: hourMode,
+                    receiptMode: receiptMode,
+                    onHourChanged: (v) => hourMode = v,
+                    onReceiptChanged: (v) => receiptMode = v,
+                  ),
+                  _screenPermissionsSection(
+                    setModalState: setModalState,
+                    screenPermissions: screenPermissions,
+                  ),
+                ],
               ],
             ),
           ),
@@ -409,7 +530,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         username: username.text,
                         role: role,
                         isActive: isActive,
-                        permissions: _buildPermissions(hourMode: hourMode, receiptMode: receiptMode),
+                        permissions: _buildPermissions(
+                          hourMode: hourMode,
+                          receiptMode: receiptMode,
+                          screenPermissions: screenPermissions,
+                        ),
                       ),
                     );
                 Navigator.pop(context);

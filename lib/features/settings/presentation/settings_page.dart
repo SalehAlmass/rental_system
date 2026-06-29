@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
@@ -35,6 +37,15 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pstate = context.read<ProfileCubit>().state;
+    final showAdminHeader = isAdmin ||
+        pstate.hasScreenPermission('reports') ||
+        pstate.hasScreenPermission('equipment') ||
+        pstate.hasScreenPermission('hr') ||
+        pstate.hasScreenPermission('backup') ||
+        pstate.hasScreenPermission('user_management') ||
+        pstate.hasScreenPermission('settings');
+
     return Scaffold(
       appBar: const CustomAppBar(
         title: 'الإعدادات',
@@ -44,103 +55,141 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         children: [
           _header(context, 'التنقل السريع'),
-          _tile(
-            context,
-            icon: Icons.people,
-            title: 'العملاء',
-            subtitle: 'إدارة بيانات العملاء',
-            onTap: () => _push(context, const ClientsPage()),
+          PermissionGuard(
+            permissionKey: 'clients',
+            child: _tile(
+              context,
+              icon: Icons.people,
+              title: 'العملاء',
+              subtitle: 'إدارة بيانات العملاء',
+              onTap: () => _push(context, const ClientsPage()),
+            ),
           ),
-          _tile(
+          PermissionGuard(
+            permissionKey: 'shifts',
+            child: _tile(
               context,
               icon: Icons.lock_clock,
               title: 'إغلاق الدوام',
               subtitle: 'إدارة شفتات الموظفين',
               onTap: () => _push(context, const ShiftsPage()),
             ),
-          _tile(
-            context,
-            icon: Icons.description,
-            title: 'العقود',
-            subtitle: 'إدارة عقود الإيجار',
-            onTap: () => _push(context, const RentsPage()),
           ),
-          _tile(
-            context,
-            icon: Icons.payments,
-            title: 'السندات',
-            subtitle: 'سندات القبض والصرف',
-            onTap: () => _push(context, const PaymentsPage()),
+          PermissionGuard(
+            permissionKey: 'rents',
+            child: _tile(
+              context,
+              icon: Icons.description,
+              title: 'العقود',
+              subtitle: 'إدارة عقود الإيجار',
+              onTap: () => _push(context, const RentsPage()),
+            ),
+          ),
+          PermissionGuard(
+            permissionKey: 'payments',
+            child: _tile(
+              context,
+              icon: Icons.payments,
+              title: 'السندات',
+              subtitle: 'سندات القبض والصرف',
+              onTap: () => _push(context, const PaymentsPage()),
+            ),
           ),
 
-          _tile(
-            context,
-            icon: Icons.fingerprint,
-            title: 'الحضور والانصراف',
-            subtitle: 'بصمة دخول/خروج + ساعات الدوام',
-            onTap: () => _push(context, const AttendancePage()),
+          PermissionGuard(
+            permissionKey: 'attendance',
+            child: _tile(
+              context,
+              icon: Icons.fingerprint,
+              title: 'الحضور والانصراف',
+              subtitle: 'بصمة دخول/خروج + ساعات الدوام',
+              onTap: () => _push(context, const AttendancePage()),
+            ),
           ),
 
-          // ───── عناصر الأدمن فقط ─────
-          if (isAdmin) ...[
+          // ───── عناصر الإدارة ─────
+          if (showAdminHeader) ...[
             const Divider(height: 28),
             _header(context, 'لوحة الإدارة'),
-            _tile(
-              context,
-              icon: Icons.assessment,
-              title: 'التقارير',
-              subtitle: 'عرض التقارير والإحصائيات',
-              onTap: () => _push(context, const ReportsPage()),
+            PermissionGuard(
+              permissionKey: 'reports',
+              child: _tile(
+                context,
+                icon: Icons.assessment,
+                title: 'التقارير',
+                subtitle: 'عرض التقارير والإحصائيات',
+                onTap: () => _push(context, const ReportsPage()),
+              ),
             ),
-             _tile(
-            context,
-            icon: Icons.construction,
-            title: 'المعدات',
-            subtitle: 'إدارة المعدات المتاحة',
-            onTap: () => _push(context, const EquipmentPage()),
-          ),
-           
-            _tile(
-              context,
-              icon: Icons.account_balance_wallet,
-              title: 'الرواتب',
-              subtitle: 'حساب ساعات ورواتب الموظفين',
-              onTap: () => _push(context, const PayrollPage()),
+            PermissionGuard(
+              permissionKey: 'equipment',
+              child: _tile(
+                context,
+                icon: Icons.construction,
+                title: 'المعدات',
+                subtitle: 'إدارة المعدات المتاحة',
+                onTap: () => _push(context, const EquipmentPage()),
+              ),
             ),
-            _tile(
-              context,
-              icon: Icons.backup_outlined,
-              title: 'النسخ الاحتياطي',
-              subtitle: 'إنشاء واستعادة نسخة قاعدة البيانات',
-              onTap: () => _push(context, const BackupPage()),
+            PermissionGuard(
+              permissionKey: 'hr',
+              child: _tile(
+                context,
+                icon: Icons.account_balance_wallet,
+                title: 'الرواتب',
+                subtitle: 'حساب ساعات ورواتب الموظفين',
+                onTap: () => _push(context, const PayrollPage()),
+              ),
             ),
-            _tile(
-              context,
-              icon: Icons.supervised_user_circle,
-              title: 'إدارة المستخدمين',
-              subtitle: 'إضافة / تعديل / تعطيل المستخدمين',
-              onTap: () => _push(context, const UserManagementPage()),
+            PermissionGuard(
+              permissionKey: 'backup',
+              child: _tile(
+                context,
+                icon: Icons.backup_outlined,
+                title: 'النسخ الاحتياطي',
+                subtitle: 'إنشاء واستعادة نسخة قاعدة البيانات',
+                onTap: () => _push(context, const BackupPage()),
+              ),
             ),
-            _tile(
-              context,
-              icon: Icons.rule_folder_outlined,
-              title: 'سياسة إغلاق العقود',
-              subtitle: 'التحكم في احتساب الساعات وسندات القبض',
-              onTap: () => _push(context, const ContractClosingSettingsPage()),
+            PermissionGuard(
+              permissionKey: 'user_management',
+              child: _tile(
+                context,
+                icon: Icons.supervised_user_circle,
+                title: 'إدارة المستخدمين',
+                subtitle: 'إضافة / تعديل / تعطيل المستخدمين',
+                onTap: () => _push(context, const UserManagementPage()),
+              ),
             ),
-            _tile(
-              context,
-              icon: Icons.notifications_active_outlined,
-              title: 'التنبيهات وسجل التدقيق',
-              subtitle: 'مراجعة العقود والسندات والفروقات الحساسة',
-              onTap: () => _push(context, const AdminMonitoringPage()),
+            PermissionGuard(
+              permissionKey: 'settings',
+              child: _tile(
+                context,
+                icon: Icons.rule_folder_outlined,
+                title: 'سياسة إغلاق العقود',
+                subtitle: 'التحكم في احتساب الساعات وسندات القبض',
+                onTap: () => _push(context, const ContractClosingSettingsPage()),
+              ),
             ),
-            _tile(
-              context,
-              icon: Icons.groups_3_outlined,
-              title: 'مراقبة الموظفين',
-              subtitle: 'العقود والإغلاقات والتحصيل والمتابعات وآخر النشاط',
-              onTap: () => _push(context, const TeamMonitoringPage()),
+            PermissionGuard(
+              permissionKey: 'settings',
+              child: _tile(
+                context,
+                icon: Icons.notifications_active_outlined,
+                title: 'التنبيهات وسجل التدقيق',
+                subtitle: 'مراجعة العقود والسندات والفروقات الحساسة',
+                onTap: () => _push(context, const AdminMonitoringPage()),
+              ),
+            ),
+            PermissionGuard(
+              permissionKey: 'hr',
+              child: _tile(
+                context,
+                icon: Icons.groups_3_outlined,
+                title: 'مراقبة الموظفين',
+                subtitle: 'العقود والإغلاقات والتحصيل والمتابعات وآخر النشاط',
+                onTap: () => _push(context, const TeamMonitoringPage()),
+              ),
             ),
           ],
 
