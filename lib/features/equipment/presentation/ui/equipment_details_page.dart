@@ -110,6 +110,8 @@ class EquipmentDetailsPage extends StatelessWidget {
                       const Divider(),
                       _buildDetailItem('القيمة الدفترية الحالية', '${equipment.bookValue.round()} ر.ي'),
                       const Divider(),
+                      _buildDetailItem('تاريخ آخر إهلاك', equipment.lastDepreciationMonth ?? '-'),
+                      const Divider(),
                       _buildDetailItem('أيام الاستخدام المقدرة', '${equipment.estimatedUsageDays} يوم'),
                       const Divider(),
                       _buildDetailItem('الإهلاك التشغيلي/يوم', '${equipment.operationalDepreciationPerDay.round()} ر.ي'),

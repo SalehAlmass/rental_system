@@ -19,6 +19,8 @@ import 'package:rental_app/features/reports/presentation/pages/reports_page.dart
 import 'package:rental_app/features/rents/presentation/ui/rents_page.dart';
 import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
+import 'package:rental_app/features/settings/presentation/audit_logs_page.dart';
+import 'package:rental_app/features/settings/presentation/depreciation_logs_page.dart';
 import 'package:rental_app/features/settings/presentation/contract_closing_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/team_monitoring_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
@@ -44,7 +46,8 @@ class SettingsPage extends StatelessWidget {
         pstate.hasScreenPermission('hr') ||
         pstate.hasScreenPermission('backup') ||
         pstate.hasScreenPermission('user_management') ||
-        pstate.hasScreenPermission('settings');
+        pstate.hasScreenPermission('settings') ||
+        pstate.hasScreenPermission('audit_logs');
 
     return Scaffold(
       appBar: const CustomAppBar(
@@ -179,6 +182,26 @@ class SettingsPage extends StatelessWidget {
                 title: 'التنبيهات وسجل التدقيق',
                 subtitle: 'مراجعة العقود والسندات والفروقات الحساسة',
                 onTap: () => _push(context, const AdminMonitoringPage()),
+              ),
+            ),
+            PermissionGuard(
+              permissionKey: 'audit_logs',
+              child: _tile(
+                context,
+                icon: Icons.fact_check_outlined,
+                title: 'سجل التدقيق المالي الكامل',
+                subtitle: 'سجل حركات العمليات والسندات التفصيلي للمراجعة',
+                onTap: () => _push(context, const AuditLogsPage()),
+              ),
+            ),
+            PermissionGuard(
+              permissionKey: 'equipment',
+              child: _tile(
+                context,
+                icon: Icons.assignment_returned_outlined,
+                title: 'سجل إهلاك الأصول',
+                subtitle: 'تتبع قيم الاستهلاك والدفاتر للمعدات والآليات',
+                onTap: () => _push(context, const DepreciationLogsPage()),
               ),
             ),
             PermissionGuard(

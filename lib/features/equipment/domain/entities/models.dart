@@ -19,6 +19,7 @@ class Equipment {
     this.estimatedUsageDays = 365,
     this.operationalDepreciationPerDay = 0,
     this.operationalDepreciationAccumulated = 0,
+    this.lastDepreciationMonth,
   });
 
   final int id;
@@ -40,6 +41,7 @@ class Equipment {
   final int estimatedUsageDays;
   final double operationalDepreciationPerDay;
   final double operationalDepreciationAccumulated;
+  final String? lastDepreciationMonth;
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
     double toD(dynamic v) => v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
@@ -71,6 +73,7 @@ class Equipment {
       estimatedUsageDays: toI(json['estimated_usage_days'] ?? 365),
       operationalDepreciationPerDay: toD(json['operational_depreciation_per_day']),
       operationalDepreciationAccumulated: toD(json['operational_depreciation_accumulated']),
+      lastDepreciationMonth: json['last_depreciation_month']?.toString(),
     );
   }
 
@@ -95,5 +98,6 @@ class Equipment {
         'estimated_usage_days': estimatedUsageDays,
         'operational_depreciation_per_day': operationalDepreciationPerDay,
         'operational_depreciation_accumulated': operationalDepreciationAccumulated,
+        'last_depreciation_month': lastDepreciationMonth,
       };
 }
