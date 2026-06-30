@@ -23,6 +23,10 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
   String? _integrityError;
   String? _errorsError;
 
+  // Error log filter
+  String _errorFilter = 'all';
+  Map<String, int> _errorCounts = {'total': 0, 'open': 0, 'resolved': 0};
+
   @override
   void initState() {
     super.initState();
@@ -99,10 +103,17 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
     });
     try {
       final dio = context.read<ApiClient>().dio;
-      final res = await dio.get('system-health/errors');
+      final params = <String, dynamic>{};
+      if (_errorFilter != 'all') {
+        params['status'] = _errorFilter;
+      }
+      final res = await dio.get('system-health/errors', queryParameters: params.isNotEmpty ? params : null);
       if (res.data != null && res.data['success'] == true) {
         setState(() {
           _errorLogs = res.data['data'] as List<dynamic>;
+          if (res.data['counts'] != null) {
+            _errorCounts = Map<String, int>.from(res.data['counts'] as Map);
+          }
           _isLoadingErrors = false;
         });
       } else {
@@ -488,111 +499,247 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
     }
 
     if (_errorLogs.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.playlist_add_check_circle_outlined, size: 80, color: Colors.green),
-            SizedBox(height: 16),
-            Text('سجل الأخطاء فارغ!', style: TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
-            SizedBox(height: 8),
-            Text('لم يتم تسجيل أي أخطاء أو استثناءات في الخادم مؤخراً.', style: TextStyle(fontFamily: 'Cairo', color: Colors.black54)),
-          ],
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.playlist_add_check_circle_outlined, size: 80, color: Colors.green.shade400),
+              const SizedBox(height: 16),
+              Text('سجل الأخطاء فارغ!', style: TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+              const SizedBox(height: 8),
+              const Text('لم يتم تسجيل أي أخطاء أو استثناءات في الخادم مؤخراً.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Cairo', color: Colors.black54)),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _loadErrorsData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('تحديث السجل', style: TextStyle(fontFamily: 'Cairo')),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _errorLogs.length,
-      itemBuilder: (context, index) {
-        final err = _errorLogs[index];
-        final title = err['title_ar'] as String? ?? 'خطأ في الخادم';
-        final cause = err['cause_ar'] as String? ?? '';
-        final severity = err['severity'] as String? ?? 'متوسط';
-        final action = err['suggested_action_ar'] as String? ?? '';
-        Color severityColor;
-        switch (severity) {
-          case 'عالي':
-            severityColor = Colors.red;
-            break;
-          case 'متوسط':
-            severityColor = Colors.orange;
-            break;
-          case 'منخفض':
-            severityColor = Colors.amber.shade700;
-            break;
-          default:
-            severityColor = Colors.grey;
-        }
-        return Card(
-          elevation: 1,
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          child: ExpansionTile(
-            leading: CircleAvatar(
-              backgroundColor: severityColor.withValues(alpha: 0.15),
-              radius: 18,
-              child: Icon(Icons.error_outline, color: severityColor, size: 20),
-            ),
-            title: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14, color: severityColor),
-            ),
-            subtitle: Text(
-              '${err['api'] ?? ''} | ${err['created_at'] ?? ''}',
-              style: const TextStyle(fontSize: 11, color: Colors.black54),
-            ),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            expandedAlignment: Alignment.topRight,
+    return Column(
+      children: [
+        // Filter chips bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade100),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _errorDetailRow('سبب الخطأ', cause),
-                    const SizedBox(height: 6),
-                    _errorDetailRow('مستوى الخطورة', severity),
-                    if (err['error_message'] != null) ...[
-                      const SizedBox(height: 6),
-                      _errorDetailRow('الرسالة التقنية', err['error_message'] as String),
-                    ],
-                    if (action.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      _errorDetailRow('الإجراء المقترح', action),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text('تتبع المسار (Stack Trace):', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12, color: Colors.brown)),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade900,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    err['stack_trace'] ?? 'لا يوجد تفاصيل إضافية لتتبع المسار',
-                    style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontFamily: 'monospace'),
-                  ),
-                ),
+              _buildFilterChip('الكل', 'all', null),
+              const SizedBox(width: 8),
+              _buildFilterChip('مفتوح', 'open', _errorCounts['open']),
+              const SizedBox(width: 8),
+              _buildFilterChip('تم الحل', 'resolved', _errorCounts['resolved']),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 20),
+                onPressed: _loadErrorsData,
+                tooltip: 'تحديث',
               ),
             ],
           ),
-        );
+        ),
+        // Error list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            itemCount: _errorLogs.length,
+            itemBuilder: (context, index) {
+              final err = _errorLogs[index];
+              final title = err['title_ar'] as String? ?? 'خطأ في الخادم';
+              final cause = err['cause_ar'] as String? ?? '';
+              final severity = err['severity'] as String? ?? 'متوسط';
+              final action = err['suggested_action_ar'] as String? ?? '';
+              final status = err['status'] as String? ?? 'resolved';
+              final isResolved = status == 'resolved';
+
+              // Determine severity level
+              String levelLabel;
+              Color severityColor;
+              IconData severityIcon;
+              switch (severity) {
+                case 'عالي':
+                  levelLabel = '🔴 خطير';
+                  severityColor = Colors.red;
+                  severityIcon = Icons.error;
+                  break;
+                case 'متوسط':
+                  levelLabel = '🟠 تحذير';
+                  severityColor = Colors.orange;
+                  severityIcon = Icons.warning_amber_rounded;
+                  break;
+                case 'منخفض':
+                  levelLabel = '🟢 معلومات';
+                  severityColor = Colors.amber.shade700;
+                  severityIcon = Icons.info_outline;
+                  break;
+                default:
+                  levelLabel = severity;
+                  severityColor = Colors.grey;
+                  severityIcon = Icons.info_outline;
+              }
+
+              return Card(
+                elevation: isResolved ? 0.5 : 1.5,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                color: isResolved ? Colors.grey.shade50 : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isResolved
+                      ? BorderSide(color: Colors.grey.shade200)
+                      : BorderSide(color: severityColor.withValues(alpha: 0.3)),
+                ),
+                child: ExpansionTile(
+                  leading: CircleAvatar(
+                    backgroundColor: (isResolved ? Colors.grey : severityColor).withValues(alpha: 0.15),
+                    radius: 18,
+                    child: Icon(severityIcon, color: isResolved ? Colors.grey : severityColor, size: 20),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isResolved ? Colors.grey : severityColor,
+                            decoration: isResolved ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                      ),
+                      if (isResolved)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('تم الحل', style: TextStyle(fontFamily: 'Cairo', fontSize: 9, color: Colors.green)),
+                        ),
+                    ],
+                  ),
+                  subtitle: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${err['api'] ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 10, color: Colors.black45),
+                        ),
+                      ),
+                      Text(
+                        levelLabel,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: severityColor),
+                      ),
+                    ],
+                  ),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  expandedAlignment: Alignment.topRight,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _errorDetailRow('الوحدة المتأثرة', err['api'] as String? ?? ''),
+                          const SizedBox(height: 6),
+                          _errorDetailRow('سبب المشكلة', cause),
+                          const SizedBox(height: 6),
+                          _errorDetailRow('مستوى الخطورة', levelLabel),
+                          const SizedBox(height: 6),
+                          _errorDetailRow('وقت حدوث الخطأ', err['created_at'] as String? ?? ''),
+                          if (isResolved && err['resolved_at'] != null) ...[
+                            const SizedBox(height: 6),
+                            _errorDetailRow('وقت الحل', err['resolved_at'] as String),
+                          ],
+                          if (err['error_message'] != null) ...[
+                            const SizedBox(height: 6),
+                            _errorDetailRow('الرسالة التقنية', err['error_message'] as String),
+                          ],
+                          if (action.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            _errorDetailRow('الإجراء المقترح', action),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (err['stack_trace'] != null && (err['stack_trace'] as String).isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text('تفاصيل التتبع (Stack Trace):', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12, color: Colors.brown)),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade900,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(
+                            err['stack_trace'] as String,
+                            style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontFamily: 'monospace'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value, int? count) {
+    final isSelected = _errorFilter == value;
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+          if (count != null) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.3) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('$count', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ],
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) {
+          setState(() {
+            _errorFilter = value;
+          });
+          _loadErrorsData();
+        }
       },
+      selectedColor: value == 'open' ? Colors.red.shade100 : (value == 'resolved' ? Colors.green.shade100 : Colors.blue.shade100),
+      checkmarkColor: value == 'open' ? Colors.red : (value == 'resolved' ? Colors.green : Colors.blue),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
