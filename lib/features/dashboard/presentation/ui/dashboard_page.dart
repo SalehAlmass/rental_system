@@ -249,13 +249,13 @@ class DashboardPageState extends State<DashboardPage> {
               'سيتم حذف العملاء والمعدات والعقود والسندات والحضور والتنبيهات، مع إبقاء المستخدمين والإعدادات حتى تستطيع الدخول للنظام.',
             ),
             const SizedBox(height: 12),
-            const Text('للتأكيد اكتب CLEAR'),
+            const Text('للتأكيد اكتب مسح'),
             const SizedBox(height: 8),
             TextField(
               controller: textCtrl,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'CLEAR',
+                hintText: 'مسح',
               ),
             ),
           ],
@@ -267,7 +267,7 @@ class DashboardPageState extends State<DashboardPage> {
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, textCtrl.text.trim() == 'CLEAR'),
+            onPressed: () => Navigator.pop(context, textCtrl.text.trim() == 'مسح'),
             icon: const Icon(Icons.delete_forever),
             label: const Text('حذف البيانات'),
           ),

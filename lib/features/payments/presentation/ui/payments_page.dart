@@ -775,9 +775,10 @@ class _PaymentCard extends StatelessWidget {
   static String _methodLabel(String? method) {
     switch ((method ?? '').toLowerCase()) {
       case 'cash':
-        return 'نقد';
+        return 'نقدي';
+      case 'transfer':
       case 'bank':
-        return 'تحويل';
+        return 'تحويل بنكي';
       case 'card':
         return 'بطاقة';
       default:

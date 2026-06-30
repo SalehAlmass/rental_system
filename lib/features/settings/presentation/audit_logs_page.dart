@@ -395,7 +395,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                     border: Border.all(color: actionColor),
                   ),
                   child: Text(
-                    action,
+                    _translateAction(action),
                     style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
@@ -416,7 +416,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 const Icon(Icons.category_outlined, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text('الكيان: ', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                Text('$entity #$entityId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('${_translateEntity(entity)} #$entityId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
             if (hasDetails) ...[
@@ -601,5 +601,56 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     final dt = DateTime.tryParse(raw.replaceAll(' ', 'T'));
     if (dt == null) return raw;
     return DateFormat('yyyy/MM/dd - hh:mm a', 'en').format(dt);
+  }
+
+  String _translateAction(String action) {
+    switch (action) {
+      case 'login_success': return 'تم تسجيل الدخول بنجاح';
+      case 'login_failed': return 'فشل تسجيل الدخول';
+      case 'logout': return 'تم تسجيل الخروج';
+      case 'session_created': return 'تم إنشاء جلسة دخول';
+      case 'session_revoked': return 'تم إلغاء جلسة الدخول';
+      case 'admin_force_logout': return 'تسجيل خروج قسري من المسؤول';
+      case 'password_changed': return 'تم تغيير كلمة المرور';
+      case 'backup_created': return 'تم إنشاء نسخة احتياطية';
+      case 'backup_failed': return 'فشل إنشاء النسخة الاحتياطية';
+      case 'backup_restored': return 'تم استعادة النسخة الاحتياطية';
+      case 'backup_restore_failed': return 'فشل استعادة النسخة الاحتياطية';
+      case 'credit_warning_used': return 'تم استخدام تجاوز الحد الائتماني';
+      case 'credit_blocked': return 'تم منع إنشاء العقد بسبب تجاوز الحد الائتماني';
+      case 'attendance_check_in': return 'تسجيل حضور';
+      case 'attendance_check_out': return 'تسجيل انصراف';
+      case 'payment_created': return 'تم إنشاء سند دفع';
+      case 'payment_updated': return 'تم تحديث السند';
+      case 'payment_voided': return 'تم إلغاء/إبطال السند';
+      case 'rent_created': return 'تم إنشاء عقد تأجير';
+      case 'rent_updated': return 'تم تحديث العقد';
+      case 'rent_cancelled': return 'تم إلغاء العقد';
+      case 'rent_closed': return 'تم إغلاق العقد';
+      case 'user_created': return 'تم إنشاء مستخدم جديد';
+      case 'user_updated': return 'تم تحديث بيانات المستخدم';
+      case 'user_activated': return 'تم تفعيل حساب المستخدم';
+      case 'user_deactivated': return 'تم تعطيل حساب المستخدم';
+      case 'user_deleted': return 'تم حذف المستخدم';
+      case 'role_changed': return 'تم تغيير دور المستخدم';
+      case 'permissions_changed': return 'تم تعديل الصلاحيات المخصصة';
+      case 'shift_closed': return 'تم إغلاق الوردية ماليًا';
+      case 'shift_difference_detected': return 'تم رصد عجز أو فائض بالوردية';
+      case 'contract_closing_settings_updated': return 'تم تحديث إعدادات إغلاق العقود';
+      default: return action;
+    }
+  }
+
+  String _translateEntity(String entity) {
+    switch (entity.toLowerCase()) {
+      case 'payment': return 'سند مالي';
+      case 'rent': return 'عقد تأجير';
+      case 'client': return 'عميل';
+      case 'equipment': return 'معدة / أصل';
+      case 'user': return 'مستخدم';
+      case 'shift_closing': return 'إغلاق وردية';
+      case 'app_settings': return 'إعدادات النظام';
+      default: return entity;
+    }
   }
 }

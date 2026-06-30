@@ -23,6 +23,7 @@ import 'package:rental_app/features/settings/presentation/audit_logs_page.dart';
 import 'package:rental_app/features/settings/presentation/depreciation_logs_page.dart';
 import 'package:rental_app/features/settings/presentation/contract_closing_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/team_monitoring_page.dart';
+import 'package:rental_app/features/settings/presentation/system_health_page.dart';
 import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 import 'package:rental_app/features/hr/presentation/ui/attendance_page.dart';
 import 'package:rental_app/features/hr/presentation/ui/payroll_page.dart';
@@ -212,6 +213,16 @@ class SettingsPage extends StatelessWidget {
                 title: 'مراقبة الموظفين',
                 subtitle: 'العقود والإغلاقات والتحصيل والمتابعات وآخر النشاط',
                 onTap: () => _push(context, const TeamMonitoringPage()),
+              ),
+            ),
+            PermissionGuard(
+              permissionKey: 'settings',
+              child: _tile(
+                context,
+                icon: Icons.health_and_safety_outlined,
+                title: 'حالة النظام والصيانة',
+                subtitle: 'مراقبة اتصال قاعدة البيانات وحجم الملفات وتدقيق سلامة البيانات',
+                onTap: () => _push(context, const SystemHealthPage()),
               ),
             ),
           ],

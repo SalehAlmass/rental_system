@@ -745,7 +745,7 @@ class _EquipmentProfitTab extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(color: _profitColor(r.roiPct!).withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                                child: Text('ROI: ${_fmtPct(r.roiPct)}', style: TextStyle(color: _profitColor(r.roiPct!), fontSize: 11, fontWeight: FontWeight.bold)),
+                                child: Text('العائد: ${_fmtPct(r.roiPct)}', style: TextStyle(color: _profitColor(r.roiPct!), fontSize: 11, fontWeight: FontWeight.bold)),
                               ),
                           ],
                         ),
