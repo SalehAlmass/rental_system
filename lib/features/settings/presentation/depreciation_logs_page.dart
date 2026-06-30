@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/permission_guard.dart';
@@ -145,7 +144,15 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
                           decoration: const InputDecoration(labelText: 'المعدة', border: OutlineInputBorder()),
                           items: [
                             const DropdownMenuItem(value: null, child: Text('جميع المعدات')),
-                            ..._equipmentList.map((e) => DropdownMenuItem(value: e['id'] as int, child: Text(e['name'].toString()))),
+                            ..._equipmentList.map((e) {
+                              final id = e['id'] is int
+                                  ? e['id'] as int
+                                  : int.tryParse(e['id']?.toString() ?? '') ?? 0;
+                              return DropdownMenuItem(
+                                value: id,
+                                child: Text(e['name'].toString()),
+                              );
+                            }),
                           ],
                           onChanged: (val) {
                             setState(() {

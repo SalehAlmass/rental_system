@@ -264,7 +264,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 decoration: const InputDecoration(labelText: 'الموظف المسؤول', border: OutlineInputBorder()),
                                 items: [
                                   const DropdownMenuItem(value: null, child: Text('جميع الموظفين')),
-                                  ..._users.map((u) => DropdownMenuItem(value: u['id'] as int, child: Text(u['username'].toString()))),
+                                  ..._users.map((u) {
+                                    final id = u['id'] is int
+                                        ? u['id'] as int
+                                        : int.tryParse(u['id']?.toString() ?? '') ?? 0;
+                                    return DropdownMenuItem(
+                                      value: id,
+                                      child: Text(u['username'].toString()),
+                                    );
+                                  }),
                                 ],
                                 onChanged: (val) {
                                   setState(() {
