@@ -507,24 +507,72 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
       itemCount: _errorLogs.length,
       itemBuilder: (context, index) {
         final err = _errorLogs[index];
+        final title = err['title_ar'] as String? ?? 'خطأ في الخادم';
+        final cause = err['cause_ar'] as String? ?? '';
+        final severity = err['severity'] as String? ?? 'متوسط';
+        final action = err['suggested_action_ar'] as String? ?? '';
+        Color severityColor;
+        switch (severity) {
+          case 'عالي':
+            severityColor = Colors.red;
+            break;
+          case 'متوسط':
+            severityColor = Colors.orange;
+            break;
+          case 'منخفض':
+            severityColor = Colors.amber.shade700;
+            break;
+          default:
+            severityColor = Colors.grey;
+        }
         return Card(
           elevation: 1,
           margin: const EdgeInsets.symmetric(vertical: 6),
           child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: severityColor.withValues(alpha: 0.15),
+              radius: 18,
+              child: Icon(Icons.error_outline, color: severityColor, size: 20),
+            ),
             title: Text(
-              err['error_message'] ?? 'خطأ في الخادم',
+              title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red),
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14, color: severityColor),
             ),
             subtitle: Text(
-              'المسار: ${err['api']} | ${err['created_at']}',
+              '${err['api'] ?? ''} | ${err['created_at'] ?? ''}',
               style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
-            childrenPadding: const EdgeInsets.all(16),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             expandedAlignment: Alignment.topRight,
             children: [
-              const Text('رمز الخطأ وتتبع المسار (Stack Trace):', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12, color: Colors.brown)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _errorDetailRow('سبب الخطأ', cause),
+                    const SizedBox(height: 6),
+                    _errorDetailRow('مستوى الخطورة', severity),
+                    if (err['error_message'] != null) ...[
+                      const SizedBox(height: 6),
+                      _errorDetailRow('الرسالة التقنية', err['error_message'] as String),
+                    ],
+                    if (action.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _errorDetailRow('الإجراء المقترح', action),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('تتبع المسار (Stack Trace):', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12, color: Colors.brown)),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -545,6 +593,18 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
           ),
         );
       },
+    );
+  }
+
+  Widget _errorDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$label: ', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12)),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.black87)),
+        ),
+      ],
     );
   }
 
