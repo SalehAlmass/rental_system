@@ -190,6 +190,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
     'الموارد البشرية والدوام (HR & Operations)': [
       {'key': 'hr', 'label': 'الموارد البشرية والرواتب (HR/Payroll)'},
       {'key': 'attendance', 'label': 'الحضور والانصراف (Attendance)'},
+      {'key': 'attendance_dashboard', 'label': 'شاشة مراقبة الحضور (Attendance Monitor)'},
+      {'key': 'attendance_statistics', 'label': 'إحصائيات الحضور (Attendance Stats)'},
+      {'key': 'attendance_reports', 'label': 'تقارير الحضور المتقدمة (Attendance Reports)'},
+      {'key': 'attendance_breaks', 'label': 'إدارة الاستراحات (Break Management)'},
+      {'key': 'attendance_edit', 'label': 'تعديل الحضور اليدوي (Attendance Edit)'},
+      {'key': 'attendance_manage', 'label': 'إدارة الحضور والورديات (Attendance Management)'},
       {'key': 'shifts', 'label': 'الورديات (Shifts)'},
     ],
     'أدوات وإعدادات النظام (System & Tools)': [
