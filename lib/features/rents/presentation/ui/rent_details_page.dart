@@ -632,11 +632,15 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const RentsPage()),
-              (route) => route.isFirst,
-            );
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const RentsPage()),
+                (route) => route.isFirst,
+              );
+            }
           },
         ),
       ),
