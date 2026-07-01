@@ -215,16 +215,14 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => _push(context, const TeamMonitoringPage()),
               ),
             ),
-            PermissionGuard(
-              permissionKey: 'settings',
-              child: _tile(
+            if (isAdmin)
+              _tile(
                 context,
                 icon: Icons.health_and_safety_outlined,
                 title: 'حالة النظام والصيانة',
                 subtitle: 'مراقبة اتصال قاعدة البيانات وحجم الملفات وتدقيق سلامة البيانات',
                 onTap: () => _push(context, const SystemHealthPage()),
               ),
-            ),
           ],
 
           const Divider(height: 28),

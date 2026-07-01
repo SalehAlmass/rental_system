@@ -7,5 +7,5 @@ class AppConfig {
   static const String baseUrl = "http://localhost/alkhair/rental_api/index.php?path=";
 
   /// رمز العملة المستخدم في عرض المبالغ في جميع شاشات النظام
-  static const String currencySymbol = 'ر.ي';
+  static const String currencySymbol = 'ر. ي';
 }
