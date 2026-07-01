@@ -416,5 +416,85 @@
 | `E:\rental_system\lib\features\settings\presentation\system_health_page.dart` | تحسين عرض سجل الأخطاء بحقول منظمة ومستوى خطورة ملون |
 | `E:\rental_system\docs\project_summary.md` | توثيق نتائج التحقق |
 
+---
+
+## Database Migration System (Phase 10.5)
+
+### الوصف
+نظام آمن لإدارة تحديثات قواعد بيانات العملاء (Client Databases) عند تثبيت نسخة جديدة من النظام. يقوم بمقارنة schema الحالي مع schema المرجعي، وتنفيذ التحديثات الآمنة فقط مع backup تلقائي قبل أي تغيير.
+
+### المكونات
+
+| الملف | المسار | الوظيفة |
+|-------|--------|---------|
+| `migration_manager.php` | `rental_api/migrations/` | الصنف الأساسي - يقارن، يخطط، ينفذ، يسجل |
+| `cli_migrate.php` | `rental_api/` | واجهة سطر الأوامر (CLI) |
+| `migrations.php` | `rental_api/` | واجهة API (GET status, POST run) |
+| `reference_schema.sql` | `rental_api/migrations/` | الـ schema المرجعي (dump بدون بيانات) |
+
+### جدول التتبع
+
+`system_migrations` - يسجل كل عملية تحديث:
+- `version`: بصمة زمنية (Ymd_His)
+- `checksum`: MD5 للخطة
+- `status`: pending / running / completed / failed
+- `backup_file`: مسار النسخة الاحتياطية
+- `details`: JSON يسجل كل خطوة (applied/skipped مع error)
+- `execution_time_ms`: زمن التنفيذ
+
+### العمليات المسموحة
+
+| العملية | مسموح؟ |
+|---------|--------|
+| CREATE TABLE IF NOT EXISTS | ✅ |
+| ALTER TABLE ADD COLUMN IF NOT EXISTS | ✅ |
+| CREATE INDEX IF NOT EXISTS | ✅ |
+| ALTER TABLE ADD FOREIGN KEY | ✅ |
+| DROP TABLE / DROP COLUMN | ❌ |
+| DELETE / TRUNCATE | ❌ |
+
+### آلية العمل
+
+```
+CLI: php cli_migrate.php
+  → 1. إنشاء backup (mysqldump)
+  → 2. قراءة reference_schema.sql
+  → 3. مقارنة الجداول / الأعمدة / الفهارس
+  → 4. إنشاء خطة التحديث
+  → 5. تنفيذ الخطة (مع تخطي الأخطاء)
+  → 6. تسجيل في system_migrations
+  → 7. إنشاء تقرير migration_report.md
+```
+
+### أوامر CLI
+
+| الأمر | الوظيفة |
+|-------|---------|
+| `php cli_migrate.php` | تشغيل التحديثات الناقصة |
+| `php cli_migrate.php --status` | عرض حالة التحديثات والتغييرات المعلقة |
+| `php cli_migrate.php --check` | فحص جاف (دون تنفيذ) |
+| `php cli_migrate.php --report` | إنشاء تقرير migration_report.md |
+| `php cli_migrate.php --help` | عرض المساعدة |
+
+### نقاط API
+
+| المسار | الطريقة | الوظيفة |
+|--------|---------|---------|
+| `migrations/status` | GET | حالة التحديثات والتغييرات المعلقة |
+| `migrations/report` | GET | عرض تقرير HTML |
+| `migrations/run` | POST | تشغيل التحديثات (admin فقط) |
+
+### نتيجة الاختبار (End-to-End)
+
+تم اختبار النظام على قاعدة بيانات محاكاة (عميل قديم) تحتوي على جدولين فقط `clients`, `users` ببنية قديمة:
+
+| المؤشر | النتيجة |
+|--------|---------|
+| الجداول المضافة | 16 من 17 (payments تخطي بسبب FK) |
+| الأعمدة المضافة | 13 (national_id, address, is_frozen, salary_type, ...) |
+| الفهارس المضافة | 6 |
+| البيانات القديمة | ✅ محفوظة بالكامل |
+| Backup تلقائي | ✅ تم إنشاؤه قبل التنفيذ |
+
 ### الخلاصة
 تم إصلاح 3 أخطاء تشغيلية وتحسين نظام مراقبة الأخطاء. لم يتم تسجيل أي أخطاء جديدة بعد الإصلاحات. النظام خالٍ من أخطاء التشغيل (Runtime Error-free).
