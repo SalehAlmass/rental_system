@@ -270,6 +270,7 @@ class PdfService {
                   'المبلغ',
                   'النوع',
                   'التاريخ',
+                  'رقم العقد',
                   '#',
                 ],
                 data: [
@@ -280,6 +281,7 @@ class PdfService {
                       (p.amount ?? 0).round().toString(),
                       ((p.type ?? '') == 'in' ? 'قبض' : 'صرف'),
                       (p.createdAt ?? '-'),
+                      (p.rentNo?.toString() ?? '-'),
                       (p.id ?? 0).toString(),
                     ],
                 ],

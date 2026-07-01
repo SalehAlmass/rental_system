@@ -450,7 +450,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
             clientId: rent.clientId,
             rentId: rent.id,
             method: method,
-            notes: notes,
+            notes: notes ?? 'دفعة على العقد رقم ${rent.id}',
             idempotencyKey: idemKey,
           );
         },

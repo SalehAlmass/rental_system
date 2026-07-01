@@ -21,6 +21,7 @@ import 'package:rental_app/features/settings/presentation/about_page.dart';
 import 'package:rental_app/features/settings/presentation/admin_monitoring_page.dart';
 import 'package:rental_app/features/settings/presentation/audit_logs_page.dart';
 import 'package:rental_app/features/settings/presentation/depreciation_logs_page.dart';
+import 'package:rental_app/features/settings/presentation/notifications_page.dart';
 import 'package:rental_app/features/settings/presentation/contract_closing_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/team_monitoring_page.dart';
 import 'package:rental_app/features/settings/presentation/system_health_page.dart';
@@ -183,6 +184,16 @@ class SettingsPage extends StatelessWidget {
                 title: 'التنبيهات وسجل التدقيق',
                 subtitle: 'مراجعة العقود والسندات والفروقات الحساسة',
                 onTap: () => _push(context, const AdminMonitoringPage()),
+              ),
+            ),
+            PermissionGuard(
+              permissionKey: 'settings',
+              child: _tile(
+                context,
+                icon: Icons.warning_amber_rounded,
+                title: 'نظام التنبيهات',
+                subtitle: 'تنبيهات النظام الآلية حسب الخطورة والتصنيف',
+                onTap: () => _push(context, const NotificationsPage()),
               ),
             ),
             PermissionGuard(

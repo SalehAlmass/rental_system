@@ -1253,9 +1253,11 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       final amt = double.tryParse(_amount.text.trim()) ?? 0;
                       final finalNotes = _notes.text.trim().isNotEmpty
                           ? _notes.text.trim()
-                          : ((_isMaintenanceVoucher || _isDepreciationVoucher)
-                                ? _buildAutoMaintenanceNote()
-                                : null);
+                          : (_isDepreciationVoucher
+                              ? _buildAutoMaintenanceNote()
+                              : (_isMaintenanceVoucher
+                                  ? _buildAutoMaintenanceNote()
+                                  : (_type == 'in' ? 'سند قبض' : 'سند صرف')));
 
                       setState(() => _localSubmitting = true);
                       _submitted = true;

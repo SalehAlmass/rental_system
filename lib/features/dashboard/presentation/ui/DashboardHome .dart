@@ -1450,9 +1450,10 @@ class _AdminDashboardSummary {
     final remaining = rent.remainingAmount;
     if (remaining != null && remaining > 0) return remaining;
     final total = rent.totalAmount ?? 0;
+    final discount = rent.discountAmount ?? 0;
     final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
-    final diff = total - paid;
-    return diff > 0 ? diff : 0;
+    final diff = total - discount - paid;
+    return diff > 0.009 ? diff : 0;
   }
 
   factory _AdminDashboardSummary.fromRents(List<Rent> rents) {
@@ -1587,10 +1588,11 @@ class _EmployeeRentSummary {
   static double _remaining(Rent rent) {
     final total = rent.totalAmount ?? 0;
     final remaining = rent.remainingAmount;
-    if (remaining != null) return remaining;
+    if (remaining != null && remaining > 0) return remaining;
+    final discount = rent.discountAmount ?? 0;
     final paid = rent.paidAmount ?? rent.closingPaidAmount ?? 0;
-    final diff = total - paid;
-    return diff > 0 ? diff : 0;
+    final diff = total - discount - paid;
+    return diff > 0.009 ? diff : 0;
   }
 
   static bool _sameDay(DateTime a, DateTime b) {

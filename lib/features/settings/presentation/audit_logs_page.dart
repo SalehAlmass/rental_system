@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -16,11 +15,13 @@ class AuditLogsPage extends StatefulWidget {
 
 class _AuditLogsPageState extends State<AuditLogsPage> {
   final int _limit = 20;
-  int _offset = 0;
+  int _page = 1;
   int _total = 0;
   bool _isLoading = false;
-  List<dynamic> _logs = [];
+  bool _hasMore = true;
+  final List<dynamic> _logs = [];
   List<dynamic> _users = [];
+  final _scrollController = ScrollController();
 
   // Filter values
   DateTime? _fromDate;
@@ -36,9 +37,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     'settings',
     'rent',
     'shift_closing',
+    'equipment',
+    'equipment_maintenance',
+    'attendance',
   ];
 
   final List<String> _actions = [
+    'login_success',
+    'login_failed',
+    'password_changed',
     'user_created',
     'user_updated',
     'role_changed',
@@ -49,16 +56,38 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     'payment_created',
     'payment_updated',
     'payment_voided',
+    'rent_created',
+    'rent_updated',
+    'rent_closed',
+    'rent_cancelled',
     'shift_closed',
     'shift_difference_detected',
     'contract_closing_settings_updated',
+    'backup_created',
+    'backup_failed',
+    'credit_warning_used',
+    'credit_blocked',
   ];
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadUsers();
     _loadLogs();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadLogs();
+    }
   }
 
   Future<void> _loadUsers() async {
@@ -71,20 +100,23 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         });
       }
     } catch (_) {
-      // Fallback silently if user doesn't have user_management permissions
     }
   }
 
-  Future<void> _loadLogs() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadLogs({bool refresh = false}) async {
+    if (_isLoading || (!_hasMore && !refresh)) return;
+    setState(() => _isLoading = true);
+
+    if (refresh) {
+      _page = 1;
+      _hasMore = true;
+    }
 
     try {
       final dio = context.read<ApiClient>().dio;
       final Map<String, dynamic> params = {
         'limit': _limit,
-        'offset': _offset,
+        'page': _page,
       };
 
       if (_fromDate != null) {
@@ -111,9 +143,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         final data = res.data['data'] as List? ?? [];
         final totalCount = res.data['total'] as int? ?? 0;
         setState(() {
-          _logs = data;
+          if (refresh) _logs.clear();
+          _logs.addAll(data);
+          _page++;
           _total = totalCount;
+          _hasMore = _logs.length < totalCount;
+          _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
@@ -121,12 +159,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           SnackBar(content: Text('فشل تحميل سجل التدقيق: $e'), backgroundColor: Colors.red),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -138,9 +171,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       _selectedEntity = null;
       _selectedAction = null;
       _searchController.clear();
-      _offset = 0;
     });
-    _loadLogs();
+    _loadLogs(refresh: true);
   }
 
   Future<void> _selectDate(BuildContext context, bool isFrom) async {
@@ -158,9 +190,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         } else {
           _toDate = picked;
         }
-        _offset = 0;
       });
-      _loadLogs();
+      _loadLogs(refresh: true);
     }
   }
 
@@ -205,8 +236,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                       border: const OutlineInputBorder(),
                     ),
                     onSubmitted: (_) {
-                      setState(() => _offset = 0);
-                      _loadLogs();
+                      _loadLogs(refresh: true);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -225,9 +255,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                           onChanged: (val) {
                             setState(() {
                               _selectedEntity = val;
-                              _offset = 0;
                             });
-                            _loadLogs();
+                            _loadLogs(refresh: true);
                           },
                         ),
                       ),
@@ -244,9 +273,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                           onChanged: (val) {
                             setState(() {
                               _selectedAction = val;
-                              _offset = 0;
                             });
-                            _loadLogs();
+                            _loadLogs(refresh: true);
                           },
                         ),
                       ),
@@ -277,9 +305,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 onChanged: (val) {
                                   setState(() {
                                     _selectedUserId = val;
-                                    _offset = 0;
                                   });
-                                  _loadLogs();
+                                  _loadLogs(refresh: true);
                                 },
                               )
                             : TextField(
@@ -292,9 +319,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                   final parsed = int.tryParse(val);
                                   setState(() {
                                     _selectedUserId = parsed;
-                                    _offset = 0;
                                   });
-                                  _loadLogs();
+                                  _loadLogs(refresh: true);
                                 },
                               ),
                       ),
@@ -337,21 +363,32 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             ),
             // ────── Logs List ─────
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _logs.isEmpty
-                      ? const Center(child: Text('لا توجد سجلات تدقيق مطابقة للفلاتر المحددة.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: _logs.length,
-                          itemBuilder: (context, index) {
-                            final log = _logs[index];
-                            return _buildAuditLogCard(log, isDark, theme);
-                          },
-                        ),
+              child: RefreshIndicator(
+                onRefresh: () => _loadLogs(refresh: true),
+                child: _logs.isEmpty && !_isLoading
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 80),
+                          Center(child: Text('لا توجد سجلات تدقيق مطابقة للفلاتر المحددة.')),
+                        ],
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        itemCount: _logs.length + (_isLoading ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _logs.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          final log = _logs[index];
+                          return _buildAuditLogCard(log, isDark, theme);
+                        },
+                      ),
+              ),
             ),
-            // ────── Pagination Footer ─────
-            if (_total > _limit) _buildPaginationFooter(theme),
           ],
         ),
       ),
@@ -439,48 +476,13 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     );
   }
 
-  Widget _buildPaginationFooter(ThemeData theme) {
-    final int currentPage = (_offset / _limit).floor() + 1;
-    final int totalPages = (_total / _limit).ceil();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: theme.cardColor,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton(
-            onPressed: _offset > 0
-                ? () {
-                    setState(() {
-                      _offset = max(0, _offset - _limit);
-                    });
-                    _loadLogs();
-                  }
-                : null,
-            child: const Text('السابق'),
-          ),
-          Text('صفحة $currentPage من $totalPages (الإجمالي: $_total)'),
-          ElevatedButton(
-            onPressed: (_offset + _limit) < _total
-                ? () {
-                    setState(() {
-                      _offset += _limit;
-                    });
-                    _loadLogs();
-                  }
-                : null,
-            child: const Text('التالي'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDetailsDialog(dynamic log, ThemeData theme) {
     final oldVals = log['old_values'];
     final newVals = log['new_values'];
     final meta = log['meta'];
+    final ip = log['ip_address']?.toString();
+    final device = log['device']?.toString();
+    var description = log['description']?.toString();
 
     showDialog(
       context: context,
@@ -496,6 +498,41 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (description != null && description.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.description_outlined, size: 18, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(description, style: const TextStyle(fontSize: 13))),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (ip != null && ip.isNotEmpty) ...[
+                      Row(children: [
+                        const Icon(Icons.language, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text('IP: $ip', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                      ]),
+                      const SizedBox(height: 4),
+                    ],
+                    if (device != null && device.isNotEmpty) ...[
+                      Row(children: [
+                        const Icon(Icons.devices, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(device, style: const TextStyle(fontSize: 12))),
+                      ]),
+                      const SizedBox(height: 12),
+                    ],
                     if (oldVals != null || newVals != null) ...[
                       const Text(
                         'مقارنة تغييرات القيم:',
