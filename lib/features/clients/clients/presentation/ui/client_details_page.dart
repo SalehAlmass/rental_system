@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
@@ -105,7 +106,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                         const Divider(),
                         _buildDetailItem('رقم العميل', client.id.toString()),
                         const Divider(),
-                        _buildDetailItem('الائتمان المسموح', '${client.creditLimit.toStringAsFixed(0)} ر.ي'),
+                        _buildDetailItem('الائتمان المسموح', '${client.creditLimit.toStringAsFixed(0)} ${AppConfig.currencySymbol}'),
                         const Divider(),
                         _buildDetailItem('الحالة', client.isFrozen == 0 ? 'نشط' : 'مجمد'),
                       ],

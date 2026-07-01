@@ -1,9 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
-import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
-
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/failure.dart';
 import '../../../payments/data/repositories/payments_repository_impl.dart';
@@ -709,22 +708,22 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                           'الإجمالي بعد الخصم',
                           isOpen && _effectiveTotal <= 0.0001
                               ? 'غير نهائي (العقد جاري)'
-                              : '${(_effectiveTotal - (rent.discountAmount ?? 0)).round()} ر.ي',
+                              : '${(_effectiveTotal - (rent.discountAmount ?? 0)).round()} ${AppConfig.currencySymbol}',
                         ),
                         if ((rent.discountAmount ?? 0) > 0) ...[
                           _kv(
                             'الخصم',
-                            '${(rent.discountAmount ?? 0).round()} ر.ي',
+                            '${(rent.discountAmount ?? 0).round()} ${AppConfig.currencySymbol}',
                           ),
                           if ((rent.discountNote ?? '').trim().isNotEmpty)
                             _kv('سبب الخصم', rent.discountNote!.trim()),
                         ],
-                        _kv('المدفوع', '${_paid.round()} ر.ي'),
+                        _kv('المدفوع', '${_paid.round()} ${AppConfig.currencySymbol}'),
                         _kv(
                           'المتبقي',
                           isOpen && _effectiveTotal <= 0.0001
                               ? '-'
-                              : '${_effectiveRemaining.round()} ر.ي',
+                              : '${_effectiveRemaining.round()} ${AppConfig.currencySymbol}',
                         ),
                       ],
                     ),
@@ -746,7 +745,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                                 '${it.equipmentName ?? it.equipmentId}${it.serialNo != null && it.serialNo!.isNotEmpty ? ' (رقم المعدة: ${it.serialNo})' : ''}${it.internalCode != null && it.internalCode!.isNotEmpty ? ' (كود المعدة: ${it.internalCode})' : ''}',
                               ),
                               if (it.rate != null && it.rate! > 0)
-                                _kv('السعر اليومي', '${it.rate!.round()} ر.ي'),
+                                _kv('السعر اليومي', '${it.rate!.round()} ${AppConfig.currencySymbol}'),
                               if (it.notes != null &&
                                   it.notes!.trim().isNotEmpty)
                                 _kv('ملاحظات', it.notes!),
@@ -799,7 +798,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                         ),
                         _kv(
                           'المبلغ عند الإغلاق',
-                          '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ر.ي',
+                          '${(rent.closingPaidAmount ?? 0).toStringAsFixed(2)} ${AppConfig.currencySymbol}',
                         ),
                         _kv(
                           'طريقة الدفع',
@@ -936,18 +935,18 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
               'إجمالي العقد',
               isOpen && _effectiveTotal <= 0.0001
                   ? 'جاري'
-                  : '${_effectiveTotal.toStringAsFixed(2)} ر.ي',
+                  : '${_effectiveTotal.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
             ),
           ),
           Expanded(
-            child: _miniMetric('المدفوع', '${_paid.toStringAsFixed(2)} ر.ي'),
+            child: _miniMetric('المدفوع', '${_paid.toStringAsFixed(2)} ${AppConfig.currencySymbol}'),
           ),
           Expanded(
             child: _miniMetric(
               'المتبقي',
               isOpen && _effectiveTotal <= 0.0001
                   ? '-'
-                  : '${_effectiveRemaining.toStringAsFixed(2)} ر.ي',
+                  : '${_effectiveRemaining.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
             ),
           ),
         ],
@@ -973,7 +972,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
           const Text('آخر دفعة', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           _kv('التاريخ', _fmtDateTime(payment.createdAt)),
-          _kv('المبلغ', '${payment.amount.toStringAsFixed(2)} ر.ي'),
+          _kv('المبلغ', '${payment.amount.toStringAsFixed(2)} ${AppConfig.currencySymbol}'),
           _kv('رقم السند', payment.id.toString()),
           _kv('طريقة الدفع', _paymentMethodText(payment.method)),
         ],
@@ -1090,7 +1089,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
               ),
               const SizedBox(height: 6),
               Text('عدد العقود: ${_clientOutstandingRents.length}'),
-              Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ر.ي'),
+              Text('إجمالي المتبقي: ${total.toStringAsFixed(2)} ${AppConfig.currencySymbol}'),
             ],
           ),
         ),
@@ -1166,7 +1165,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '${remaining.toStringAsFixed(2)} ر.ي',
+                              '${remaining.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
                               style: const TextStyle(
                                 color: Colors.red,
                                 fontWeight: FontWeight.bold,
@@ -1217,7 +1216,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
                     p.type == 'out' ? Icons.call_made : Icons.call_received,
                     color: p.type == 'out' ? Colors.red : Colors.green,
                   ),
-                  title: Text('${p.amount.toStringAsFixed(2)} ر.ي'),
+                  title: Text('${p.amount.toStringAsFixed(2)} ${AppConfig.currencySymbol}'),
                   subtitle: Text(
                     '${_paymentMethodText(p.method)} • ${_fmtDateTime(p.createdAt)}',
                   ),
@@ -1879,7 +1878,7 @@ class _PayNowDialogState extends State<_PayNowDialog> {
   Widget build(BuildContext context) {
     final remainingText = widget.unlimitedWhenOpen
         ? 'العقد مفتوح والإجمالي غير نهائي بعد'
-        : 'المتبقي الحالي: ${widget.maxPayable.toStringAsFixed(2)} ر.ي';
+        : 'المتبقي الحالي: ${widget.maxPayable.toStringAsFixed(2)} ${AppConfig.currencySymbol}';
 
     return AlertDialog(
       title: const Text('إضافة دفعة'),
@@ -1902,10 +1901,10 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'إجمالي العقد: ${widget.total.toStringAsFixed(2)} ر.ي',
+                        'إجمالي العقد: ${widget.total.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
                       ),
                       Text(
-                        'المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ر.ي',
+                        'المدفوع سابقًا: ${widget.alreadyPaid.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
                       ),
                       Text(remainingText),
                     ],
@@ -1949,14 +1948,14 @@ class _PayNowDialogState extends State<_PayNowDialog> {
                     labelText: 'مبلغ الدفعة',
                     helperText: 'تم تعبئته تلقائيًا بالمتبقي ويمكنك تعديله',
                     border: OutlineInputBorder(),
-                    prefixText: 'ر.ي ',
+                    prefixText: '${AppConfig.currencySymbol} ',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
                     if (n == null || n <= 0) return 'أدخل مبلغًا صحيحًا';
                     final limit = _paymentLimit();
                     if (limit > 0 && n - limit > 0.009) {
-                      return 'المبلغ أكبر من المطلوب: ${limit.toStringAsFixed(2)} ر.ي';
+                      return 'المبلغ أكبر من المطلوب: ${limit.toStringAsFixed(2)} ${AppConfig.currencySymbol}';
                     }
                     return null;
                   },

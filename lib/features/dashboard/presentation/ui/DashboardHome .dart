@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
@@ -120,7 +121,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           title: 'تسديد مؤجل',
                           value: summary.deferredCount.toString(),
                           subtitle:
-                              '${summary.deferredAmount.toStringAsFixed(0)} ر.ي',
+                              '${summary.deferredAmount.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
                           icon: Icons.account_balance_wallet_outlined,
                           color: Colors.orange,
                           onTap: () => widget.onOpenRentsWithFilter?.call('deferred'),
@@ -128,7 +129,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           SizedBox(width: 16),
                         StatCard(
                           title: 'إيراد اليوم',
-                          value: '${summary.todayRevenue.toStringAsFixed(0)} ر.ي',
+                          value: '${summary.todayRevenue.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
                           icon: Icons.payments_outlined,
                           color: Colors.green,
                         ),
@@ -276,7 +277,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
               children: [
                 StatCard(
                   title: 'إيراد اليوم',
-                  value: '${money.format(summary.todayRevenue)} ر.ي',
+                  value: '${money.format(summary.todayRevenue)} ${AppConfig.currencySymbol}',
                   subtitle: 'إغلاق وتحصيلات اليوم',
                   trend: _trendText(
                     summary.todayRevenue,
@@ -289,7 +290,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                 ),
                 StatCard(
                   title: 'تحصيل هذا الأسبوع',
-                  value: '${money.format(summary.thisWeekRevenue)} ر.ي',
+                  value: '${money.format(summary.thisWeekRevenue)} ${AppConfig.currencySymbol}',
                   subtitle: 'مقارنة بالأسبوع الماضي',
                   trend: _trendText(
                     summary.thisWeekRevenue,
@@ -302,7 +303,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                 ),
                 StatCard(
                   title: 'الذمم الحالية',
-                  value: '${money.format(summary.deferredAmount)} ر.ي',
+                  value: '${money.format(summary.deferredAmount)} ${AppConfig.currencySymbol}',
                   subtitle: '${summary.deferredCount} عقد مغلق بتسديد مؤجل',
                   icon: Icons.account_balance_wallet_outlined,
                   color: Colors.orange,
@@ -350,7 +351,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               child: _KpiLine(
                                 label: 'اليوم',
                                 value:
-                                    '${money.format(summary.todayRevenue)} ر.ي',
+                                    '${money.format(summary.todayRevenue)} ${AppConfig.currencySymbol}',
                                 note: _trendText(
                                   summary.todayRevenue,
                                   summary.yesterdayRevenue,
@@ -363,7 +364,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               child: _KpiLine(
                                 label: 'هذا الأسبوع',
                                 value:
-                                    '${money.format(summary.thisWeekRevenue)} ر.ي',
+                                    '${money.format(summary.thisWeekRevenue)} ${AppConfig.currencySymbol}',
                                 note: _trendText(
                                   summary.thisWeekRevenue,
                                   summary.lastWeekRevenue,
@@ -436,7 +437,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                               icon: Icons.bar_chart_rounded,
                               color: Colors.purple,
                               text:
-                                  'إجمالي الإيراد المسجل: ${money.format(stats.revenue)} ر.ي',
+                                  'إجمالي الإيراد المسجل: ${money.format(stats.revenue)} ${AppConfig.currencySymbol}',
                             ),
                             const SizedBox(height: 10),
                             _InsightChip(
@@ -478,7 +479,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _TopItemRow(
                             title: item.label,
-                            amount: '${money.format(item.amount)} ر.ي',
+                            amount: '${money.format(item.amount)} ${AppConfig.currencySymbol}',
                             ratio: max == 0 ? 0 : item.amount / max,
                             color: Colors.deepPurple,
                           ),
@@ -503,7 +504,7 @@ class _AdminExecutiveDashboard extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _TopItemRow(
                             title: item.label,
-                            amount: '${money.format(item.amount)} ر.ي',
+                            amount: '${money.format(item.amount)} ${AppConfig.currencySymbol}',
                             ratio: max == 0 ? 0 : item.amount / max,
                             color: Colors.indigo,
                           ),
@@ -1373,7 +1374,7 @@ class _RentCard extends StatelessWidget {
         subtitle: Text(
           'الحالة: $statusLabel   |   البداية: ${rent.startDatetime}',
         ),
-        trailing: Text('${(rent.totalAmount ?? 0).toStringAsFixed(2)} ر.ي'),
+        trailing: Text('${(rent.totalAmount ?? 0).toStringAsFixed(2)} ${AppConfig.currencySymbol}'),
         onTap: () {
           Navigator.push(
             context,

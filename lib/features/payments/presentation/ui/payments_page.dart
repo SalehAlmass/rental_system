@@ -14,6 +14,7 @@ import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
 import 'package:rental_app/features/payments/domain/entities/models.dart';
 import 'package:rental_app/features/payments/presentation/bloc/payments_bloc.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/payments/presentation/ui/payment_details_page.dart';
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
@@ -670,7 +671,7 @@ class _PaymentCard extends StatelessWidget {
                 children: [
                   _MetaChip(
                     icon: Icons.payments_outlined,
-                    text: '${payment.amount.round()} ر.ي',
+                    text: '${payment.amount.round()} ${AppConfig.currencySymbol}',
                   ),
                   _MetaChip(
                     icon: Icons.person_outline_rounded,
@@ -909,9 +910,9 @@ class _PaymentsSummary {
     final net = totalIn - totalOut;
     return _PaymentsSummary(
       count: items.length,
-      totalIn: '${totalIn.round()} ر.ي',
-      totalOut: '${totalOut.round()} ر.ي',
-      net: '${net.round()} ر.ي',
+      totalIn: '${totalIn.round()} ${AppConfig.currencySymbol}',
+      totalOut: '${totalOut.round()} ${AppConfig.currencySymbol}',
+      net: '${net.round()} ${AppConfig.currencySymbol}',
       netValue: net,
     );
   }

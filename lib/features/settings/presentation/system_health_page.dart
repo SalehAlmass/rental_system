@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -62,8 +63,11 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
         });
       }
     } catch (e) {
+      final msg = e is DioException && e.response?.statusCode == 403
+          ? 'لا تملك الصلاحية لعرض هذه البيانات'
+          : 'خطأ في الاتصال بالخادم';
       setState(() {
-        _healthError = 'خطأ في الاتصال بالخادم: $e';
+        _healthError = '$msg: $e';
         _isLoadingHealth = false;
       });
     }
@@ -89,8 +93,11 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
         });
       }
     } catch (e) {
+      final msg = e is DioException && e.response?.statusCode == 403
+          ? 'لا تملك الصلاحية لعرض هذه البيانات'
+          : 'خطأ في الاتصال بالخادم';
       setState(() {
-        _integrityError = 'خطأ في الاتصال بالخادم: $e';
+        _integrityError = '$msg: $e';
         _isLoadingIntegrity = false;
       });
     }
@@ -123,8 +130,11 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
         });
       }
     } catch (e) {
+      final msg = e is DioException && e.response?.statusCode == 403
+          ? 'لا تملك الصلاحية لعرض هذه البيانات'
+          : 'خطأ في الاتصال بالخادم';
       setState(() {
-        _errorsError = 'خطأ في الاتصال بالخادم: $e';
+        _errorsError = '$msg: $e';
         _isLoadingErrors = false;
       });
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/payments/domain/entities/models.dart';
 
 class PaymentDetailsPage extends StatelessWidget {
@@ -52,7 +53,7 @@ class PaymentDetailsPage extends StatelessWidget {
                   Text('سند رقم #${payment.id}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 8),
                   Text(
-                    '${payment.amount.round()} ر.ي',
+                    '${payment.amount.round()} ${AppConfig.currencySymbol}',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w900,
                           color: isIn ? Colors.green.shade700 : Colors.red.shade700,

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/permission_guard.dart';
@@ -326,7 +327,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
                     Text('القيمة المهلكة', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
                     const SizedBox(height: 2),
                     Text(
-                      '${amount.toStringAsFixed(2)} ر.ي',
+                      '${amount.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
                     ),
                   ],
@@ -363,7 +364,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
         Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 10)),
         const SizedBox(height: 2),
         Text(
-          '${val.toStringAsFixed(2)} ر.ي',
+          '${val.toStringAsFixed(2)} ${AppConfig.currencySymbol}',
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ],

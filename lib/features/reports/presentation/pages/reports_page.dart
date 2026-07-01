@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../data/repositories/reports_repository_impl.dart';
@@ -41,7 +42,7 @@ class _R {
 }
 
 final _numFmt = NumberFormat('#,##0.00', 'ar');
-String _fmtAmt(double v) => '${_numFmt.format(v)} ر.س';
+String _fmtAmt(double v) => '${_numFmt.format(v)} ${AppConfig.currencySymbol}';
 String _fmtN(double v) => _numFmt.format(v);
 String _fmtPct(double? v) => v == null ? '—' : '${v.toStringAsFixed(1)}%';
 

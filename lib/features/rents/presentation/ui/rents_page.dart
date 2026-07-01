@@ -15,6 +15,7 @@ import 'package:rental_app/features/equipment/data/repositories/equipment_reposi
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 
 import 'package:rental_app/features/rents/data/repositories/rents_repository_impl.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
 import 'package:rental_app/features/rents/presentation/bloc/rents_bloc.dart';
 import 'package:rental_app/features/rents/presentation/ui/rent_details_page.dart';
@@ -540,7 +541,7 @@ class _RentsViewState extends State<_RentsView> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.round()} ر.ي',
+                                    'المتأخرة: ${stats.overdue} • المؤجلة: ${stats.deferredCount} • المتبقي: ${stats.deferredAmount.round()} ${AppConfig.currencySymbol}',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -594,7 +595,7 @@ class _RentsViewState extends State<_RentsView> {
                           tone: Colors.orange,
                           onTap: () => _setFilter('deferred'),
                           subtitle:
-                              '${stats.deferredAmount.toStringAsFixed(0)} ر.ي',
+                              '${stats.deferredAmount.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
                         ),
                       ],
                     ),
@@ -953,7 +954,7 @@ class _RentsViewState extends State<_RentsView> {
 
   String _collectionAgendaSubtitle(_CollectionAgendaItem item) {
     final lines = <String>[
-      'المتبقي: ${item.remainingAmount.toStringAsFixed(0)} ر.ي',
+      'المتبقي: ${item.remainingAmount.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
     ];
 
     if (item.hasScheduledFollowupToday) {
@@ -1072,9 +1073,9 @@ class _RentCard extends StatelessWidget {
         : 'لم يُغلق بعد';
 
     final discount = rent.discountAmount ?? 0;
-    final discountText = discount > 0 ? ' • خصم ${discount.round()} ر.ي' : '';
+    final discountText = discount > 0 ? ' • خصم ${discount.round()} ${AppConfig.currencySymbol}' : '';
     final financialHint = remaining > 0.009
-        ? 'متبقٍ على العميل ${remaining.round()} ر.ي$discountText'
+        ? 'متبقٍ على العميل ${remaining.round()} ${AppConfig.currencySymbol}$discountText'
         : '${rent.pricingRuleLabel ?? 'الاحتساب القياسي'}$discountText';
 
     return Container(
@@ -1171,7 +1172,7 @@ class _RentCard extends StatelessWidget {
                         label: 'الإجمالي',
                         value: total <= 0 && status == 'open'
                             ? 'جاري...'
-                            : '${total.round()} ر.ي',
+                            : '${total.round()} ${AppConfig.currencySymbol}',
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1179,8 +1180,8 @@ class _RentCard extends StatelessWidget {
                       child: _MiniMetric(
                         label: remaining > 0.009 ? 'المتبقي' : 'المدفوع',
                         value: remaining > 0.009
-                            ? '${remaining.round()} ر.ي'
-                            : '${paid.round()} ر.ي',
+                            ? '${remaining.round()} ${AppConfig.currencySymbol}'
+                            : '${paid.round()} ${AppConfig.currencySymbol}',
                       ),
                     ),
                   ],
@@ -1899,8 +1900,8 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                               children: [
                                 Text('العميل: ${selectedClient.name}'),
                                 const SizedBox(height: 8),
-                                Text('الحد الائتماني: ${selectedClient.creditLimit.toStringAsFixed(0)} ر.ي'),
-                                Text('إجمالي الدين الحالي: ${selectedClient.totalDebt.toStringAsFixed(0)} ر.ي',
+                                Text('الحد الائتماني: ${selectedClient.creditLimit.toStringAsFixed(0)} ${AppConfig.currencySymbol}'),
+                                Text('إجمالي الدين الحالي: ${selectedClient.totalDebt.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
                                     style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 12),
                                 const Text('يرجى تسديد المبلغ الآجل أو إضافة دفعة قبل فتح عقد جديد.'),
@@ -2207,9 +2208,9 @@ class QuickCloseDialogState extends State<QuickCloseDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إجمالي العقد الأساسي: ${total.round()} ر.ي'),
-                      Text('المدفوع سابقًا: ${widget.currentPaid.round()} ر.ي'),
-                      Text('المتبقي الحالي (قبل الخصم): ${(total - widget.currentPaid).round()} ر.ي'),
+                      Text('إجمالي العقد الأساسي: ${total.round()} ${AppConfig.currencySymbol}'),
+                      Text('المدفوع سابقًا: ${widget.currentPaid.round()} ${AppConfig.currencySymbol}'),
+                      Text('المتبقي الحالي (قبل الخصم): ${(total - widget.currentPaid).round()} ${AppConfig.currencySymbol}'),
                     ],
                   ),
                 ),
@@ -2234,7 +2235,7 @@ class QuickCloseDialogState extends State<QuickCloseDialog> {
                     labelText: 'الخصم الفعلي (يدوي أو تلقائي)',
                     helperText: 'يُخصم من إجمالي العقد الأساسي',
                     border: OutlineInputBorder(),
-                    prefixText: 'ر.ي ',
+                    prefixText: '${AppConfig.currencySymbol} ',
                   ),
                   validator: (v) {
                     final text = (v ?? '').trim();
@@ -2288,7 +2289,7 @@ class QuickCloseDialogState extends State<QuickCloseDialog> {
                   decoration: InputDecoration(
                     labelText: 'المبلغ المسدد الآن', 
                     border: const OutlineInputBorder(), 
-                    prefixText: 'ر.ي ',
+                    prefixText: '${AppConfig.currencySymbol} ',
                     fillColor: isDeferred ? Colors.grey.shade200 : null,
                     filled: isDeferred,
                   ),
@@ -2297,7 +2298,7 @@ class QuickCloseDialogState extends State<QuickCloseDialog> {
                     if (n == null || n < 0) return 'أدخل مبلغًا صحيحًا';
                     final required = _requiredNow();
                     if (!isDeferred && required > 0 && n - required > 0.009) {
-                      return 'المبلغ أكبر من المطلوب: ${required.round()} ر.ي';
+                      return 'المبلغ أكبر من المطلوب: ${required.round()} ${AppConfig.currencySymbol}';
                     }
                     return null;
                   },

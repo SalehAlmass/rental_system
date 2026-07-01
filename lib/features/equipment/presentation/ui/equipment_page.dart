@@ -4,6 +4,7 @@ import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/equipment_search_delegate.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_details_page.dart';
@@ -213,7 +214,7 @@ class _EquipmentCard extends StatelessWidget {
               children: [
                 Text('الرقم التسلسلي: ${equipment.serialNo ?? '-'}'),
                 Text(
-                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ر.ي / يوم',
+                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ${AppConfig.currencySymbol} / يوم',
                 ),
               ],
             ),

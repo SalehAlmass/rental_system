@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../data/hr_repository.dart';
@@ -114,7 +115,7 @@ class _PayrollPageState extends State<PayrollPage> {
                                       'خصومات: ${(it.deductions ?? 0).round()} • نوع: ${it.salaryType ?? '-'}',
                                     ),
                                     trailing: Text(
-                                      '${(it.netAmount ?? it.amount).round()} ر.ي',
+                                      '${(it.netAmount ?? it.amount).round()} ${AppConfig.currencySymbol}',
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onTap: () => _openEdit(it),

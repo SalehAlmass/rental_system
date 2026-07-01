@@ -9,6 +9,7 @@ import 'pdf_share_impl.dart'
     if (dart.library.html) 'pdf_share_web.dart'
     as share_impl;
 
+import '../config/app_config.dart';
 import '../storage/app_settings_storage.dart';
 import '../../features/clients/domain/entities/models.dart' show Client;
 import '../../features/payments/domain/entities/models.dart' show Payment;
@@ -131,11 +132,11 @@ class PdfService {
                   _kv('عدد الساعات', (rent.hours ?? 0).round().toString()),
                   _kv(
                     'سعر الساعة',
-                    '${(rent.rate ?? 0).round()} ر.ي',
+                    '${(rent.rate ?? 0).round()} ${AppConfig.currencySymbol}',
                   ),
                   _kv(
                     'الإجمالي',
-                    '${(rent.totalAmount ?? 0).round()} ر.ي',
+                    '${(rent.totalAmount ?? 0).round()} ${AppConfig.currencySymbol}',
                   ),
                   pw.SizedBox(height: 10),
                   pw.Text(
@@ -216,9 +217,9 @@ class PdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('إجمالي المستحقات: ${totalRents.round()} ر.ي'),
-                  pw.Text('إجمالي المدفوع: ${totalPaid.round()} ر.ي'),
-                  pw.Text('الرصيد: ${balance.round()} ر.ي'),
+                  pw.Text('إجمالي المستحقات: ${totalRents.round()} ${AppConfig.currencySymbol}'),
+                  pw.Text('إجمالي المدفوع: ${totalPaid.round()} ${AppConfig.currencySymbol}'),
+                  pw.Text('الرصيد: ${balance.round()} ${AppConfig.currencySymbol}'),
                 ],
               ),
 
@@ -348,7 +349,7 @@ class PdfService {
                         _kv('النوع', isIn ? 'قبض' : 'صرف'),
                         _kv(
                           'المبلغ',
-                          '${(payment.amount ?? 0).round()} ر.ي',
+                          '${(payment.amount ?? 0).round()} ${AppConfig.currencySymbol}',
                         ),
                         _kv('الطريقة', (payment.method ?? '-')),
                         _kv(

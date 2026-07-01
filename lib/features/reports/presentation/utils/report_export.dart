@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../domain/entities/financial_reports.dart';
 import '../../domain/entities/payment_report.dart';
 import 'report_export_impl.dart'
@@ -326,7 +327,7 @@ class ReportExport {
   }
 
   static final _pdfFmt = NumberFormat('#,##0.00');
-  static String _fmtPdf(double v) => '${_pdfFmt.format(v)} ر.س';
+  static String _fmtPdf(double v) => '${_pdfFmt.format(v)} ${AppConfig.currencySymbol}';
 
   /// Export Financial Summary PDF
   static Future<void> exportFinancialSummary(BuildContext context, FinancialSummary d, {String? from, String? to}) async {
