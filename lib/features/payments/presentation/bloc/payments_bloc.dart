@@ -22,11 +22,13 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   ) async {
     emit(state.copyWith(status: PaymentsStatus.loading, error: null));
     try {
-      final items = await _repo.list(showVoided: event.showVoided);
+      final result = await _repo.list(showVoided: event.showVoided);
       emit(
         state.copyWith(
           status: PaymentsStatus.success,
-          items: items,
+          items: result.items,
+          summary: result.summary,
+          total: result.total,
           showVoided: event.showVoided,
         ),
       );
@@ -51,12 +53,14 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         referenceNo: event.referenceNo,
         notes: event.notes,
       );
-      final items = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(showVoided: state.showVoided);
       emit(
         state.copyWith(
           working: false,
           status: PaymentsStatus.success,
-          items: items,
+          items: result.items,
+          summary: result.summary,
+          total: result.total,
         ),
       );
     } catch (e) {
@@ -80,12 +84,14 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         referenceNo: event.referenceNo,
         notes: event.notes,
       );
-      final items = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(showVoided: state.showVoided);
       emit(
         state.copyWith(
           working: false,
           status: PaymentsStatus.success,
-          items: items,
+          items: result.items,
+          summary: result.summary,
+          total: result.total,
         ),
       );
     } catch (e) {
@@ -100,12 +106,14 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.voidPayment(id: event.id, reason: event.reason);
-      final items = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(showVoided: state.showVoided);
       emit(
         state.copyWith(
           working: false,
           status: PaymentsStatus.success,
-          items: items,
+          items: result.items,
+          summary: result.summary,
+          total: result.total,
         ),
       );
     } catch (e) {

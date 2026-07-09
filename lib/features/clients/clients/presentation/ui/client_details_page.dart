@@ -198,7 +198,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                               final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
                               final pdf = PdfService();
-                              await pdf.printClientStatement(client: client, rents: rents, payments: payments);
+                              await pdf.printClientStatement(client: client, rents: rents, payments: payments.items);
                             },
                             icon: const Icon(Icons.print),
                             label: const Text('طباعة كشف الحساب'),
@@ -216,7 +216,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                               final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
                               final pdf = PdfService();
-                              await pdf.shareClientStatement(client: client, rents: rents, payments: payments);
+                              await pdf.shareClientStatement(client: client, rents: rents, payments: payments.items);
                             },
                             icon: const Icon(Icons.share),
                             label: const Text('مشاركة PDF'),

@@ -7,8 +7,13 @@ class PaymentsRepository {
   PaymentsRepository(this._api);
   final ApiClient _api;
 
-  // تعديل: إضافة clientId كـ parameter اختياري
-  Future<List<Payment>> list({int? clientId, int? rentId, bool showVoided = false}) async {
+  Future<({List<Payment> items, PaymentSummary? summary, int total})> list({
+    int? clientId,
+    int? rentId,
+    bool showVoided = false,
+    int? page,
+    int? perPage,
+  }) async {
     try {
       final res = await _api.dio.get(
         'payments',
@@ -16,18 +21,29 @@ class PaymentsRepository {
           if (clientId != null) 'client_id': clientId,
           if (rentId != null) 'rent_id': rentId,
           'show_void': showVoided ? 1 : 0,
+          if (page != null) 'page': page,
+          if (perPage != null) 'per_page': perPage,
         },
       );
 
-      dynamic raw = res.data;
-      if (raw is Map) {
-        raw = raw['data'] ?? raw['items'] ?? raw['payments'] ?? [];
+      if (res.data is! Map) {
+        throw ApiFailure("Unexpected response: ${res.data}");
       }
-      if (raw is! List) throw ApiFailure("Unexpected response: ${res.data}");
+      final map = res.data as Map<String, dynamic>;
 
-      return raw
+      final rawList = map['data'] as List? ?? [];
+      final items = rawList
           .map((e) => Payment.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
+
+      final summary = map['summary'] != null
+          ? PaymentSummary.fromJson((map['summary'] as Map).cast<String, dynamic>())
+          : null;
+      final total = (map['pagination'] is Map)
+          ? ((map['pagination'] as Map)['total'] as num?)?.toInt() ?? items.length
+          : items.length;
+
+      return (items: items, summary: summary, total: total);
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = (data is Map && data['error'] != null)

@@ -496,5 +496,26 @@ CLI: php cli_migrate.php
 | البيانات القديمة | ✅ محفوظة بالكامل |
 | Backup تلقائي | ✅ تم إنشاؤه قبل التنفيذ |
 
+### التحديثات اللاحقة — الأسبوع 30 (يوليو 2026)
+
+#### 1. إنشاء endpoint `rents/collection-agenda`
+- يعيد العقود المغلقة غير المسددة (`remaining_amount > 0`, `is_paid = 0`, غير مؤرشفة)
+- يدعم ترتيب `sort=oldest` (افتراضي)، `largest`، `scheduled`
+- يضم أحدث متابعة تحصيل لكل عقد (including today's followup)
+- يمرر البيانات كاملة لـ `_CollectionAgendaItem` في Flutter
+- ملف: `rental_api/rents.php` (أضيف قبل الـ 404 النهائي)
+
+#### 2. إضافة pagination إلى endpoint `rents`
+- `page` + `per_page` query params (max 200 per page)
+- `per_page` إذا لم يُرسل → سلوك سابق (دون pagination)
+- الرد يتضمن `pagination.total`, `pagination.page`, `pagination.per_page`
+- `data` يبقى قائمة Items للتوافق العكسي
+- ملف: `rental_api/rents.php` (القسم `GET /rents`)
+
+#### 3. تحسين أداء لوحة التحكم (Dashboard)
+- قياس: استعلامات `reports/dashboard` بسيطة وتحتاج تحسين إذا زادت البيانات
+- يوصى بفهرسة أعمدة `created_at`, `remaining_amount` في جداول `rents`, `payments`
+- يوصى بإنشاء `GET /dashboard/overview` endpoint مجمّع لتقليل Round-trips
+
 ### الخلاصة
 تم إصلاح 3 أخطاء تشغيلية وتحسين نظام مراقبة الأخطاء. لم يتم تسجيل أي أخطاء جديدة بعد الإصلاحات. النظام خالٍ من أخطاء التشغيل (Runtime Error-free).

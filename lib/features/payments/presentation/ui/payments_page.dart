@@ -159,7 +159,9 @@ class _PaymentsViewState extends State<_PaymentsView> {
               }
 
               final filtered = _applyCommonFilters(state.items);
-              final summary = _PaymentsSummary.from(filtered);
+              final summary = state.summary != null
+                  ? _PaymentsSummary.fromServer(state.summary!, state.total)
+                  : _PaymentsSummary.from(filtered);
 
               return Column(
                 children: [
@@ -912,6 +914,17 @@ class _PaymentsSummary {
       count: items.length,
       totalIn: '${totalIn.round()} ${AppConfig.currencySymbol}',
       totalOut: '${totalOut.round()} ${AppConfig.currencySymbol}',
+      net: '${net.round()} ${AppConfig.currencySymbol}',
+      netValue: net,
+    );
+  }
+
+  factory _PaymentsSummary.fromServer(PaymentSummary server, int count) {
+    final net = server.totalIn - server.totalOut;
+    return _PaymentsSummary(
+      count: count,
+      totalIn: '${server.totalIn.round()} ${AppConfig.currencySymbol}',
+      totalOut: '${server.totalOut.round()} ${AppConfig.currencySymbol}',
       net: '${net.round()} ${AppConfig.currencySymbol}',
       netValue: net,
     );

@@ -178,12 +178,12 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   Future<void> _fetchRentPayments() async {
-    final items = await _paymentsRepo.list(
+    final res = await _paymentsRepo.list(
       rentId: widget.rentId,
       showVoided: true,
     );
     if (!mounted) return;
-    setState(() => _rentPayments = items);
+    setState(() => _rentPayments = res.items);
   }
 
   Future<void> _fetchClientOutstandingRents() async {

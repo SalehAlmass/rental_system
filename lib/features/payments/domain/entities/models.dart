@@ -1,3 +1,28 @@
+class PaymentSummary {
+  const PaymentSummary({
+    required this.totalIn,
+    required this.totalOut,
+    required this.net,
+  });
+
+  final double totalIn;
+  final double totalOut;
+  final double net;
+
+  bool get isEmpty => totalIn == 0 && totalOut == 0;
+
+  factory PaymentSummary.fromJson(Map<String, dynamic> json) {
+    double toD(dynamic v) => v == null
+        ? 0.0
+        : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
+    return PaymentSummary(
+      totalIn: toD(json['total_in']),
+      totalOut: toD(json['total_out']),
+      net: toD(json['net']),
+    );
+  }
+}
+
 class Payment {
   const Payment({
     required this.id,

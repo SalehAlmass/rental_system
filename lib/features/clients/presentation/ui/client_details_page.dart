@@ -187,9 +187,9 @@ class ClientDetailsPage extends StatelessWidget {
       final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
       final pdf = PdfService();
-      await pdf.printClientStatement(client: client, rents: rents, payments: payments);
+      await pdf.printClientStatement(client: client, rents: rents, payments: payments.items);
     } catch (e) {
-      _showErrorDialog(context, e.toString());
+      _showErrorDialog(context, e.toString());     
     }
   }
 
@@ -205,7 +205,7 @@ class ClientDetailsPage extends StatelessWidget {
       final payments = await paymentsRepo.list(clientId: client.id, showVoided: true);
 
       final pdf = PdfService();
-      await pdf.shareClientStatement(client: client, rents: rents, payments: payments);
+      await pdf.shareClientStatement(client: client, rents: rents, payments: payments.items);
     } catch (e) {
       _showErrorDialog(context, e.toString());
     }
