@@ -27,15 +27,27 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         status: RentsStatus.loading,
         error: null,
         filterStatus: event.status,
+        currentPage: event.page,
+        perPage: event.perPage,
+        searchQuery: event.searchQuery,
       ),
     );
 
     try {
-      final items = await _repo.list(status: event.status);
+      final res = await _repo.listPaginated(
+        status: event.status,
+        page: event.page,
+        perPage: event.perPage,
+        searchQuery: event.searchQuery,
+      );
       emit(
         state.copyWith(
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
+          currentPage: event.page,
+          perPage: event.perPage,
+          searchQuery: event.searchQuery,
           error: null,
         ),
       );
@@ -63,13 +75,19 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         notes: event.notes,
       );
 
-      final items = await _repo.list(status: state.filterStatus);
+      final res = await _repo.listPaginated(
+        status: state.filterStatus,
+        page: state.currentPage,
+        perPage: state.perPage,
+        searchQuery: state.searchQuery,
+      );
 
       emit(
         state.copyWith(
           working: false,
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
           error: null,
         ),
       );
@@ -97,13 +115,21 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         notes: event.notes,
       );
 
-      final items = await _repo.list(status: state.filterStatus);
+      final res = await _repo.listPaginated(
+        status: state.filterStatus,
+        page: 1,
+        perPage: state.perPage,
+        searchQuery: '',
+      );
 
       emit(
         state.copyWith(
           working: false,
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
+          currentPage: 1,
+          searchQuery: '',
           error: null,
         ),
       );
@@ -129,13 +155,19 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         endDatetime: event.endDatetime,
       );
 
-      final items = await _repo.list(status: state.filterStatus);
+      final res = await _repo.listPaginated(
+        status: state.filterStatus,
+        page: state.currentPage,
+        perPage: state.perPage,
+        searchQuery: state.searchQuery,
+      );
 
       emit(
         state.copyWith(
           working: false,
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
           error: null,
         ),
       );
@@ -161,13 +193,19 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         reason: event.reason,
       );
 
-      final items = await _repo.list(status: state.filterStatus);
+      final res = await _repo.listPaginated(
+        status: state.filterStatus,
+        page: state.currentPage,
+        perPage: state.perPage,
+        searchQuery: state.searchQuery,
+      );
 
       emit(
         state.copyWith(
           working: false,
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
           error: null,
         ),
       );
@@ -193,13 +231,19 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         notes: event.notes,
       );
 
-      final items = await _repo.list(status: state.filterStatus);
+      final res = await _repo.listPaginated(
+        status: state.filterStatus,
+        page: state.currentPage,
+        perPage: state.perPage,
+        searchQuery: state.searchQuery,
+      );
 
       emit(
         state.copyWith(
           working: false,
           status: RentsStatus.success,
-          items: items,
+          items: res.items,
+          totalCount: res.total,
           error: null,
         ),
       );

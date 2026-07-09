@@ -63,6 +63,55 @@ class RentsRepository {
     }
   }
 
+  Future<({List<Rent> items, int total})> listPaginated({
+    int? clientId,
+    String? status,
+    int page = 1,
+    int perPage = 20,
+    String searchQuery = '',
+    bool archivedOnly = false,
+  }) async {
+    try {
+      final res = await _api.dio.get(
+        'rents',
+        queryParameters: {
+          if (clientId != null) 'client_id': clientId,
+          if (status != null && status.isNotEmpty && status != 'archived') 'status': status,
+          'page': page,
+          'per_page': perPage,
+          if (searchQuery.isNotEmpty) 'q': searchQuery,
+          if (archivedOnly || status == 'archived') 'archived_only': 1,
+        },
+      );
+
+      if (res.data is! Map) {
+        throw ApiFailure("Unexpected response structure");
+      }
+      final map = res.data as Map<String, dynamic>;
+      
+      dynamic rawList = map['data'] ?? map['items'] ?? map['rents'] ?? [];
+      if (rawList is! List) {
+        throw ApiFailure("Unexpected rents list structure");
+      }
+
+      final items = rawList
+          .map((e) => Rent.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+
+      final total = (map['pagination'] is Map)
+          ? ((map['pagination'] as Map)['total'] as num?)?.toInt() ?? items.length
+          : items.length;
+
+      return (items: items, total: total);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : (e.message ?? 'Failed to load rents');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
   // باقي الدوال كما هي
   Future<int> openRent({
     required int clientId,

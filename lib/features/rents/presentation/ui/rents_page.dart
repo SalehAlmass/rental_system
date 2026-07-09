@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dropdown_search/dropdown_search.dart';
@@ -69,10 +70,10 @@ double safeRentTotal(Rent rent) {
       if ((item.status ?? '').toLowerCase() == 'replaced') continue;
 
       final rate = item.rate ?? 0;
-      final start = _tryParseRentDate(item.startDatetime) ?? _tryParseRentDate(rent.startDatetime);
+      final start = item.parsedStartDatetime ?? rent.parsedStartDatetime;
       if (start == null) continue;
       
-      final end = _tryParseRentDate(item.endDatetime) ?? now;
+      final end = item.parsedEndDatetime ?? now;
       final diff = end.difference(start);
       final hours = diff.inMinutes / 60.0;
       int billableDays = (hours / 24.0).ceil();
@@ -83,10 +84,10 @@ double safeRentTotal(Rent rent) {
     return total.round().toDouble();
   } else {
     final rate = rent.rate ?? 0;
-    final start = _tryParseRentDate(rent.startDatetime);
+    final start = rent.parsedStartDatetime;
     if (start == null) return 0;
     
-    final end = _tryParseRentDate(rent.endDatetime) ?? now;
+    final end = rent.parsedEndDatetime ?? now;
     final diff = end.difference(start);
     final hours = diff.inMinutes / 60.0;
     int billableDays = (hours / 24.0).ceil();
@@ -170,6 +171,7 @@ class _RentsViewState extends State<_RentsView> {
   String _statusFilter = 'all';
   String _query = '';
   String _collectionSort = 'oldest';
+  Timer? _debounce;
 
   /// Lazy loading: how many items to display from the filtered list
   int _displayLimit = 50;
@@ -227,10 +229,15 @@ class _RentsViewState extends State<_RentsView> {
 
   String? get _statusParam {
     switch (_statusFilter) {
+      case 'all':
+        return null;
       case 'open':
       case 'closed':
       case 'cancelled':
       case 'archived':
+      case 'review':
+      case 'overdue':
+      case 'deferred':
         return _statusFilter;
       default:
         return null;
@@ -239,7 +246,13 @@ class _RentsViewState extends State<_RentsView> {
 
   Future<void> _reloadEverything() async {
     if (!mounted) return;
-    context.read<RentsBloc>().add(RentsRequested(status: _statusParam));
+    final rstate = context.read<RentsBloc>().state;
+    context.read<RentsBloc>().add(RentsRequested(
+      status: _statusParam,
+      page: rstate.currentPage,
+      perPage: rstate.perPage,
+      searchQuery: _query,
+    ));
     await _fetchCollectionAgenda();
   }
 
@@ -247,9 +260,17 @@ class _RentsViewState extends State<_RentsView> {
     if (_statusFilter == filter) return;
     setState(() {
       _statusFilter = filter;
-      _displayLimit = 50;
     });
-    _reloadEverything();
+    // Reset to page 1 when changing filters
+    if (!mounted) return;
+    final rstate = context.read<RentsBloc>().state;
+    context.read<RentsBloc>().add(RentsRequested(
+      status: _statusParam,
+      page: 1,
+      perPage: rstate.perPage,
+      searchQuery: _query,
+    ));
+    _fetchCollectionAgenda();
   }
 
   Future<void> _openDetails(BuildContext context, int rentId) async {
@@ -321,53 +342,13 @@ class _RentsViewState extends State<_RentsView> {
   }
 
   List<Rent> _applyUiFilters(List<Rent> items) {
-    final q = _query.trim().toLowerCase();
-
-    return items.where((rent) {
-      final status = (rent.status ?? '').toLowerCase();
-      final reviewNeeded = _needsReview(rent);
-      final overdue = _isOverdue(rent);
-      final closedUnpaid = _isClosedWithDeferredPayment(rent);
-
-      final passesStatus = switch (_statusFilter) {
-        'all' => true,
-        'open' => status == 'open',
-        'closed' => status == 'closed',
-        'cancelled' => status == 'cancelled',
-        'review' => reviewNeeded,
-        'overdue' => overdue,
-        'deferred' => closedUnpaid,
-        _ => true,
-      };
-
-      if (!passesStatus) return false;
-      if (q.isEmpty) return true;
-
-      final total = safeRentTotal(rent);
-      final paid = safeRentPaid(rent);
-      final remaining = safeRentRemaining(rent);
-
-      final haystack = [
-        rent.id.toString(),
-        rent.clientName ?? '',
-        rent.equipmentName ?? '',
-        rent.startDatetime,
-        rent.endDatetime ?? '',
-        rent.closingPaymentId?.toString() ?? '',
-        rent.pricingRuleLabel ?? '',
-        total.round().toString(),
-        paid.round().toString(),
-        remaining.round().toString(),
-      ].join(' ').toLowerCase();
-
-      return haystack.contains(q);
-    }).toList();
+    return items;
   }
 
   bool _isOverdue(Rent rent) {
     final status = (rent.status ?? '').toLowerCase();
     if (status != 'open') return false;
-    final start = _tryParseRentDate(rent.startDatetime);
+    final start = rent.parsedStartDatetime;
     if (start == null) return false;
     return DateTime.now().difference(start).inHours >= 24;
   }
@@ -485,7 +466,22 @@ class _RentsViewState extends State<_RentsView> {
                         const SizedBox(height: 16),
                         TextField(
                           autofocus: true,
-                          onChanged: (value) => setState(() => _query = value),
+                          onChanged: (value) {
+                            setState(() {
+                              _query = value;
+                            });
+                            _debounce?.cancel();
+                            _debounce = Timer(const Duration(milliseconds: 500), () {
+                              if (!mounted) return;
+                              final rstate = context.read<RentsBloc>().state;
+                              context.read<RentsBloc>().add(RentsRequested(
+                                status: _statusParam,
+                                page: 1, // Reset to page 1 when searching
+                                perPage: rstate.perPage,
+                                searchQuery: _query,
+                              ));
+                            });
+                          },
                           decoration: InputDecoration(
                             hintText:
                                 'ابحث برقم العقد أو العميل أو المعدة أو رقم السند',
@@ -828,7 +824,7 @@ class _RentsViewState extends State<_RentsView> {
                           color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text('${filtered.length} نتيجة'),
+                        child: Text('${state.totalCount} نتيجة'),
                       ),
                     ],
                   ),
@@ -859,8 +855,7 @@ class _RentsViewState extends State<_RentsView> {
                       ),
                     )
                   else ...[
-                    // Lazy loading: show only _displayLimit items
-                    ...filtered.take(_displayLimit).map(
+                    ...filtered.map(
                       (rent) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _RentCard(
@@ -880,20 +875,70 @@ class _RentsViewState extends State<_RentsView> {
                         ),
                       ),
                     ),
-                    // "Show more" button when there are more items
-                    if (filtered.length > _displayLimit)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8, bottom: 16),
-                          child: FilledButton.tonalIcon(
-                            onPressed: () => setState(() => _displayLimit += 50),
-                            icon: const Icon(Icons.expand_more),
-                            label: Text(
-                              'عرض المزيد (${filtered.length - _displayLimit} متبقي)',
-                            ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 24),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios),
+                            onPressed: state.currentPage > 1
+                                ? () {
+                                    context.read<RentsBloc>().add(RentsRequested(
+                                      status: _statusParam,
+                                      page: state.currentPage - 1,
+                                      perPage: state.perPage,
+                                      searchQuery: _query,
+                                    ));
+                                  }
+                                : null,
+                            tooltip: 'الصفحة السابقة',
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'الصفحة ${state.currentPage} من ${((state.totalCount == 0 ? 1 : state.totalCount) / state.perPage).ceil()}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios),
+                            onPressed: state.currentPage < ((state.totalCount == 0 ? 1 : state.totalCount) / state.perPage).ceil()
+                                ? () {
+                                    context.read<RentsBloc>().add(RentsRequested(
+                                      status: _statusParam,
+                                      page: state.currentPage + 1,
+                                      perPage: state.perPage,
+                                      searchQuery: _query,
+                                    ));
+                                  }
+                                : null,
+                            tooltip: 'الصفحة التالية',
+                          ),
+                          const SizedBox(width: 24),
+                          DropdownButton<int>(
+                            value: state.perPage,
+                            items: [10, 20, 50, 100].map((val) {
+                              return DropdownMenuItem<int>(
+                                value: val,
+                                child: Text('$val عقد / صفحة'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                context.read<RentsBloc>().add(RentsRequested(
+                                  status: _statusParam,
+                                  page: 1,
+                                  perPage: val,
+                                  searchQuery: _query,
+                                ));
+                              }
+                            },
+                          ),
+                        ],
                       ),
+                    ),
                   ],
                 ],
               ),
@@ -1032,10 +1077,10 @@ class _RentCard extends StatelessWidget {
     final paid = safeRentPaid(rent);
     final remaining = safeRentRemaining(rent);
 
-    final start = _tryParseRentDate(rent.startDatetime);
+    final start = rent.parsedStartDatetime;
     String daysText = '';
     if (start != null) {
-      final end = _tryParseRentDate(rent.endDatetime) ?? DateTime.now();
+      final end = rent.parsedEndDatetime ?? DateTime.now();
       final diff = end.difference(start);
       final hours = diff.inMinutes / 60.0;
       int days = (hours / 24.0).ceil();

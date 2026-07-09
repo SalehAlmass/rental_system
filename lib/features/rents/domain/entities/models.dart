@@ -12,6 +12,8 @@ class RentItem {
     this.equipmentName,
     this.serialNo,
     this.internalCode,
+    this.parsedStartDatetime,
+    this.parsedEndDatetime,
   });
 
   final int id;
@@ -26,6 +28,8 @@ class RentItem {
   final String? equipmentName;
   final String? serialNo;
   final String? internalCode;
+  final DateTime? parsedStartDatetime;
+  final DateTime? parsedEndDatetime;
 
   factory RentItem.fromJson(Map<String, dynamic> json) {
     int toInt(dynamic v) =>
@@ -34,6 +38,9 @@ class RentItem {
     double? toDouble(dynamic v) =>
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
 
+    final startStr = json['start_datetime']?.toString();
+    final endStr = json['end_datetime']?.toString();
+
     return RentItem(
       id: toInt(json['id']),
       rentId: toInt(json['rent_id']),
@@ -41,12 +48,14 @@ class RentItem {
       rate: toDouble(json['rate']),
       notes: json['notes']?.toString(),
       status: json['status']?.toString(),
-      startDatetime: json['start_datetime']?.toString(),
-      endDatetime: json['end_datetime']?.toString(),
+      startDatetime: startStr,
+      endDatetime: endStr,
       replacedById: json['replaced_by_id'] == null ? null : toInt(json['replaced_by_id']),
       equipmentName: json['equipment_name']?.toString(),
       serialNo: json['serial_no']?.toString(),
       internalCode: json['internal_code']?.toString(),
+      parsedStartDatetime: startStr != null ? DateTime.tryParse(startStr.replaceFirst(' ', 'T')) : null,
+      parsedEndDatetime: endStr != null ? DateTime.tryParse(endStr.replaceFirst(' ', 'T')) : null,
     );
   }
 }
@@ -81,6 +90,8 @@ class Rent {
     this.isPaid,
     this.discountAmount,
     this.discountNote,
+    this.parsedStartDatetime,
+    this.parsedEndDatetime,
   });
 
   final int id;
@@ -115,6 +126,8 @@ class Rent {
   final bool? isPaid;
   final double? discountAmount;
   final String? discountNote;
+  final DateTime? parsedStartDatetime;
+  final DateTime? parsedEndDatetime;
 
   /* =========================
      JSON
@@ -127,15 +140,18 @@ class Rent {
     double? toDouble(dynamic v) =>
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
 
+    final startStr = json['start_datetime']?.toString() ?? '';
+    final endStr = json['end_datetime']?.toString();
+
     return Rent(
       id: toInt(json['id']),
       clientId: toInt(json['client_id']),
       equipmentId: toInt(json['equipment_id']),
-      startDatetime: json['start_datetime']?.toString() ?? '',
+      startDatetime: startStr,
       items: json['items'] != null
           ? (json['items'] as List).map((e) => RentItem.fromJson(e as Map<String, dynamic>)).toList()
           : [],
-      endDatetime: json['end_datetime']?.toString(),
+      endDatetime: endStr,
       hours: toDouble(json['hours']),
       rate: toDouble(json['rate']),
       totalAmount: toDouble(json['total_amount']),
@@ -158,6 +174,8 @@ class Rent {
       isPaid: json['is_paid'] == null ? null : (toInt(json['is_paid']) == 1 || json['is_paid'] == true),
       discountAmount: toDouble(json['discount_amount']),
       discountNote: json['discount_note']?.toString(),
+      parsedStartDatetime: DateTime.tryParse(startStr.replaceFirst(' ', 'T')),
+      parsedEndDatetime: endStr != null ? DateTime.tryParse(endStr.replaceFirst(' ', 'T')) : null,
     );
   }
 
@@ -222,6 +240,12 @@ class Rent {
       isPaid: isPaid ?? this.isPaid,
       discountAmount: discountAmount ?? this.discountAmount,
       discountNote: discountNote ?? this.discountNote,
+      parsedStartDatetime: startDatetime != null
+          ? DateTime.tryParse(startDatetime.replaceFirst(' ', 'T'))
+          : this.parsedStartDatetime,
+      parsedEndDatetime: endDatetime != null
+          ? DateTime.tryParse(endDatetime.replaceFirst(' ', 'T'))
+          : this.parsedEndDatetime,
     );
   }
 }

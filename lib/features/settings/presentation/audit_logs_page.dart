@@ -80,6 +80,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 

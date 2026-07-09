@@ -8,11 +8,20 @@ abstract class RentsEvent extends Equatable {
 }
 
 class RentsRequested extends RentsEvent {
-  const RentsRequested({this.status});
+  const RentsRequested({
+    this.status,
+    this.page = 1,
+    this.perPage = 20,
+    this.searchQuery = '',
+  });
+
   final String? status;
+  final int page;
+  final int perPage;
+  final String searchQuery;
 
   @override
-  List<Object?> get props => [status];
+  List<Object?> get props => [status, page, perPage, searchQuery];
 }
 
 class RentOpened extends RentsEvent {
