@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:rental_app/core/utils/datetime_utils.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
@@ -515,8 +516,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   DateTime? _tryParse(String? value) {
-    if (value == null || value.isEmpty) return null;
-    return DateTime.tryParse(value.replaceFirst(' ', 'T'));
+    return DateTimeUtils.parse(value);
   }
 
   double get _liveOpenTotal {
@@ -1375,10 +1375,9 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
   }
 
   String _fmtDateTime(String? s) {
-    final dt = _tryParse(s);
+    final dt = DateTimeUtils.parse(s);
     if (dt == null) return '-';
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return DateTimeUtils.format(dt);
   }
 
   void _snack(String msg, {bool isError = false}) {
@@ -1585,6 +1584,12 @@ class _CollectionFollowupDialogState extends State<_CollectionFollowupDialog> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: child!,
+        );
+      },
     );
     if (time == null || !mounted) return;
 

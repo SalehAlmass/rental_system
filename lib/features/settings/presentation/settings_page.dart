@@ -167,7 +167,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              permissionKey: 'settings',
+              permissionKey: 'contract_closing_settings',
               child: _tile(
                 context,
                 icon: Icons.rule_folder_outlined,
@@ -177,7 +177,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              permissionKey: 'settings',
+              permissionKey: 'admin_monitoring',
               child: _tile(
                 context,
                 icon: Icons.notifications_active_outlined,
@@ -187,7 +187,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              permissionKey: 'settings',
+              permissionKey: 'notifications',
               child: _tile(
                 context,
                 icon: Icons.warning_amber_rounded,
@@ -207,7 +207,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              permissionKey: 'equipment',
+              permissionKey: 'depreciation_logs',
               child: _tile(
                 context,
                 icon: Icons.assignment_returned_outlined,
@@ -217,7 +217,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              permissionKey: 'hr',
+              permissionKey: 'team_monitoring',
               child: _tile(
                 context,
                 icon: Icons.groups_3_outlined,
@@ -226,14 +226,16 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => _push(context, const TeamMonitoringPage()),
               ),
             ),
-            if (isAdmin)
-              _tile(
+            PermissionGuard(
+              permissionKey: 'system_health',
+              child: _tile(
                 context,
                 icon: Icons.health_and_safety_outlined,
                 title: 'حالة النظام والصيانة',
                 subtitle: 'مراقبة اتصال قاعدة البيانات وحجم الملفات وتدقيق سلامة البيانات',
                 onTap: () => _push(context, const SystemHealthPage()),
               ),
+            ),
           ],
 
           const Divider(height: 28),

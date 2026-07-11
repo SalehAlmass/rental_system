@@ -1,3 +1,6 @@
+import 'package:rental_app/core/utils/datetime_utils.dart';
+import 'dart:convert';
+
 class User {
   final int id;
   final String username;
@@ -18,10 +21,20 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    final rawPermissions = json['permissions'];
-    final Map<String, dynamic> parsedPermissions = rawPermissions is Map
-        ? rawPermissions.cast<String, dynamic>()
-        : const {};
+    Map<String, dynamic> parsedPermissions = {};
+    try {
+      final perms = json['permissions_json'];
+      if (perms != null && perms.toString().isNotEmpty) {
+        if (perms is Map) {
+          parsedPermissions = Map<String, dynamic>.from(perms);
+        } else {
+          final decoded = jsonDecode(perms.toString());
+          if (decoded is Map) {
+            parsedPermissions = Map<String, dynamic>.from(decoded);
+          }
+        }
+      }
+    } catch (_) {}
 
     final rawScreenPerms = json['screen_permissions'] ?? parsedPermissions['screen_permissions'];
     final Map<String, bool> screenPerms = {};
@@ -35,7 +48,7 @@ class User {
       id: int.parse(json['id'].toString()),
       username: json['username'] ?? '',
       role: json['role'] ?? 'employee',
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTimeUtils.parse(json['created_at']) ?? DateTime.now(),
       isActive: json['is_active'] == 1 || json['is_active'] == true,
       permissions: parsedPermissions,
       screenPermissions: screenPerms,

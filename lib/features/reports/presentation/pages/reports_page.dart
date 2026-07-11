@@ -2,6 +2,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
@@ -222,10 +224,13 @@ class _ExportBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pstate = context.watch<ProfileCubit>().state;
+    final canExport = pstate is ProfileLoaded && pstate.hasScreenPermission('export');
+
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: onTap,
+        onPressed: canExport ? onTap : null,
         icon: const Icon(Icons.picture_as_pdf, size: 18),
         label: Text(label),
         style: ElevatedButton.styleFrom(
@@ -295,12 +300,31 @@ class _ReportsTabsState extends State<_ReportsTabs> with SingleTickerProviderSta
   final _fmt = DateFormat('yyyy-MM-dd');
   late TabController _tabController;
 
-  static const _tabCount = 12;
+  late final bool _hasFinancial;
+  late final List<Tab> _tabs;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabCount, vsync: this);
+    final pstate = context.read<ProfileCubit>().state;
+    _hasFinancial = pstate is ProfileLoaded && pstate.hasScreenPermission('financial_reports');
+
+    _tabs = [
+      if (_hasFinancial) const Tab(text: 'الملخص المالي'),
+      if (_hasFinancial) const Tab(text: 'الأرباح والخسائر'),
+      if (_hasFinancial) const Tab(text: 'التدفقات النقدية'),
+      const Tab(text: 'أرباح المعدات'),
+      const Tab(text: 'أداء الموظفين'),
+      const Tab(text: 'الإيرادات بالمستخدم'),
+      const Tab(text: 'الإيرادات'),
+      const Tab(text: 'السندات'),
+      const Tab(text: 'أفضل معدات'),
+      const Tab(text: 'أفضل عملاء'),
+      const Tab(text: 'المتأخرون'),
+      const Tab(text: 'الإيرادات بالموظف'),
+    ];
+
+    _tabController = TabController(length: _tabs.length, vsync: this);
   }
 
   @override
@@ -436,20 +460,7 @@ class _ReportsTabsState extends State<_ReportsTabs> with SingleTickerProviderSta
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   unselectedLabelStyle: const TextStyle(fontSize: 12),
-                  tabs: const [
-                    Tab(text: 'الملخص المالي'),
-                    Tab(text: 'الأرباح والخسائر'),
-                    Tab(text: 'التدفقات النقدية'),
-                    Tab(text: 'أرباح المعدات'),
-                    Tab(text: 'أداء الموظفين'),
-                    Tab(text: 'الإيرادات بالمستخدم'),
-                    Tab(text: 'الإيرادات'),
-                    Tab(text: 'السندات'),
-                    Tab(text: 'أفضل معدات'),
-                    Tab(text: 'أفضل عملاء'),
-                    Tab(text: 'المتأخرون'),
-                    Tab(text: 'الإيرادات بالموظف'),
-                  ],
+                  tabs: _tabs,
                 ),
               ],
             ),
@@ -459,9 +470,9 @@ class _ReportsTabsState extends State<_ReportsTabs> with SingleTickerProviderSta
       body: TabBarView(
         controller: _tabController,
         children: [
-          _FinancialSummaryTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
-          _ProfitLossTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
-          _CashFlowTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
+          if (_hasFinancial) _FinancialSummaryTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
+          if (_hasFinancial) _ProfitLossTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
+          if (_hasFinancial) _CashFlowTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
           _EquipmentProfitTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
           _EmployeePerformanceTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),
           _RevenueByUserSummaryTab(from: _from == null ? null : _fmt.format(_from!), to: _to == null ? null : _fmt.format(_to!)),

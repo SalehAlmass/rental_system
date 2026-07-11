@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:rental_app/core/utils/datetime_utils.dart';
 
 import '../../../core/network/api_client.dart';
 
@@ -60,7 +61,7 @@ class AttendanceLog {
       id: asInt(j['id']),
       userId: asInt(j['user_id'] ?? j['userId']),
       type: (j['type'] ?? '').toString(),
-      ts: DateTime.tryParse((j['ts'] ?? j['created_at'] ?? '').toString()) ?? DateTime.now(),
+      ts: DateTimeUtils.parse(j['ts'] ?? j['created_at']) ?? DateTime.now(),
       method: j['method']?.toString(),
       note: j['note']?.toString(),
       breakMinutes: asIntOrNull(j['break_minutes']),

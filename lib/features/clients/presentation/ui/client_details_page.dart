@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
@@ -99,6 +101,9 @@ class ClientDetailsPage extends StatelessWidget {
 
   /// Action buttons: Back, Edit, Print, Share
   Widget _buildActionButtons(BuildContext context) {
+    final pstate = context.watch<ProfileCubit>().state;
+    final canPrint = pstate is ProfileLoaded && pstate.hasScreenPermission('print');
+
     return Column(
       children: [
         Row(
@@ -127,7 +132,7 @@ class ClientDetailsPage extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _printClientStatement(context),
+                onPressed: canPrint ? () => _printClientStatement(context) : null,
                 icon: const Icon(Icons.print),
                 label: const Text('طباعة كشف الحساب'),
               ),
@@ -135,7 +140,7 @@ class ClientDetailsPage extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _shareClientStatement(context),
+                onPressed: canPrint ? () => _shareClientStatement(context) : null,
                 icon: const Icon(Icons.share),
                 label: const Text('مشاركة PDF'),
               ),

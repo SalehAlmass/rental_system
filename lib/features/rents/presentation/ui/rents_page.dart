@@ -24,6 +24,7 @@ import 'package:rental_app/features/payments/presentation/ui/payments_page.dart'
 import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
 import 'package:rental_app/features/settings/data/contract_closing_settings_repository.dart';
 import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/utils/datetime_utils.dart';
 
 String nowSql() {
   final n = DateTime.now();
@@ -1680,29 +1681,30 @@ class _OpenRentDialog extends StatefulWidget {
   State<_OpenRentDialog> createState() => _OpenRentDialogState();
 }
 
-class _SelectedEquipmentItem {
-  int? equipmentId;
-  final TextEditingController rateCtrl = TextEditingController();
-  final TextEditingController notesCtrl = TextEditingController();
-
-  void dispose() {
-    rateCtrl.dispose();
-    notesCtrl.dispose();
-  }
-}
-
 class _OpenRentDialogState extends State<_OpenRentDialog> {
   List<Client> _clients = [];
-  List<Equipment> _equipment = [];
+  List<Equipment> _allEquipment = [];
 
   int? _clientId;
-  final List<_SelectedEquipmentItem> _items = [_SelectedEquipmentItem()];
+
+  /// Equipment IDs that the user has checked
+  final Set<int> _selectedIds = {};
+
+  /// Per-equipment custom rate (optional)
+  final Map<int, TextEditingController> _rateControllers = {};
+
+  /// Per-equipment notes (optional)
+  final Map<int, TextEditingController> _notesControllers = {};
 
   final _formKey = GlobalKey<FormState>();
+  final _searchCtrl = TextEditingController();
 
   bool _loading = true;
   bool _submitted = false;
   bool _localSubmitting = false;
+
+  /// Filter: 'all', 'available', 'rented', 'maintenance', 'inactive'
+  String _statusFilter = 'available';
 
   @override
   void initState() {
@@ -1716,175 +1718,336 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
     if (!mounted) return;
 
-    final availableEquipment = e
-        .where((x) => (x.status ?? 'available') != 'rented')
-        .toList();
-
     setState(() {
       _clients = c;
-      _equipment = availableEquipment;
+      _allEquipment = e;
       _clientId = _clients.isNotEmpty ? _clients.first.id : null;
-      if (_items.isNotEmpty && _equipment.isNotEmpty) {
-         final selectedIds = _items.map((x) => x.equipmentId).whereType<int>().toSet();
-         _items.first.equipmentId = _getFirstUnselectedEquipmentId(selectedIds);
-      }
       _loading = false;
     });
   }
 
-  int? _getFirstUnselectedEquipmentId(Set<int> selectedIds) {
-    for (final eq in _equipment) {
-      if (!selectedIds.contains(eq.id)) {
-        return eq.id;
-      }
-    }
-    return null;
-  }
-
   @override
   void dispose() {
-    for (final item in _items) {
-      item.dispose();
+    _searchCtrl.dispose();
+    for (final c in _rateControllers.values) {
+      c.dispose();
+    }
+    for (final c in _notesControllers.values) {
+      c.dispose();
     }
     super.dispose();
   }
 
-  void _addItem() {
-    setState(() {
-      final item = _SelectedEquipmentItem();
-      final selectedIds = _items.map((x) => x.equipmentId).whereType<int>().toSet();
-      item.equipmentId = _getFirstUnselectedEquipmentId(selectedIds);
-      _items.add(item);
-    });
+  // ── helpers ────────────────────────────────────────────────────────────
+
+  bool _isSelectable(Equipment eq) {
+    final s = (eq.status ?? 'available').toLowerCase();
+    return s == 'available' && eq.isActive;
   }
 
-  void _removeItem(int index) {
-    if (_items.length > 1) {
-      setState(() {
-        _items[index].dispose();
-        _items.removeAt(index);
-      });
+  String _unavailableReason(Equipment eq) {
+    final s = (eq.status ?? 'available').toLowerCase();
+    if (!eq.isActive) return 'غير نشطة';
+    if (s == 'rented') return 'مؤجرة حالياً';
+    if (s == 'maintenance') return 'تحت الصيانة';
+    return 'غير متاحة';
+  }
+
+  String _statusLabel(String? status) {
+    switch ((status ?? 'available').toLowerCase()) {
+      case 'rented':
+        return 'مؤجرة';
+      case 'maintenance':
+        return 'صيانة';
+      case 'available':
+        return 'متاحة';
+      default:
+        return status ?? 'غير معروف';
     }
   }
 
+  Color _statusColor(String? status) {
+    switch ((status ?? 'available').toLowerCase()) {
+      case 'rented':
+        return Colors.orange;
+      case 'maintenance':
+        return Colors.red;
+      case 'available':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  TextEditingController _rateCtrl(int id, double defaultRate) {
+    return _rateControllers.putIfAbsent(id, () {
+      return TextEditingController(
+        text: defaultRate > 0 ? defaultRate.toStringAsFixed(0) : '',
+      );
+    });
+  }
+
+  TextEditingController _notesCtrl(int id) {
+    return _notesControllers.putIfAbsent(id, () => TextEditingController());
+  }
+
+  // ── filtering & sorting ───────────────────────────────────────────────
+
+  List<Equipment> get _filteredSortedEquipment {
+    final query = _searchCtrl.text.trim().toLowerCase();
+
+    var list = _allEquipment.where((eq) {
+      // Status filter
+      if (_statusFilter != 'all') {
+        final s = (eq.status ?? 'available').toLowerCase();
+        if (_statusFilter == 'inactive') {
+          if (eq.isActive) return false;
+        } else if (s != _statusFilter) {
+          return false;
+        }
+      }
+
+      // Search filter
+      if (query.isNotEmpty) {
+        final name = eq.name.toLowerCase();
+        final serial = (eq.serialNo ?? '').toLowerCase();
+        final idStr = eq.id.toString();
+        if (!name.contains(query) &&
+            !serial.contains(query) &&
+            !idStr.contains(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+
+    // Sort: selected first → available → rest
+    list.sort((a, b) {
+      final aSelected = _selectedIds.contains(a.id) ? 0 : 1;
+      final bSelected = _selectedIds.contains(b.id) ? 0 : 1;
+      if (aSelected != bSelected) return aSelected.compareTo(bSelected);
+
+      final aAvail = _isSelectable(a) ? 0 : 1;
+      final bAvail = _isSelectable(b) ? 0 : 1;
+      if (aAvail != bAvail) return aAvail.compareTo(bAvail);
+
+      return a.name.compareTo(b.name);
+    });
+
+    return list;
+  }
+
+  void _selectAllAvailable() {
+    setState(() {
+      for (final eq in _filteredSortedEquipment) {
+        if (_isSelectable(eq)) {
+          _selectedIds.add(eq.id);
+        }
+      }
+    });
+  }
+
+  void _deselectAll() {
+    setState(() {
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleEquipment(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+        _rateControllers.remove(id)?.dispose();
+        _notesControllers.remove(id)?.dispose();
+      }
+    });
+  }
+
+  // ── build ─────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = screenWidth > 700 ? 620.0 : screenWidth * 0.92;
+
     return AlertDialog(
-      title: const Text('فتح عقد'),
+      title: Row(
+        children: [
+          const Icon(Icons.description_outlined, color: Colors.blue),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('فتح عقد جديد')),
+          if (!_loading)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _selectedIds.isEmpty
+                    ? Colors.grey.shade200
+                    : Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color:
+                      _selectedIds.isEmpty ? Colors.grey : Colors.blue.shade300,
+                ),
+              ),
+              child: Text(
+                'تم اختيار: ${_selectedIds.length} معدة',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      _selectedIds.isEmpty ? Colors.grey.shade600 : Colors.blue,
+                ),
+              ),
+            ),
+        ],
+      ),
       content: _loading
           ? const SizedBox(
-              height: 100,
+              height: 120,
               child: Center(child: CircularProgressIndicator()),
             )
           : SizedBox(
-              width: 500,
+              width: dialogWidth,
+              height: 520,
               child: Form(
                 key: _formKey,
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ── Client picker ──
                     DropdownSearch<Client>(
                       items: (filter, _) => _clients
-                          .where((c) => c.name.toLowerCase().contains(filter.toLowerCase()) || (c.phone != null && c.phone!.contains(filter)) || (c.nationalId != null && c.nationalId!.contains(filter)))
+                          .where((c) =>
+                              c.name
+                                  .toLowerCase()
+                                  .contains(filter.toLowerCase()) ||
+                              (c.phone != null && c.phone!.contains(filter)) ||
+                              (c.nationalId != null &&
+                                  c.nationalId!.contains(filter)))
                           .toList(),
                       compareFn: (i, s) => i.id == s.id,
                       itemAsString: (Client c) => '${c.id} - ${c.name}',
-                      selectedItem: _clients.isNotEmpty ? _clients.firstWhere((c) => c.id == _clientId, orElse: () => _clients.first) : null,
+                      selectedItem: _clients.isNotEmpty
+                          ? _clients.firstWhere((c) => c.id == _clientId,
+                              orElse: () => _clients.first)
+                          : null,
                       onChanged: (Client? data) {
                         if (data != null) setState(() => _clientId = data.id);
                       },
-                      decoratorProps: const DropDownDecoratorProps(decoration: InputDecoration(labelText: 'العميل', border: OutlineInputBorder())),
+                      decoratorProps: const DropDownDecoratorProps(
+                        decoration: InputDecoration(
+                          labelText: 'العميل',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                      ),
                       popupProps: PopupProps.menu(
                         showSearchBox: true,
-                        searchFieldProps: const TextFieldProps(decoration: InputDecoration(hintText: 'ابحث بالاسم، رقم الجوال، أو الهوية...', border: OutlineInputBorder())),
-                        itemBuilder: (context, item, isDisabled, isSelected) => ListTile(title: Text(item.name), subtitle: Text('${item.phone ?? ""} | ${item.nationalId ?? ""}'), selected: isSelected, trailing: Text('#${item.id}')),
+                        searchFieldProps: const TextFieldProps(
+                          decoration: InputDecoration(
+                            hintText: 'ابحث بالاسم، رقم الجوال، أو الهوية...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        itemBuilder:
+                            (context, item, isDisabled, isSelected) =>
+                                ListTile(
+                          title: Text(item.name),
+                          subtitle: Text(
+                              '${item.phone ?? ""} | ${item.nationalId ?? ""}'),
+                          selected: isSelected,
+                          trailing: Text('#${item.id}'),
+                        ),
                       ),
                     ),
+
                     const SizedBox(height: 16),
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 32),
-                        itemBuilder: (context, index) {
-                          final item = _items[index];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text('المعدة ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Spacer(),
-                                  if (_items.length > 1)
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                      onPressed: () => _removeItem(index),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                               DropdownSearch<Equipment>(
-                                items: (filter, _) {
-                                  final selectedIds = _items
-                                      .where((x) => x != item && x.equipmentId != null)
-                                      .map((x) => x.equipmentId!)
-                                      .toSet();
-                                  return _equipment
-                                      .where((e) => !selectedIds.contains(e.id))
-                                      .where((e) => e.name.toLowerCase().contains(filter.toLowerCase()) || (e.serialNo != null && e.serialNo!.toLowerCase().contains(filter.toLowerCase())))
-                                      .toList();
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+
+                    // ── Equipment section header ──
+                    const Text(
+                      'اختر المعدات للعقد',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // ── Search bar ──
+                    TextField(
+                      controller: _searchCtrl,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'ابحث بالاسم، الرقم التسلسلي، أو رقم المعدة...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchCtrl.clear();
+                                  setState(() {});
                                 },
-                                compareFn: (i, s) => i.id == s.id,
-                                itemAsString: (Equipment e) => '${e.name} - ${e.serialNo ?? "-"}',
-                                selectedItem: item.equipmentId == null || _equipment.isEmpty
-                                    ? null
-                                    : _equipment.firstWhere(
-                                        (e) => e.id == item.equipmentId,
-                                        orElse: () => _equipment.first,
-                                      ),
-                                onChanged: (Equipment? data) {
-                                  if (data != null) setState(() => item.equipmentId = data.id);
-                                },
-                                decoratorProps: const DropDownDecoratorProps(decoration: InputDecoration(labelText: 'المعدة', border: OutlineInputBorder())),
-                                popupProps: PopupProps.menu(
-                                  showSearchBox: true,
-                                  searchFieldProps: const TextFieldProps(decoration: InputDecoration(hintText: 'ابحث باسم المعدة...', border: OutlineInputBorder())),
-                                  itemBuilder: (context, eq, isDisabled, isSelected) => ListTile(title: Text(eq.name), subtitle: Text('رقم تسلسلي: ${eq.serialNo ?? "-"}'), selected: isSelected, trailing: Text('#${eq.id}')),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 1,
-                                    child: TextFormField(
-                                      controller: item.rateCtrl,
-                                      validator: validateRate,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      decoration: const InputDecoration(labelText: 'السعر اليومي (اختياري)', border: OutlineInputBorder()),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    flex: 2,
-                                    child: TextFormField(
-                                      controller: item.notesCtrl,
-                                      decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)', border: OutlineInputBorder()),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                              )
+                            : null,
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _addItem,
-                      icon: const Icon(Icons.add),
-                      label: const Text('إضافة معدة أخرى'),
+
+                    // ── Filter chips + Select all / Deselect all ──
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _filterChip('الكل', 'all'),
+                          const SizedBox(width: 4),
+                          _filterChip('متاحة', 'available'),
+                          const SizedBox(width: 4),
+                          _filterChip('مؤجرة', 'rented'),
+                          const SizedBox(width: 4),
+                          _filterChip('صيانة', 'maintenance'),
+                          const SizedBox(width: 4),
+                          _filterChip('غير نشطة', 'inactive'),
+                          const SizedBox(width: 12),
+                          TextButton.icon(
+                            onPressed: _selectAllAvailable,
+                            icon: const Icon(Icons.select_all, size: 18),
+                            label: const Text('تحديد الكل',
+                                style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton.icon(
+                            onPressed:
+                                _selectedIds.isEmpty ? null : _deselectAll,
+                            icon: const Icon(Icons.deselect, size: 18),
+                            label: const Text('إلغاء الكل',
+                                style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 8),
+
+                    // ── Equipment list ──
+                    Expanded(child: _buildEquipmentList()),
                   ],
                 ),
               ),
@@ -1907,37 +2070,52 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
             }
           },
           builder: (context, state) {
-            final disabled = state.working || _localSubmitting;
-            return ElevatedButton(
+            final disabled =
+                state.working || _localSubmitting || _selectedIds.isEmpty;
+            return ElevatedButton.icon(
+              icon: disabled && (state.working || _localSubmitting)
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(
+                  'فتح العقد${_selectedIds.isNotEmpty ? " (${_selectedIds.length})" : ""}'),
               onPressed: disabled
                   ? null
                   : () async {
                       if (_clientId == null) return;
-                      for (final i in _items) {
-                        if (i.equipmentId == null) return;
-                      }
                       if (!_formKey.currentState!.validate()) return;
 
-                      // ✅ التحقق من الحد الائتماني
-                      final selectedClient = _clients.cast<Client?>().firstWhere(
-                        (c) => c?.id == _clientId,
-                        orElse: () => null,
-                      );
+                      // ✅ Credit limit check
+                      final selectedClient =
+                          _clients.cast<Client?>().firstWhere(
+                                (c) => c?.id == _clientId,
+                                orElse: () => null,
+                              );
 
-                      if (selectedClient != null && selectedClient.isFrozen == 1) {
+                      if (selectedClient != null &&
+                          selectedClient.isFrozen == 1) {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('هذا العميل مجمّد ولا يمكن فتح عقد له'), backgroundColor: Colors.red),
+                          const SnackBar(
+                            content: Text(
+                                'هذا العميل مجمّد ولا يمكن فتح عقد له'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
 
-                      if (selectedClient != null && selectedClient.isOverCreditLimit) {
+                      if (selectedClient != null &&
+                          selectedClient.isOverCreditLimit) {
                         if (!context.mounted) return;
                         final proceed = await showDialog<bool>(
                           context: context,
                           builder: (_) => AlertDialog(
-                            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+                            icon: const Icon(Icons.warning_amber_rounded,
+                                color: Colors.orange, size: 48),
                             title: const Text('تجاوز الحد الائتماني'),
                             content: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -1945,34 +2123,45 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                               children: [
                                 Text('العميل: ${selectedClient.name}'),
                                 const SizedBox(height: 8),
-                                Text('الحد الائتماني: ${selectedClient.creditLimit.toStringAsFixed(0)} ${AppConfig.currencySymbol}'),
-                                Text('إجمالي الدين الحالي: ${selectedClient.totalDebt.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
-                                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                Text(
+                                    'الحد الائتماني: ${selectedClient.creditLimit.toStringAsFixed(0)} ${AppConfig.currencySymbol}'),
+                                Text(
+                                  'إجمالي الدين الحالي: ${selectedClient.totalDebt.toStringAsFixed(0)} ${AppConfig.currencySymbol}',
+                                  style: const TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold),
+                                ),
                                 const SizedBox(height: 12),
-                                const Text('يرجى تسديد المبلغ الآجل أو إضافة دفعة قبل فتح عقد جديد.'),
+                                const Text(
+                                    'يرجى تسديد المبلغ الآجل أو إضافة دفعة قبل فتح عقد جديد.'),
                               ],
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context, false),
+                                onPressed: () =>
+                                    Navigator.pop(context, false),
                                 child: const Text('إلغاء'),
                               ),
                               OutlinedButton.icon(
                                 onPressed: () {
-                                  Navigator.pop(context, false); // أغلق النافذة الحالية
+                                  Navigator.pop(context, false);
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => ClientDetailsPage(client: selectedClient),
+                                      builder: (_) => ClientDetailsPage(
+                                          client: selectedClient),
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.person_search_outlined),
+                                icon:
+                                    const Icon(Icons.person_search_outlined),
                                 label: const Text('الذهاب لصفحة العميل'),
                               ),
                               FilledButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () =>
+                                    Navigator.pop(context, true),
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.orange),
                                 child: const Text('المتابعة رغم التحذير'),
                               ),
                             ],
@@ -1986,33 +2175,220 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                         _submitted = true;
                       });
 
-                      final itemsList = _items.map((it) {
-                         return {
-                           'equipment_id': it.equipmentId!,
-                           if (it.rateCtrl.text.trim().isNotEmpty) 'rate': double.tryParse(it.rateCtrl.text.trim()),
-                           if (it.notesCtrl.text.trim().isNotEmpty) 'notes': it.notesCtrl.text.trim(),
-                         };
+                      // Build items list in the SAME format the API expects
+                      final itemsList = _selectedIds.map((eqId) {
+                        final rateText =
+                            _rateControllers[eqId]?.text.trim() ?? '';
+                        final notesText =
+                            _notesControllers[eqId]?.text.trim() ?? '';
+                        return <String, dynamic>{
+                          'equipment_id': eqId,
+                          if (rateText.isNotEmpty)
+                            'rate': double.tryParse(rateText),
+                          if (notesText.isNotEmpty) 'notes': notesText,
+                        };
                       }).toList();
 
                       context.read<RentsBloc>().add(
-                        RentOpened(
-                          clientId: _clientId!,
-                          items: itemsList,
-                          startDatetime: nowSql(),
-                        ),
-                      );
+                            RentOpened(
+                              clientId: _clientId!,
+                              items: itemsList,
+                              startDatetime: nowSql(),
+                            ),
+                          );
                     },
-              child: disabled
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('فتح'),
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _filterChip(String label, String value) {
+    final isActive = _statusFilter == value;
+    return ChoiceChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      selected: isActive,
+      onSelected: (_) => setState(() => _statusFilter = value),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
+  Widget _buildEquipmentList() {
+    final items = _filteredSortedEquipment;
+
+    if (items.isEmpty) {
+      return const Center(
+        child: Text('لا توجد معدات مطابقة', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final eq = items[index];
+        final isSelected = _selectedIds.contains(eq.id);
+        final selectable = _isSelectable(eq);
+
+        return _buildEquipmentTile(eq, isSelected, selectable);
+      },
+    );
+  }
+
+  Widget _buildEquipmentTile(
+      Equipment eq, bool isSelected, bool selectable) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? Colors.blue.shade50
+            : selectable
+                ? Colors.white
+                : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isSelected
+              ? Colors.blue.shade300
+              : selectable
+                  ? Colors.grey.shade300
+                  : Colors.grey.shade200,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // ── Main row: Checkbox + equipment info ──
+          InkWell(
+            onTap: selectable
+                ? () => _toggleEquipment(eq.id, !isSelected)
+                : null,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: selectable
+                        ? (val) =>
+                            _toggleEquipment(eq.id, val ?? false)
+                        : null,
+                    activeColor: Colors.blue,
+                    materialTapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 4),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor:
+                        _statusColor(eq.status).withValues(alpha: 0.15),
+                    child: Icon(
+                      Icons.precision_manufacturing,
+                      size: 16,
+                      color: _statusColor(eq.status),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          eq.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: selectable
+                                ? Colors.black87
+                                : Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${eq.serialNo ?? "-"} • ${eq.dailyRate.toStringAsFixed(0)} ${AppConfig.currencySymbol}/يوم',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: selectable
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _statusColor(eq.status)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selectable
+                          ? _statusLabel(eq.status)
+                          : _unavailableReason(eq),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _statusColor(eq.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Expanded details when selected ──
+          if (isSelected)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(44, 0, 12, 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 140,
+                    child: TextFormField(
+                      controller: _rateCtrl(eq.id, eq.dailyRate),
+                      validator: validateRate,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      decoration: InputDecoration(
+                        labelText: 'السعر اليومي',
+                        hintText: eq.dailyRate.toStringAsFixed(0),
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _notesCtrl(eq.id),
+                      decoration: const InputDecoration(
+                        labelText: 'ملاحظات',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -2090,24 +2466,21 @@ class _CollectionAgendaItem {
   String get nextFollowupAtLabel => _fmtFull(latestNextFollowupAt);
 
   static DateTime? _parse(String? value) {
-    if (value == null || value.isEmpty) return null;
-    return DateTime.tryParse(value.replaceFirst(' ', 'T'));
+    return DateTimeUtils.parse(value);
   }
 
   static String _fmt(String? value) {
     if (value == null || value.isEmpty) return '-';
     final dt = _parse(value);
     if (dt == null) return value;
-    String two(int x) => x.toString().padLeft(2, '0');
-    return '${two(dt.hour)}:${two(dt.minute)}';
+    return DateTimeUtils.formatTime(dt);
   }
 
   static String _fmtFull(String? value) {
     if (value == null || value.isEmpty) return '-';
     final dt = _parse(value);
     if (dt == null) return value;
-    String two(int x) => x.toString().padLeft(2, '0');
-    return '${two(dt.day)}/${two(dt.month)} ${two(dt.hour)}:${two(dt.minute)}';
+    return DateTimeUtils.format(dt);
   }
 }
 

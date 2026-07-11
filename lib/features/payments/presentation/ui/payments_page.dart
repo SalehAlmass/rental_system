@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:intl/intl.dart';
 import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
@@ -593,6 +595,8 @@ class _PaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pstate = context.watch<ProfileCubit>().state;
+    final canPrint = pstate is ProfileLoaded && pstate.hasScreenPermission('print');
     final isIn = payment.type.toLowerCase() == 'in';
     final cs = Theme.of(context).colorScheme;
     final stateColor = payment.isVoid
@@ -722,7 +726,7 @@ class _PaymentCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'طباعة السند',
                     icon: const Icon(Icons.print_outlined),
-                    onPressed: () async {
+                    onPressed: canPrint ? () async {
                       try {
                         await PdfService().printPaymentVoucher(
                           payment: payment,
@@ -734,12 +738,12 @@ class _PaymentCard extends StatelessWidget {
                           );
                         }
                       }
-                    },
+                    } : null,
                   ),
                   IconButton(
                     tooltip: 'مشاركة PDF',
                     icon: const Icon(Icons.share_outlined),
-                    onPressed: () async {
+                    onPressed: canPrint ? () async {
                       try {
                         await PdfService().sharePaymentVoucher(
                           payment: payment,
@@ -751,7 +755,7 @@ class _PaymentCard extends StatelessWidget {
                           );
                         }
                       }
-                    },
+                    } : null,
                   ),
                   if (!payment.isVoid) ...[
                     IconButton(
@@ -975,6 +979,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   @override
   void initState() {
     super.initState();
+    final pstate = context.read<ProfileCubit>().state;
+    final hasReceipts = pstate is ProfileLoaded && pstate.hasScreenPermission('receipts');
+    _type = hasReceipts ? 'in' : 'out';
+
     final p = widget.edit;
     if (p != null) {
       _amount.text = p.amount.toString();
@@ -1031,6 +1039,9 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.edit != null;
+    final pstate = context.read<ProfileCubit>().state;
+    final hasPayments = pstate is ProfileLoaded && pstate.hasScreenPermission('payments');
+    final hasReceipts = pstate is ProfileLoaded && pstate.hasScreenPermission('receipts');
 
     return AlertDialog(
       title: Text(editing ? 'تعديل سند' : 'إضافة سند'),
@@ -1052,16 +1063,19 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           labelText: 'نوع السند',
                           border: OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'in', child: Text('سند قبض')),
-                          DropdownMenuItem(
-                            value: 'out',
-                            child: Text('سند صرف'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'depreciation',
-                            child: Text('سند صرف إهلاك'),
-                          ),
+                        items: [
+                          if (hasReceipts)
+                            const DropdownMenuItem(value: 'in', child: Text('سند قبض')),
+                          if (hasPayments)
+                            const DropdownMenuItem(
+                              value: 'out',
+                              child: Text('سند صرف'),
+                            ),
+                          if (hasPayments)
+                            const DropdownMenuItem(
+                              value: 'depreciation',
+                              child: Text('سند صرف إهلاك'),
+                            ),
                         ],
                         onChanged: (v) {
                           final value = v ?? 'in';

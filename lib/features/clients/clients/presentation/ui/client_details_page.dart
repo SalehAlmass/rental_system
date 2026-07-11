@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/core/utils/datetime_utils.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/printing/pdf_service.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/payments/data/repositories/payments_repository_impl.dart';
@@ -39,14 +42,16 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
 
   String _fmtDateTime(String? raw) {
     if (raw == null || raw.trim().isEmpty) return '-';
-    final dt = DateTime.tryParse(raw.replaceFirst(' ', 'T'));
+    final dt = DateTimeUtils.parse(raw);
     if (dt == null) return raw;
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return DateTimeUtils.format(dt);
   }
 
   @override
   Widget build(BuildContext context) {
     final client = widget.client;
+    final pstate = context.watch<ProfileCubit>().state;
+    final canPrint = pstate is ProfileLoaded && pstate.hasScreenPermission('print');
     return Scaffold(
       appBar: AppBar(
         title: const Text('تفاصيل العميل'),
@@ -189,7 +194,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () async {
+                            onPressed: canPrint ? () async {
                               final api = context.read<ApiClient>();
                               final rentsRepo = RentsRepository(api);
                               final paymentsRepo = PaymentsRepository(api);
@@ -199,7 +204,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
 
                               final pdf = PdfService();
                               await pdf.printClientStatement(client: client, rents: rents, payments: payments.items);
-                            },
+                            } : null,
                             icon: const Icon(Icons.print),
                             label: const Text('طباعة كشف الحساب'),
                           ),
@@ -207,7 +212,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () async {
+                            onPressed: canPrint ? () async {
                               final api = context.read<ApiClient>();
                               final rentsRepo = RentsRepository(api);
                               final paymentsRepo = PaymentsRepository(api);
@@ -217,7 +222,7 @@ class _ClientDetailsPageState extends State<ClientDetailsPage> {
 
                               final pdf = PdfService();
                               await pdf.shareClientStatement(client: client, rents: rents, payments: payments.items);
-                            },
+                            } : null,
                             icon: const Icon(Icons.share),
                             label: const Text('مشاركة PDF'),
                           ),

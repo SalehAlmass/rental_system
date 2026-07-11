@@ -11,6 +11,7 @@ import 'pdf_share_impl.dart'
 
 import '../config/app_config.dart';
 import '../storage/app_settings_storage.dart';
+import '../utils/datetime_utils.dart';
 import '../../features/clients/domain/entities/models.dart' show Client;
 import '../../features/payments/domain/entities/models.dart' show Payment;
 import '../../features/rents/domain/entities/models.dart' show Rent;
@@ -486,7 +487,7 @@ class PdfService {
   }
 
   pw.Widget _footer(pw.Context ctx, {String? from, String? to}) {
-    final now = DateTime.now().toString().substring(0, 19);
+    final now = DateTimeUtils.format(DateTime.now());
     return pw.Directionality(
       textDirection: pw.TextDirection.rtl,
       child: pw.Container(
