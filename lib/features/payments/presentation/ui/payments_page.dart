@@ -1118,21 +1118,50 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     ),
                     const SizedBox(height: 10),
 
-                    DropdownButtonFormField<int>(
-                      initialValue: _clientId,
-                      decoration: const InputDecoration(
-                        labelText: 'العميل (اختياري)',
-                        border: OutlineInputBorder(),
+                    DropdownSearch<Client>(
+                      suffixProps: const DropdownSuffixProps(
+                        clearButtonProps: ClearButtonProps(
+                          isVisible: true,
+                        ),
                       ),
-                      items: _clients
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text('${c.id} - ${c.name}'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _clientId = v),
+                      items: (filter, _) => _clients.where((c) {
+                        final q = filter.toLowerCase();
+                        return c.name.toLowerCase().contains(q) ||
+                            (c.phone != null && c.phone!.contains(q)) ||
+                            (c.nationalId != null && c.nationalId!.contains(q)) ||
+                            '${c.id}'.contains(q);
+                      }).toList(),
+                      compareFn: (a, b) => a.id == b.id,
+                      selectedItem: _clientId == null
+                          ? null
+                          : _clients.cast<Client?>().firstWhere((c) => c?.id == _clientId, orElse: () => null),
+                      itemAsString: (c) => '${c.id} - ${c.name}',
+                      onChanged: (Client? selected) {
+                        setState(() {
+                          _clientId = selected?.id;
+                        });
+                      },
+                      decoratorProps: const DropDownDecoratorProps(
+                        decoration: InputDecoration(
+                          labelText: 'العميل (اختياري)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      popupProps: PopupProps.menu(
+                        showSearchBox: true,
+                        searchFieldProps: const TextFieldProps(
+                          decoration: InputDecoration(
+                            hintText: 'ابحث بالاسم، الجوال، الهوية أو الكود...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        itemBuilder: (context, item, isDisabled, isSelected) => ListTile(
+                          title: Text(item.name),
+                          subtitle: Text('${item.phone ?? ""} | ${item.nationalId ?? ""}'),
+                          selected: isSelected,
+                          trailing: Text('#${item.id}'),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
 
