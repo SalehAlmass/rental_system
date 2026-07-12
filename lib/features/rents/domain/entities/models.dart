@@ -305,16 +305,24 @@ class CollectionFollowup {
 
   String get outcomeLabel {
     switch (outcome.toLowerCase()) {
+      case 'promise_to_pay':
       case 'promised_to_pay':
-        return 'وعد بالدفع';
+        return 'وعد بالسداد';
       case 'paid':
-        return 'تم الدفع';
+        return 'تم التحصيل';
+      case 'no_answer':
+        return 'لا يرد';
       case 'not_responding':
-        return 'لا يستجيب';
+        return 'لا يرد / لا يستجيب';
       case 'disputed':
         return 'يعترض على المبلغ';
+      case 'follow_up_later':
       case 'followup_scheduled':
-        return 'تم تحديد متابعة لاحقة';
+        return 'متابعة لاحقة';
+      case 'customer_requested_delay':
+        return 'تأجيل بطلب العميل';
+      case 'other':
+        return 'أخرى';
       default:
         return outcome.isEmpty ? '-' : outcome;
     }
