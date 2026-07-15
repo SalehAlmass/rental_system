@@ -1377,10 +1377,18 @@ class _RevenueTrendTab extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 //  8. PAYMENTS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-class _PaymentsTab extends StatelessWidget {
+class _PaymentsTab extends StatefulWidget {
   const _PaymentsTab({this.from, this.to});
   final String? from;
   final String? to;
+
+  @override
+  State<_PaymentsTab> createState() => _PaymentsTabState();
+}
+
+class _PaymentsTabState extends State<_PaymentsTab> {
+  String _sortBy = 'id';
+  String _sortOrder = 'desc';
 
   @override
   Widget build(BuildContext context) {
@@ -1405,6 +1413,7 @@ class _PaymentsTab extends StatelessWidget {
                 ],
               ),
             ),
+            _buildSortingBar(context),
             Expanded(
               child: d.rows.isEmpty
                   ? _emptyBox('لا توجد سندات للفترة المحددة')
@@ -1433,6 +1442,75 @@ class _PaymentsTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSortingBar(BuildContext context) {
+    final sortOptions = {
+      'id': 'رقم السند',
+      'created_at': 'تاريخ السند',
+      'amount': 'المبلغ',
+      'type': 'نوع السند',
+      'client_name': 'اسم العميل',
+    };
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: _sortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _sortBy = val;
+                });
+                context.read<ReportsBloc>().add(ReportsPaymentsRequested(
+                  from: widget.from,
+                  to: widget.to,
+                  sortBy: _sortBy,
+                  sortOrder: _sortOrder,
+                ));
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              _sortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              setState(() {
+                _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+              });
+              context.read<ReportsBloc>().add(ReportsPaymentsRequested(
+                from: widget.from,
+                to: widget.to,
+                sortBy: _sortBy,
+                sortOrder: _sortOrder,
+              ));
+            },
+          ),
+        ],
+      ),
     );
   }
 }

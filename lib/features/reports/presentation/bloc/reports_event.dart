@@ -18,9 +18,13 @@ class ReportsPaymentsRequested extends ReportsEvent {
   final String? from;
   final String? to;
   final String type; // all|in|out
-  const ReportsPaymentsRequested({this.from, this.to, this.type = 'all'});
+  final int? page;
+  final int? perPage;
+  final String? sortBy;
+  final String? sortOrder;
+  const ReportsPaymentsRequested({this.from, this.to, this.type = 'all', this.page, this.perPage, this.sortBy, this.sortOrder});
   @override
-  List<Object?> get props => [from, to, type];
+  List<Object?> get props => [from, to, type, page, perPage, sortBy, sortOrder];
 }
 
 class ReportsEquipmentProfitRequested extends ReportsEvent {

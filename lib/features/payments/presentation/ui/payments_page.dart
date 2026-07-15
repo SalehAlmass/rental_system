@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dropdown_search/dropdown_search.dart';
@@ -292,6 +294,7 @@ class _PaymentsViewState extends State<_PaymentsView> {
                             ),
                           ),
                           const SizedBox(height: 18),
+                          _buildSortingBar(context, state),
                           SizedBox(
                             height: MediaQuery.of(context).size.height,
                             child: TabBarView(
@@ -324,6 +327,78 @@ class _PaymentsViewState extends State<_PaymentsView> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSortingBar(BuildContext context, PaymentsState state) {
+    final bloc = context.read<PaymentsBloc>();
+    final currentSortBy = state.sortBy ?? 'id';
+    final currentSortOrder = state.sortOrder ?? 'desc';
+
+    final sortOptions = {
+      'id': 'رقم السند',
+      'created_at': 'تاريخ السند',
+      'amount': 'المبلغ',
+      'type': 'نوع السند',
+      'client_name': 'اسم العميل',
+    };
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: currentSortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                bloc.add(PaymentsRequested(
+                  showVoided: state.showVoided,
+                  query: state.query,
+                  page: state.page,
+                  perPage: state.perPage,
+                  sortBy: val,
+                  sortOrder: currentSortOrder,
+                ));
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              currentSortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              final nextOrder = currentSortOrder == 'asc' ? 'desc' : 'asc';
+              bloc.add(PaymentsRequested(
+                showVoided: state.showVoided,
+                query: state.query,
+                page: state.page,
+                perPage: state.perPage,
+                sortBy: currentSortBy,
+                sortOrder: nextOrder,
+              ));
+            },
+          ),
+        ],
       ),
     );
   }

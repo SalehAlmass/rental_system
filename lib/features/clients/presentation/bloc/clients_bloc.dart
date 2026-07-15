@@ -18,9 +18,24 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
 
   Future<void> _onRequested(
       ClientsRequested event, Emitter<ClientsState> emit) async {
-    emit(state.copyWith(status: ClientsStatus.loading, error: null));
+    final sortBy = event.sortBy ?? state.sortBy;
+    final sortOrder = event.sortOrder ?? state.sortOrder;
+    final query = event.query ?? state.query;
+
+    emit(state.copyWith(
+      status: ClientsStatus.loading, 
+      error: null,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+      query: query,
+      action: ClientsAction.none,
+    ));
     try {
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: query,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+      );
       emit(state.copyWith(status: ClientsStatus.success, items: items, action: ClientsAction.none));
     } catch (e) {
       emit(state.copyWith(status: ClientsStatus.failure, error: e.toString(), action: ClientsAction.none));
@@ -45,7 +60,11 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
         isFrozen: event.isFrozen,
       );
 
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(
         creating: false,
         status: ClientsStatus.success,
@@ -81,7 +100,11 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
         isFrozen: event.isFrozen,
       );
 
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(
         creating: false,
         status: ClientsStatus.success,
@@ -109,7 +132,11 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
     try {
       await _repo.delete(event.id);
 
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(
         creating: false,
         status: ClientsStatus.success,

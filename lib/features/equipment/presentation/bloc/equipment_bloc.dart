@@ -17,9 +17,26 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
   final EquipmentRepository _repo;
 
   Future<void> _onRequested(EquipmentRequested event, Emitter<EquipmentState> emit) async {
-    emit(state.copyWith(status: EquipmentStatus.loading, error: null));
+    final sortBy = event.sortBy ?? state.sortBy;
+    final sortOrder = event.sortOrder ?? state.sortOrder;
+    final query = event.query ?? state.query;
+    final filterStatus = event.filterStatus ?? state.filterStatus;
+
+    emit(state.copyWith(
+      status: EquipmentStatus.loading, 
+      error: null,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+      query: query,
+      filterStatus: filterStatus,
+    ));
     try {
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: query,
+        status: filterStatus,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+      );
       emit(state.copyWith(status: EquipmentStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(status: EquipmentStatus.failure, error: e.toString()));
@@ -45,7 +62,12 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
         estimatedUsageDays: event.estimatedUsageDays,
         seriesCount: event.seriesCount,
       );
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        status: state.filterStatus,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));
@@ -71,7 +93,12 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
         depreciationStartDate: event.depreciationStartDate,
         estimatedUsageDays: event.estimatedUsageDays,
       );
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        status: state.filterStatus,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));
@@ -82,7 +109,12 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.delete(event.id);
-      final items = await _repo.list();
+      final items = await _repo.list(
+        query: state.query,
+        status: state.filterStatus,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      );
       emit(state.copyWith(working: false, status: EquipmentStatus.success, items: items));
     } catch (e) {
       emit(state.copyWith(working: false, error: e.toString()));

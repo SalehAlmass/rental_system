@@ -14,6 +14,8 @@ class PaymentsRepository {
     int? page,
     int? perPage,
     String? query,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final res = await _api.dio.get(
@@ -25,6 +27,8 @@ class PaymentsRepository {
           if (page != null) 'page': page,
           if (perPage != null) 'per_page': perPage,
           if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+          if (sortBy != null) 'sort_by': sortBy,
+          if (sortOrder != null) 'sort_order': sortOrder,
         },
       );
 

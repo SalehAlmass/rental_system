@@ -12,13 +12,17 @@ class PaymentsRequested extends PaymentsEvent {
     this.query,
     this.page,
     this.perPage,
+    this.sortBy,
+    this.sortOrder,
   });
   final bool showVoided;
   final String? query;
   final int? page;
   final int? perPage;
+  final String? sortBy;
+  final String? sortOrder;
   @override
-  List<Object?> get props => [showVoided, query, page, perPage];
+  List<Object?> get props => [showVoided, query, page, perPage, sortBy, sortOrder];
 }
 
 class PaymentCreated extends PaymentsEvent {

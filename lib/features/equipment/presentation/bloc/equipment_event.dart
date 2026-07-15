@@ -6,7 +6,17 @@ sealed class EquipmentEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class EquipmentRequested extends EquipmentEvent {}
+class EquipmentRequested extends EquipmentEvent {
+  final String? sortBy;
+  final String? sortOrder;
+  final String? query;
+  final String? filterStatus;
+
+  const EquipmentRequested({this.sortBy, this.sortOrder, this.query, this.filterStatus});
+
+  @override
+  List<Object?> get props => [sortBy, sortOrder, query, filterStatus];
+}
 
 class EquipmentCreated extends EquipmentEvent {
   const EquipmentCreated({

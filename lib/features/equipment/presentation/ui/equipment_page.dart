@@ -148,20 +148,76 @@ class _EquipmentView extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (state.items.isEmpty) {
-              return const Center(child: Text('لا توجد معدات'));
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: state.items.length,
-              itemBuilder: (context, index) {
-                final equipment = state.items[index];
-                return _EquipmentCard(equipment: equipment);
-              },
+            return Column(
+              children: [
+                _buildSortingBar(context, state),
+                Expanded(
+                  child: state.items.isEmpty
+                      ? const Center(child: Text('لا توجد معدات'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: state.items.length,
+                          itemBuilder: (context, index) {
+                            final equipment = state.items[index];
+                            return _EquipmentCard(equipment: equipment);
+                          },
+                        ),
+                ),
+              ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildSortingBar(BuildContext context, EquipmentState state) {
+    final bloc = context.read<EquipmentBloc>();
+    final currentSortBy = state.sortBy ?? 'id';
+    final currentSortOrder = state.sortOrder ?? 'desc';
+
+    final sortOptions = {
+      'id': 'الترتيب الافتراضي',
+      'name': 'الاسم',
+      'serial_no': 'الرقم التسلسلي',
+      'created_at': 'تاريخ الإضافة',
+      'status': 'الحالة',
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: Colors.grey.shade100,
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: currentSortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                bloc.add(EquipmentRequested(sortBy: val));
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              currentSortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              final nextOrder = currentSortOrder == 'asc' ? 'desc' : 'asc';
+              bloc.add(EquipmentRequested(sortOrder: nextOrder));
+            },
+          ),
+        ],
       ),
     );
   }

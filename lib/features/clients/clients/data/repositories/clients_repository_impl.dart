@@ -7,9 +7,18 @@ class ClientsRepository {
   ClientsRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Client>> list() async {
+  Future<List<Client>> list({String? query, int? page, int? perPage, String? sortBy, String? sortOrder}) async {
     try {
-      final res = await _api.dio.get('clients');
+      final res = await _api.dio.get(
+        'clients',
+        queryParameters: {
+          if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+          if (page != null) 'page': page,
+          if (perPage != null) 'per_page': perPage,
+          if (sortBy != null) 'sort_by': sortBy,
+          if (sortOrder != null) 'sort_order': sortOrder,
+        },
+      );
       dynamic raw = res.data;
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['clients'] ?? [];
       if (raw is! List) throw ApiFailure('Unexpected response: ${res.data}');

@@ -39,7 +39,15 @@ class ReportsBloc extends Bloc<ReportsEvent, ReportsState> {
   Future<void> _onPayments(ReportsPaymentsRequested event, Emitter<ReportsState> emit) async {
     emit(state.copyWith(paymentsStatus: ReportsStatus.loading, paymentsError: null));
     try {
-      final r = await _repo.paymentsReport(from: event.from, to: event.to, type: event.type);
+      final r = await _repo.paymentsReport(
+        from: event.from,
+        to: event.to,
+        type: event.type,
+        sortBy: event.sortBy,
+        sortOrder: event.sortOrder,
+        page: event.page,
+        perPage: event.perPage,
+      );
       emit(state.copyWith(paymentsStatus: ReportsStatus.success, payments: r));
     } catch (e) {
       emit(state.copyWith(paymentsStatus: ReportsStatus.failure, paymentsError: e.toString()));

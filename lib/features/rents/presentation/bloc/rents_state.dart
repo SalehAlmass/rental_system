@@ -13,6 +13,8 @@ class RentsState extends Equatable {
     this.totalCount = 0,
     this.perPage = 20,
     this.searchQuery = '',
+    this.sortBy,
+    this.sortOrder,
   });
 
   const RentsState.initial()
@@ -24,7 +26,9 @@ class RentsState extends Equatable {
         currentPage = 1,
         totalCount = 0,
         perPage = 20,
-        searchQuery = '';
+        searchQuery = '',
+        sortBy = null,
+        sortOrder = null;
 
   final RentsStatus status;
   final List<Rent> items;
@@ -36,6 +40,8 @@ class RentsState extends Equatable {
   final int totalCount;
   final int perPage;
   final String searchQuery;
+  final String? sortBy;
+  final String? sortOrder;
 
   RentsState copyWith({
     RentsStatus? status,
@@ -47,6 +53,8 @@ class RentsState extends Equatable {
     int? totalCount,
     int? perPage,
     String? searchQuery,
+    String? sortBy,
+    String? sortOrder,
   }) {
     return RentsState(
       status: status ?? this.status,
@@ -58,6 +66,8 @@ class RentsState extends Equatable {
       totalCount: totalCount ?? this.totalCount,
       perPage: perPage ?? this.perPage,
       searchQuery: searchQuery ?? this.searchQuery,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -72,5 +82,7 @@ class RentsState extends Equatable {
         totalCount,
         perPage,
         searchQuery,
+        sortBy,
+        sortOrder,
       ];
 }

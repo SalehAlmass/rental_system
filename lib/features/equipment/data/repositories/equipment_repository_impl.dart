@@ -7,7 +7,7 @@ class EquipmentRepository {
   EquipmentRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Equipment>> list({String? query, String? status, int? page, int? perPage}) async {
+  Future<List<Equipment>> list({String? query, String? status, int? page, int? perPage, String? sortBy, String? sortOrder}) async {
     try {
       final res = await _api.dio.get(
         'equipment',
@@ -16,6 +16,8 @@ class EquipmentRepository {
           if (status != null && status.isNotEmpty) 'status': status,
           if (page != null) 'page': page,
           if (perPage != null) 'per_page': perPage,
+          if (sortBy != null) 'sort_by': sortBy,
+          if (sortOrder != null) 'sort_order': sortOrder,
         },
       );
       dynamic raw = res.data;

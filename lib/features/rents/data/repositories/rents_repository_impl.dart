@@ -70,6 +70,8 @@ class RentsRepository {
     int perPage = 20,
     String searchQuery = '',
     bool archivedOnly = false,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final res = await _api.dio.get(
@@ -81,6 +83,8 @@ class RentsRepository {
           'per_page': perPage,
           if (searchQuery.isNotEmpty) 'q': searchQuery,
           if (archivedOnly || status == 'archived') 'archived_only': 1,
+          if (sortBy != null) 'sort_by': sortBy,
+          if (sortOrder != null) 'sort_order': sortOrder,
         },
       );
 

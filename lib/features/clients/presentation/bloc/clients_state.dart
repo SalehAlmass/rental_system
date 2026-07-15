@@ -10,6 +10,9 @@ class ClientsState extends Equatable {
     this.error,
     this.creating = false,
     this.action = ClientsAction.none,
+    this.sortBy,
+    this.sortOrder,
+    this.query,
   });
 
   const ClientsState.initial()
@@ -17,7 +20,10 @@ class ClientsState extends Equatable {
         items = const [],
         error = null,
         creating = false,
-        action = ClientsAction.none;
+        action = ClientsAction.none,
+        sortBy = null,
+        sortOrder = null,
+        query = null;
 
   final ClientsStatus status;
   final List<Client> items;
@@ -26,6 +32,9 @@ class ClientsState extends Equatable {
 
   /// ✅ يحدد آخر عملية نجحت (علشان نقفل Dialog صح)
   final ClientsAction action;
+  final String? sortBy;
+  final String? sortOrder;
+  final String? query;
 
   ClientsState copyWith({
     ClientsStatus? status,
@@ -33,6 +42,9 @@ class ClientsState extends Equatable {
     String? error,
     bool? creating,
     ClientsAction? action,
+    String? sortBy,
+    String? sortOrder,
+    String? query,
   }) {
     return ClientsState(
       status: status ?? this.status,
@@ -40,9 +52,12 @@ class ClientsState extends Equatable {
       error: error,
       creating: creating ?? this.creating,
       action: action ?? this.action,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
+      query: query ?? this.query,
     );
   }
 
   @override
-  List<Object?> get props => [status, items, error, creating, action];
+  List<Object?> get props => [status, items, error, creating, action, sortBy, sortOrder, query];
 }

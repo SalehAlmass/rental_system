@@ -20,13 +20,23 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     PaymentsRequested event,
     Emitter<PaymentsState> emit,
   ) async {
-    emit(state.copyWith(status: PaymentsStatus.loading, error: null));
+    final sortBy = event.sortBy ?? state.sortBy;
+    final sortOrder = event.sortOrder ?? state.sortOrder;
+
+    emit(state.copyWith(
+      status: PaymentsStatus.loading, 
+      error: null,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+    ));
     try {
       final result = await _repo.list(
         showVoided: event.showVoided,
         query: event.query,
         page: event.page,
         perPage: event.perPage,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
       );
       emit(
         state.copyWith(
@@ -38,6 +48,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
           query: event.query,
           page: event.page,
           perPage: event.perPage,
+          sortBy: sortBy,
+          sortOrder: sortOrder,
         ),
       );
     } catch (e) {
@@ -66,6 +78,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         query: state.query,
         page: state.page,
         perPage: state.perPage,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
       );
       emit(
         state.copyWith(
@@ -102,6 +116,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         query: state.query,
         page: state.page,
         perPage: state.perPage,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
       );
       emit(
         state.copyWith(
@@ -129,6 +145,8 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         query: state.query,
         page: state.page,
         perPage: state.perPage,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
       );
       emit(
         state.copyWith(

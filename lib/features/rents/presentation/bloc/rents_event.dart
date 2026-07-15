@@ -13,15 +13,19 @@ class RentsRequested extends RentsEvent {
     this.page = 1,
     this.perPage = 20,
     this.searchQuery = '',
+    this.sortBy,
+    this.sortOrder,
   });
 
   final String? status;
   final int page;
   final int perPage;
   final String searchQuery;
+  final String? sortBy;
+  final String? sortOrder;
 
   @override
-  List<Object?> get props => [status, page, perPage, searchQuery];
+  List<Object?> get props => [status, page, perPage, searchQuery, sortBy, sortOrder];
 }
 
 class RentOpened extends RentsEvent {

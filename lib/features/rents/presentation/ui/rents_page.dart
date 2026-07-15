@@ -830,6 +830,7 @@ class _RentsViewState extends State<_RentsView> {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  _buildSortingBar(context, state),
                   if (filtered.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(24),
@@ -1042,6 +1043,78 @@ class _RentsViewState extends State<_RentsView> {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       await _reloadEverything();
     }
+  }
+
+  Widget _buildSortingBar(BuildContext context, RentsState state) {
+    final bloc = context.read<RentsBloc>();
+    final currentSortBy = state.sortBy ?? 'id';
+    final currentSortOrder = state.sortOrder ?? 'desc';
+
+    final sortOptions = {
+      'id': 'رقم العقد',
+      'client_name': 'اسم العميل',
+      'start_datetime': 'تاريخ البداية',
+      'end_datetime': 'تاريخ النهاية',
+      'status': 'الحالة',
+    };
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: currentSortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                bloc.add(RentsRequested(
+                  status: state.filterStatus,
+                  page: 1,
+                  perPage: state.perPage,
+                  searchQuery: state.searchQuery,
+                  sortBy: val,
+                  sortOrder: currentSortOrder,
+                ));
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              currentSortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              final nextOrder = currentSortOrder == 'asc' ? 'desc' : 'asc';
+              bloc.add(RentsRequested(
+                status: state.filterStatus,
+                page: 1,
+                perPage: state.perPage,
+                searchQuery: state.searchQuery,
+                sortBy: currentSortBy,
+                sortOrder: nextOrder,
+              ));
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 

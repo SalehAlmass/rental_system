@@ -14,6 +14,8 @@ class PaymentsState extends Equatable {
     this.query,
     this.page = 1,
     this.perPage = 200,
+    this.sortBy,
+    this.sortOrder,
   });
 
   const PaymentsState.initial()
@@ -26,7 +28,9 @@ class PaymentsState extends Equatable {
         total = 0,
         query = null,
         page = 1,
-        perPage = 200;
+        perPage = 200,
+        sortBy = null,
+        sortOrder = null;
 
   final PaymentsStatus status;
   final List<Payment> items;
@@ -38,6 +42,8 @@ class PaymentsState extends Equatable {
   final String? query;
   final int page;
   final int perPage;
+  final String? sortBy;
+  final String? sortOrder;
 
   PaymentsState copyWith({
     PaymentsStatus? status,
@@ -50,6 +56,8 @@ class PaymentsState extends Equatable {
     String? query,
     int? page,
     int? perPage,
+    String? sortBy,
+    String? sortOrder,
   }) {
     return PaymentsState(
       status: status ?? this.status,
@@ -62,10 +70,12 @@ class PaymentsState extends Equatable {
       query: query ?? this.query,
       page: page ?? this.page,
       perPage: perPage ?? this.perPage,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, items, error, working, showVoided, summary, total, query, page, perPage];
+      [status, items, error, working, showVoided, summary, total, query, page, perPage, sortBy, sortOrder];
 }

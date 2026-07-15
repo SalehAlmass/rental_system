@@ -57,23 +57,79 @@ class ClientsView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (state.items.isEmpty) {
-            return const Center(child: Text('لا يوجد عملاء'));
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async =>
-                context.read<ClientsBloc>().add(ClientsRequested()),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: state.items.length,
-              itemBuilder: (context, index) {
-                return ClientCard(client: state.items[index]);
-              },
-            ),
+          return Column(
+            children: [
+              _buildSortingBar(context, state),
+              Expanded(
+                child: state.items.isEmpty
+                    ? const Center(child: Text('لا يوجد عملاء'))
+                    : RefreshIndicator(
+                        onRefresh: () async =>
+                            context.read<ClientsBloc>().add(ClientsRequested()),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: state.items.length,
+                          itemBuilder: (context, index) {
+                            return ClientCard(client: state.items[index]);
+                          },
+                        ),
+                      ),
+              ),
+            ],
           );
         },
         ),
+      ),
+    );
+  }
+
+  Widget _buildSortingBar(BuildContext context, ClientsState state) {
+    final bloc = context.read<ClientsBloc>();
+    final currentSortBy = state.sortBy ?? 'id';
+    final currentSortOrder = state.sortOrder ?? 'desc';
+
+    final sortOptions = {
+      'id': 'الترتيب الافتراضي',
+      'name': 'الاسم',
+      'phone': 'رقم الهاتف',
+      'national_id': 'الرقم الوطني',
+      'created_at': 'تاريخ التسجيل',
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: Colors.grey.shade100,
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: currentSortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                bloc.add(ClientsRequested(sortBy: val));
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              currentSortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              final nextOrder = currentSortOrder == 'asc' ? 'desc' : 'asc';
+              bloc.add(ClientsRequested(sortOrder: nextOrder));
+            },
+          ),
+        ],
       ),
     );
   }

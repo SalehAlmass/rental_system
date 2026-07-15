@@ -6,7 +6,16 @@ sealed class ClientsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class ClientsRequested extends ClientsEvent {}
+class ClientsRequested extends ClientsEvent {
+  final String? sortBy;
+  final String? sortOrder;
+  final String? query;
+
+  const ClientsRequested({this.sortBy, this.sortOrder, this.query});
+
+  @override
+  List<Object?> get props => [sortBy, sortOrder, query];
+}
 
 class ClientCreated extends ClientsEvent {
   const ClientCreated({

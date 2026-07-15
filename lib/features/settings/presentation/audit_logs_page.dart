@@ -22,6 +22,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   final List<dynamic> _logs = [];
   List<dynamic> _users = [];
   final _scrollController = ScrollController();
+  String _sortBy = 'id';
+  String _sortOrder = 'desc';
 
   // Filter values
   DateTime? _fromDate;
@@ -138,6 +140,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       if (_searchController.text.trim().isNotEmpty) {
         params['search'] = _searchController.text.trim();
       }
+      params['sort_by'] = _sortBy;
+      params['sort_order'] = _sortOrder;
 
       final res = await dio.get('/audit-logs', queryParameters: params);
       if (res.data is Map && res.data['success'] == true) {
@@ -362,6 +366,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 ],
               ),
             ),
+            _buildSortingBar(context),
             // ────── Logs List ─────
             Expanded(
               child: RefreshIndicator(
@@ -392,6 +397,65 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSortingBar(BuildContext context) {
+    final sortOptions = {
+      'id': 'الترتيب الافتراضي',
+      'created_at': 'تاريخ العملية',
+      'user': 'المستخدم',
+      'action': 'نوع العملية',
+      'entity': 'الوحدة',
+    };
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sort, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: _sortBy,
+            underline: const SizedBox(),
+            items: sortOptions.entries.map((e) {
+              return DropdownMenuItem<String>(
+                value: e.key,
+                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _sortBy = val;
+                });
+                _loadLogs(refresh: true);
+              }
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(
+              _sortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 20,
+            ),
+            onPressed: () {
+              setState(() {
+                _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+              });
+              _loadLogs(refresh: true);
+            },
+          ),
+        ],
       ),
     );
   }

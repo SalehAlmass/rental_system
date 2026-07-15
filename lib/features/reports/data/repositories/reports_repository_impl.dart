@@ -49,7 +49,7 @@ class ReportsRepository {
     }
   }
 
-  Future<PaymentsReport> paymentsReport({String? from, String? to, String type = 'all'}) async {
+  Future<PaymentsReport> paymentsReport({String? from, String? to, String type = 'all', String? sortBy, String? sortOrder, int? page, int? perPage}) async {
     try {
       final res = await _api.dio.get(
         'reports/payments',
@@ -57,6 +57,10 @@ class ReportsRepository {
           if (from != null) 'from': from,
           if (to != null) 'to': to,
           if (type != 'all') 'type': type,
+          if (sortBy != null) 'sort_by': sortBy,
+          if (sortOrder != null) 'sort_order': sortOrder,
+          if (page != null) 'page': page,
+          if (perPage != null) 'per_page': perPage,
         },
       );
 

@@ -22,6 +22,9 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
     RentsRequested event,
     Emitter<RentsState> emit,
   ) async {
+    final sortBy = event.sortBy ?? state.sortBy;
+    final sortOrder = event.sortOrder ?? state.sortOrder;
+
     emit(
       state.copyWith(
         status: RentsStatus.loading,
@@ -30,6 +33,8 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         currentPage: event.page,
         perPage: event.perPage,
         searchQuery: event.searchQuery,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
       ),
     );
 
@@ -39,6 +44,8 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
         page: event.page,
         perPage: event.perPage,
         searchQuery: event.searchQuery,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
       );
       emit(
         state.copyWith(
@@ -48,6 +55,8 @@ class RentsBloc extends Bloc<RentsEvent, RentsState> {
           currentPage: event.page,
           perPage: event.perPage,
           searchQuery: event.searchQuery,
+          sortBy: sortBy,
+          sortOrder: sortOrder,
           error: null,
         ),
       );
