@@ -11,6 +11,9 @@ class PaymentsState extends Equatable {
     this.showVoided = false,
     this.summary,
     this.total = 0,
+    this.query,
+    this.page = 1,
+    this.perPage = 200,
   });
 
   const PaymentsState.initial()
@@ -20,7 +23,10 @@ class PaymentsState extends Equatable {
         working = false,
         showVoided = false,
         summary = null,
-        total = 0;
+        total = 0,
+        query = null,
+        page = 1,
+        perPage = 200;
 
   final PaymentsStatus status;
   final List<Payment> items;
@@ -29,6 +35,9 @@ class PaymentsState extends Equatable {
   final bool showVoided;
   final PaymentSummary? summary;
   final int total;
+  final String? query;
+  final int page;
+  final int perPage;
 
   PaymentsState copyWith({
     PaymentsStatus? status,
@@ -38,6 +47,9 @@ class PaymentsState extends Equatable {
     bool? showVoided,
     PaymentSummary? summary,
     int? total,
+    String? query,
+    int? page,
+    int? perPage,
   }) {
     return PaymentsState(
       status: status ?? this.status,
@@ -47,10 +59,13 @@ class PaymentsState extends Equatable {
       showVoided: showVoided ?? this.showVoided,
       summary: summary ?? this.summary,
       total: total ?? this.total,
+      query: query ?? this.query,
+      page: page ?? this.page,
+      perPage: perPage ?? this.perPage,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, items, error, working, showVoided, summary, total];
+      [status, items, error, working, showVoided, summary, total, query, page, perPage];
 }

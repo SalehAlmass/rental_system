@@ -7,9 +7,17 @@ class EquipmentRepository {
   EquipmentRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Equipment>> list() async {
+  Future<List<Equipment>> list({String? query, String? status, int? page, int? perPage}) async {
     try {
-      final res = await _api.dio.get('equipment');
+      final res = await _api.dio.get(
+        'equipment',
+        queryParameters: {
+          if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+          if (status != null && status.isNotEmpty) 'status': status,
+          if (page != null) 'page': page,
+          if (perPage != null) 'per_page': perPage,
+        },
+      );
       dynamic raw = res.data;
       if (raw is Map) raw = raw['data'] ?? raw['items'] ?? raw['equipment'] ?? [];
       if (raw is! List) throw ApiFailure('Unexpected response: ${res.data}');

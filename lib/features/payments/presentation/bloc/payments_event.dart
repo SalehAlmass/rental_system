@@ -7,10 +7,18 @@ sealed class PaymentsEvent extends Equatable {
 }
 
 class PaymentsRequested extends PaymentsEvent {
-  const PaymentsRequested({this.showVoided = false});
+  const PaymentsRequested({
+    this.showVoided = false,
+    this.query,
+    this.page,
+    this.perPage,
+  });
   final bool showVoided;
+  final String? query;
+  final int? page;
+  final int? perPage;
   @override
-  List<Object?> get props => [showVoided];
+  List<Object?> get props => [showVoided, query, page, perPage];
 }
 
 class PaymentCreated extends PaymentsEvent {

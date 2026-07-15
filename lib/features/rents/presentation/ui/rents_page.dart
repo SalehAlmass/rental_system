@@ -1689,6 +1689,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
   /// Equipment IDs that the user has checked
   final Set<int> _selectedIds = {};
+  final Map<int, Equipment> _selectedEquipmentMap = {};
 
   /// Per-equipment custom rate (optional)
   final Map<int, TextEditingController> _rateControllers = {};
@@ -1698,6 +1699,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
   final _formKey = GlobalKey<FormState>();
   final _searchCtrl = TextEditingController();
+  Timer? _debounce;
 
   bool _loading = true;
   bool _submitted = false;
@@ -1793,34 +1795,57 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
   // ── filtering & sorting ───────────────────────────────────────────────
 
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final results = await widget.equipmentRepo.list(
+          query: query.trim().isNotEmpty ? query.trim() : null,
+          status: _statusFilter != 'all' ? _statusFilter : null,
+        );
+        if (mounted) {
+          setState(() {
+            _allEquipment = results;
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _onStatusFilterChanged(String value) async {
+    setState(() {
+      _statusFilter = value;
+      _loading = true;
+    });
+    try {
+      final query = _searchCtrl.text.trim();
+      final results = await widget.equipmentRepo.list(
+        query: query.isNotEmpty ? query : null,
+        status: value != 'all' ? value : null,
+      );
+      if (mounted) {
+        setState(() {
+          _allEquipment = results;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   List<Equipment> get _filteredSortedEquipment {
-    final query = _searchCtrl.text.trim().toLowerCase();
+    final list = <Equipment>[];
 
-    var list = _allEquipment.where((eq) {
-      // Status filter
-      if (_statusFilter != 'all') {
-        final s = (eq.status ?? 'available').toLowerCase();
-        if (_statusFilter == 'inactive') {
-          if (eq.isActive) return false;
-        } else if (s != _statusFilter) {
-          return false;
-        }
+    // 1. Add all selected equipment items first (so they are always visible)
+    list.addAll(_selectedEquipmentMap.values);
+
+    // 2. Add currently fetched results from the server if they are not already in the list
+    for (final eq in _allEquipment) {
+      if (!list.any((item) => item.id == eq.id)) {
+        list.add(eq);
       }
-
-      // Search filter
-      if (query.isNotEmpty) {
-        final name = eq.name.toLowerCase();
-        final serial = (eq.serialNo ?? '').toLowerCase();
-        final idStr = eq.id.toString();
-        if (!name.contains(query) &&
-            !serial.contains(query) &&
-            !idStr.contains(query)) {
-          return false;
-        }
-      }
-
-      return true;
-    }).toList();
+    }
 
     // Sort: selected first → available → rest
     list.sort((a, b) {
@@ -1843,6 +1868,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
       for (final eq in _filteredSortedEquipment) {
         if (_isSelectable(eq)) {
           _selectedIds.add(eq.id);
+          _selectedEquipmentMap[eq.id] = eq;
         }
       }
     });
@@ -1851,6 +1877,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
   void _deselectAll() {
     setState(() {
       _selectedIds.clear();
+      _selectedEquipmentMap.clear();
     });
   }
 
@@ -1858,8 +1885,14 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
     setState(() {
       if (selected) {
         _selectedIds.add(id);
+        final eq = _allEquipment.firstWhere(
+          (item) => item.id == id,
+          orElse: () => _selectedEquipmentMap[id]!,
+        );
+        _selectedEquipmentMap[id] = eq;
       } else {
         _selectedIds.remove(id);
+        _selectedEquipmentMap.remove(id);
         _rateControllers.remove(id)?.dispose();
         _notesControllers.remove(id)?.dispose();
       }
@@ -1919,15 +1952,24 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                   children: [
                     // ── Client picker ──
                     DropdownSearch<Client>(
-                      items: (filter, _) => _clients
-                          .where((c) =>
-                              c.name
-                                  .toLowerCase()
-                                  .contains(filter.toLowerCase()) ||
-                              (c.phone != null && c.phone!.contains(filter)) ||
-                              (c.nationalId != null &&
-                                  c.nationalId!.contains(filter)))
-                          .toList(),
+                      items: (filter, _) async {
+                        if (filter.isEmpty) {
+                          return _clients;
+                        }
+                        try {
+                          return await widget.clientsRepo.list(query: filter);
+                        } catch (_) {
+                          return _clients
+                              .where((c) =>
+                                  c.name
+                                      .toLowerCase()
+                                      .contains(filter.toLowerCase()) ||
+                                  (c.phone != null && c.phone!.contains(filter)) ||
+                                  (c.nationalId != null &&
+                                      c.nationalId!.contains(filter)))
+                              .toList();
+                        }
+                      },
                       compareFn: (i, s) => i.id == s.id,
                       itemAsString: (Client c) => '${c.id} - ${c.name}',
                       selectedItem: _clients.isNotEmpty
@@ -1979,7 +2021,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                     // ── Search bar ──
                     TextField(
                       controller: _searchCtrl,
-                      onChanged: (_) => setState(() {}),
+                      onChanged: _onSearchChanged,
                       decoration: InputDecoration(
                         hintText: 'ابحث بالاسم، الرقم التسلسلي، أو رقم المعدة...',
                         prefixIcon: const Icon(Icons.search),
@@ -1988,7 +2030,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                                 icon: const Icon(Icons.clear),
                                 onPressed: () {
                                   _searchCtrl.clear();
-                                  setState(() {});
+                                  _onSearchChanged('');
                                 },
                               )
                             : null,
@@ -2209,7 +2251,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
     return ChoiceChip(
       label: Text(label, style: const TextStyle(fontSize: 12)),
       selected: isActive,
-      onSelected: (_) => setState(() => _statusFilter = value),
+      onSelected: (_) => _onStatusFilterChanged(value),
       visualDensity: VisualDensity.compact,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

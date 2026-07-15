@@ -69,10 +69,25 @@ class _PaymentsView extends StatefulWidget {
 class _PaymentsViewState extends State<_PaymentsView> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'all';
+  Timer? _debounce;
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      final state = context.read<PaymentsBloc>().state;
+      context.read<PaymentsBloc>().add(
+        PaymentsRequested(
+          showVoided: state.showVoided,
+          query: query.trim().isNotEmpty ? query.trim() : null,
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -181,7 +196,7 @@ class _PaymentsViewState extends State<_PaymentsView> {
                           const SizedBox(height: 16),
                           TextField(
                             controller: _searchController,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: _onSearchChanged,
                             decoration: InputDecoration(
                               hintText:
                                   'ابحث برقم السند، العميل، العقد أو الملاحظة',
@@ -192,7 +207,7 @@ class _PaymentsViewState extends State<_PaymentsView> {
                                       icon: const Icon(Icons.close),
                                       onPressed: () {
                                         _searchController.clear();
-                                        setState(() {});
+                                        _onSearchChanged('');
                                       },
                                     ),
                               filled: true,
@@ -315,6 +330,13 @@ class _PaymentsViewState extends State<_PaymentsView> {
 
   void _setFilter(String value) {
     setState(() => _selectedFilter = value);
+    final state = context.read<PaymentsBloc>().state;
+    context.read<PaymentsBloc>().add(
+      PaymentsRequested(
+        showVoided: state.showVoided,
+        query: _searchController.text.trim().isNotEmpty ? _searchController.text.trim() : null,
+      ),
+    );
   }
 
   List<Payment> _applyCommonFilters(List<Payment> items) {

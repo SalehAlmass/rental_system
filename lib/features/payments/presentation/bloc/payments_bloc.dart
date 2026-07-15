@@ -22,7 +22,12 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
   ) async {
     emit(state.copyWith(status: PaymentsStatus.loading, error: null));
     try {
-      final result = await _repo.list(showVoided: event.showVoided);
+      final result = await _repo.list(
+        showVoided: event.showVoided,
+        query: event.query,
+        page: event.page,
+        perPage: event.perPage,
+      );
       emit(
         state.copyWith(
           status: PaymentsStatus.success,
@@ -30,6 +35,9 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
           summary: result.summary,
           total: result.total,
           showVoided: event.showVoided,
+          query: event.query,
+          page: event.page,
+          perPage: event.perPage,
         ),
       );
     } catch (e) {
@@ -53,7 +61,12 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         referenceNo: event.referenceNo,
         notes: event.notes,
       );
-      final result = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(
+        showVoided: state.showVoided,
+        query: state.query,
+        page: state.page,
+        perPage: state.perPage,
+      );
       emit(
         state.copyWith(
           working: false,
@@ -84,7 +97,12 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
         referenceNo: event.referenceNo,
         notes: event.notes,
       );
-      final result = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(
+        showVoided: state.showVoided,
+        query: state.query,
+        page: state.page,
+        perPage: state.perPage,
+      );
       emit(
         state.copyWith(
           working: false,
@@ -106,7 +124,12 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
     emit(state.copyWith(working: true, error: null));
     try {
       await _repo.voidPayment(id: event.id, reason: event.reason);
-      final result = await _repo.list(showVoided: state.showVoided);
+      final result = await _repo.list(
+        showVoided: state.showVoided,
+        query: state.query,
+        page: state.page,
+        perPage: state.perPage,
+      );
       emit(
         state.copyWith(
           working: false,

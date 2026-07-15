@@ -13,6 +13,7 @@ class PaymentsRepository {
     bool showVoided = false,
     int? page,
     int? perPage,
+    String? query,
   }) async {
     try {
       final res = await _api.dio.get(
@@ -23,6 +24,7 @@ class PaymentsRepository {
           'show_void': showVoided ? 1 : 0,
           if (page != null) 'page': page,
           if (perPage != null) 'per_page': perPage,
+          if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
         },
       );
 
