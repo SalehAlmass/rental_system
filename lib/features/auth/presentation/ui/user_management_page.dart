@@ -180,7 +180,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
       {'key': 'dashboard', 'label': 'لوحة التحكم (Dashboard)'},
       {'key': 'rents', 'label': 'العقود (Rentals)'},
       {'key': 'clients', 'label': 'العملاء (Clients)'},
+      {'key': 'clients_edit', 'label': 'تعديل العملاء (Clients Edit)'},
+      {'key': 'clients_delete', 'label': 'حذف العملاء (Clients Delete)'},
       {'key': 'equipment', 'label': 'المعدات (Equipment)'},
+      {'key': 'equipment_edit', 'label': 'تعديل المعدات (Equipment Edit)'},
+      {'key': 'equipment_delete', 'label': 'حذف المعدات (Equipment Delete)'},
     ],
     'المالية والتقارير (Financials)': [
       {'key': 'payments', 'label': 'السندات (Payments)'},

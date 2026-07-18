@@ -51,6 +51,7 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
     try {
       final dio = context.read<ApiClient>().dio;
       final res = await dio.get('system-health');
+      if (!mounted) return;
       if (res.data != null && res.data['success'] == true) {
         setState(() {
           _healthData = res.data['data'] as Map<String, dynamic>;
@@ -81,6 +82,7 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
     try {
       final dio = context.read<ApiClient>().dio;
       final res = await dio.get('system-integrity');
+      if (!mounted) return;
       if (res.data != null && res.data['success'] == true) {
         setState(() {
           _integrityIssues = res.data['issues'] as List<dynamic>;
@@ -115,6 +117,7 @@ class _SystemHealthPageState extends State<SystemHealthPage> with SingleTickerPr
         params['status'] = _errorFilter;
       }
       final res = await dio.get('system-health/errors', queryParameters: params.isNotEmpty ? params : null);
+      if (!mounted) return;
       if (res.data != null && res.data['success'] == true) {
         setState(() {
           _errorLogs = res.data['data'] as List<dynamic>;

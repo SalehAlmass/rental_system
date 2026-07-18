@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/network/api_client.dart';
-import 'package:rental_app/core/storage/token_storage.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:rental_app/features/auth/presentation/ui/ChangePasswordPage.dart';
 import 'package:rental_app/features/clients/presentation/ui/clients_page.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
-import 'package:rental_app/features/dashboard/presentation/ui/DashboardHome%20.dart';
+import 'package:rental_app/features/dashboard/presentation/ui/dashboard_home.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/dashboard_tab.dart';
 import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
 import 'package:rental_app/features/payments/presentation/ui/payments_page.dart';
@@ -20,7 +19,6 @@ import 'package:rental_app/theme/theme_bloc.dart';
 
 
 import 'package:rental_app/features/profile/profile_cubit.dart';
-import 'package:rental_app/features/profile/profile_repository.dart';
 import 'package:rental_app/features/backup/data/backup_repository.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -33,7 +31,6 @@ class DashboardPage extends StatefulWidget {
 class DashboardPageState extends State<DashboardPage> {
   DashboardTab _currentTab = DashboardTab.home;
 
-  late final ProfileCubit _profileCubit;
   bool _checkedAutoBackup = false;
   String _rentsFilter = 'open';
 
@@ -49,19 +46,11 @@ class DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
 
-    final api = context.read<ApiClient>().dio;
-    final tokenStorage = context.read<TokenStorage>();
-    _profileCubit = ProfileCubit(
-      repo: ProfileRepository(api),
-      storage: tokenStorage,
-    )..load();
-
     context.read<DashboardBloc>().add(DashboardRequested());
   }
 
   @override
   void dispose() {
-    _profileCubit.close();
     super.dispose();
   }
 
@@ -92,9 +81,7 @@ class DashboardPageState extends State<DashboardPage> {
     final currentConfig =
         _tabConfig[_currentTab] ?? {'appBar': true, 'drawer': true};
 
-    return BlocProvider.value(
-      value: _profileCubit,
-      child: BlocBuilder<ProfileCubit, ProfileState>(
+    return BlocBuilder<ProfileCubit, ProfileState>(
         builder: (context, pstate) {
           final userName = (pstate is ProfileLoaded)
               ? (pstate.user['username'] ?? 'مستخدم').toString()
@@ -230,8 +217,7 @@ class DashboardPageState extends State<DashboardPage> {
             },
           );
         },
-      ),
-    );
+      );
   }
 
   Future<void> _confirmClearBusinessData() async {

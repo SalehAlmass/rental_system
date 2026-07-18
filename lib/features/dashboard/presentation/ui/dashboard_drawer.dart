@@ -12,12 +12,14 @@ import 'package:rental_app/features/shifts/presentation/ui/shifts_page.dart';
 import 'package:rental_app/features/settings/presentation/api_settings_page.dart';
 import 'package:rental_app/features/settings/presentation/settings_page.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 
 class DashboardDrawer extends StatelessWidget {
   final bool isAdmin;
   final String userName;
 
-  const   DashboardDrawer({
+  const DashboardDrawer({
     super.key,
     required this.isAdmin,
     required this.userName,
@@ -69,26 +71,44 @@ class DashboardDrawer extends StatelessWidget {
               ),
             ),
 
-            _drawerItem(
-              context,
-              title: 'إدارة العملاء',
-              icon: Icons.people,
-              page: const ClientsPage(),
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, pstate) {
+                if (!pstate.hasScreenPermission('clients')) {
+                  return const SizedBox.shrink();
+                }
+                return _drawerItem(
+                  context,
+                  title: 'إدارة العملاء',
+                  icon: Icons.people,
+                  page: const ClientsPage(),
+                );
+              },
             ),
-            if (isAdmin)
-              _drawerItem(
-                context,
-                title: 'إدارة المعدات',
-                icon: Icons.construction,
-                page: const EquipmentPage(),
-              )
-            else
-              _drawerItem(
-                context,
-                title: 'إغلاق الدوام',
-                icon: Icons.lock_clock,
-                page: const ShiftsPage(),
-              ),
+
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, pstate) {
+                final showEquipment = pstate.hasScreenPermission('equipment');
+                final showShifts = pstate.hasScreenPermission('shifts');
+                if (!showEquipment && !showShifts) {
+                  return const SizedBox.shrink();
+                }
+                if (showEquipment) {
+                  return _drawerItem(
+                    context,
+                    title: 'إدارة المعدات',
+                    icon: Icons.construction,
+                    page: const EquipmentPage(),
+                  );
+                }
+                return _drawerItem(
+                  context,
+                  title: 'إغلاق الدوام',
+                  icon: Icons.lock_clock,
+                  page: const ShiftsPage(),
+                );
+              },
+            ),
+
             _drawerItem(
               context,
               title: 'إدارة العقود',
@@ -101,21 +121,34 @@ class DashboardDrawer extends StatelessWidget {
               icon: Icons.payments,
               page: const PaymentsPage(),
             ),
-            if (isAdmin)
-              _drawerItem(
-                context,
-                title: 'التقارير',
-                icon: Icons.report,
-                page: const ReportsPage(),
-              ),
 
-            if (isAdmin)
-              _drawerItem(
-                context,
-                title: 'إغلاق الدوام',
-                icon: Icons.lock_clock,
-                page: const ShiftsPage(),
-              ),
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, pstate) {
+                if (!pstate.hasScreenPermission('reports')) {
+                  return const SizedBox.shrink();
+                }
+                return _drawerItem(
+                  context,
+                  title: 'التقارير',
+                  icon: Icons.report,
+                  page: const ReportsPage(),
+                );
+              },
+            ),
+
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, pstate) {
+                if (!pstate.hasScreenPermission('shifts')) {
+                  return const SizedBox.shrink();
+                }
+                return _drawerItem(
+                  context,
+                  title: 'إغلاق الدوام',
+                  icon: Icons.lock_clock,
+                  page: const ShiftsPage(),
+                );
+              },
+            ),
 
             _drawerItem(
               context,
@@ -130,13 +163,19 @@ class DashboardDrawer extends StatelessWidget {
               page: const ApiSettingsPage(),
             ),
 
-            if (isAdmin)
-              _drawerItem(
-                context,
-                title: 'إدارة المستخدمين',
-                icon: Icons.person,
-                page: const UserManagementPage(),
-              ),
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, pstate) {
+                if (!pstate.hasScreenPermission('user_management')) {
+                  return const SizedBox.shrink();
+                }
+                return _drawerItem(
+                  context,
+                  title: 'إدارة المستخدمين',
+                  icon: Icons.person,
+                  page: const UserManagementPage(),
+                );
+              },
+            ),
 
             const Divider(),
 
@@ -159,7 +198,7 @@ class DashboardDrawer extends StatelessWidget {
                 );
               },
             ),
-          
+
           ],
         ),
       ),

@@ -1524,18 +1524,18 @@ class _AdminDashboardSummary {
       if (amountBasis > 0) {
         final equipment = (rent.equipmentName ?? 'معدة #${rent.equipmentId}')
             .trim();
+        equipmentTotals.update(
+          equipment,
+          (v) => v + amountBasis,
+          ifAbsent: () => amountBasis,
+        );
         final client = (rent.clientName ?? 'عميل #${rent.clientId}').trim();
-        equipmentTotals[equipment] =
-            (equipmentTotals[equipment] ?? 0) + amountBasis;
-        clientTotals[client] = (clientTotals[client] ?? 0) + amountBasis;
+        clientTotals.update(
+          client,
+          (v) => v + amountBasis,
+          ifAbsent: () => amountBasis,
+        );
       }
-    }
-
-    List<_TopAmountItem> topFromMap(Map<String, double> source) {
-      final items =
-          source.entries.map((e) => _TopAmountItem(e.key, e.value)).toList()
-            ..sort((a, b) => b.amount.compareTo(a.amount));
-      return items.take(5).toList();
     }
 
     return _AdminDashboardSummary(
@@ -1548,12 +1548,17 @@ class _AdminDashboardSummary {
       thisWeekRevenue: thisWeekRevenue,
       lastWeekRevenue: lastWeekRevenue,
       closedTodayCount: closedTodayCount,
-      last7Days: last7Keys
-          .map((d) => revenueMap[DateFormat('yyyy-MM-dd').format(d)] ?? 0)
-          .toList(),
+      last7Days: last7Keys.map((d) => revenueMap[DateFormat('yyyy-MM-dd').format(d)] ?? 0).toList(),
       topEquipment: topFromMap(equipmentTotals),
       topClients: topFromMap(clientTotals),
     );
+  }
+
+  static List<_TopAmountItem> topFromMap(Map<String, double> source) {
+    final items =
+        source.entries.map((e) => _TopAmountItem(e.key, e.value)).toList()
+          ..sort((a, b) => b.amount.compareTo(a.amount));
+    return items.take(5).toList();
   }
 }
 

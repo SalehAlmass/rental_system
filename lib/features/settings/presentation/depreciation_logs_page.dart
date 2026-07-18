@@ -39,6 +39,7 @@ class _DepreciationLogsPageState extends State<DepreciationLogsPage> {
     try {
       final dio = context.read<ApiClient>().dio;
       final res = await dio.get('/equipment');
+      if (!mounted) return;
       if (res.data is List) {
         setState(() {
           _equipmentList = res.data;
