@@ -1,14 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/utils/debouncer.dart';
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
+import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
+import 'package:rental_app/features/equipment/presentation/ui/equipment_page.dart';
+import 'package:rental_app/features/equipment/presentation/ui/EquipmentCard.dart';
 
 class EquipmentSearchDelegate extends SearchDelegate<void> {
-  EquipmentSearchDelegate(this.items, this.repo);
+  EquipmentSearchDelegate(this.items, this.repo, this.bloc);
 
   final List<Equipment> items;
   final EquipmentRepository repo;
+  final EquipmentBloc bloc;
 
   @override
   String get searchFieldLabel => 'ابحث عن معدة...';
@@ -32,11 +37,13 @@ class EquipmentSearchDelegate extends SearchDelegate<void> {
   Widget buildSuggestions(BuildContext context) => _buildSearchWidget(context);
 
   Widget _buildSearchWidget(BuildContext context) {
-    return _EquipmentSearchSuggestions(
-      query: query,
-      localItems: items,
-      repo: repo,
-      onTap: () => close(context, null),
+    return BlocProvider<EquipmentBloc>.value(
+      value: bloc,
+      child: _EquipmentSearchSuggestions(
+        query: query,
+        localItems: items,
+        repo: repo,
+      ),
     );
   }
 }
@@ -46,13 +53,11 @@ class _EquipmentSearchSuggestions extends StatefulWidget {
     required this.query,
     required this.localItems,
     required this.repo,
-    required this.onTap,
   });
 
   final String query;
   final List<Equipment> localItems;
   final EquipmentRepository repo;
-  final VoidCallback onTap;
 
   @override
   State<_EquipmentSearchSuggestions> createState() => _EquipmentSearchSuggestionsState();
@@ -116,6 +121,19 @@ class _EquipmentSearchSuggestionsState extends State<_EquipmentSearchSuggestions
     });
   }
 
+  Future<void> _editEquipment(Equipment equipment) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<EquipmentBloc>(),
+        child: EquipmentDialog(edit: equipment),
+      ),
+    );
+    if (ok == true && mounted) {
+      _runSearch();
+    }
+  }
+
   @override
   void dispose() {
     _debouncer.cancel();
@@ -144,19 +162,17 @@ class _EquipmentSearchSuggestionsState extends State<_EquipmentSearchSuggestions
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(12),
       itemCount: _results.length,
       itemBuilder: (context, i) {
         final e = _results[i];
-        return ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.construction)),
-          title: Text(e.name ?? ''),
-          subtitle: Text(
-            [e.model, e.serialNo, e.status]
-                .where((x) => x != null && x.isNotEmpty)
-                .map((x) => x!)
-                .join(' • '),
-          ),
-          onTap: widget.onTap,
+        return EquipmentCard(
+          equipment: e,
+          onEdit: _editEquipment,
+          onDelete: (eq) {
+            context.read<EquipmentBloc>().add(EquipmentDeleted(eq.id));
+            _runSearch();
+          },
         );
       },
     );

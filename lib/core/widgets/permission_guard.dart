@@ -51,4 +51,21 @@ extension ProfileStateX on ProfileState {
     }
     return false;
   }
+
+  /// Checks action-level permission (`{baseKey}_{action}`).
+  /// Falls back to [defaultVal] if the key does not exist in [screen_permissions].
+  bool hasActionPermission(String baseKey, String action, {bool defaultVal = true}) {
+    if (this is ProfileLoaded) {
+      final role = (this as ProfileLoaded).user['role']?.toString();
+      if (role == 'admin') return true;
+
+      final perms = (this as ProfileLoaded).user['screen_permissions'];
+      if (perms is Map) {
+        final val = perms['${baseKey}_$action'];
+        if (val != null) return val == true;
+      }
+      return defaultVal;
+    }
+    return defaultVal;
+  }
 }

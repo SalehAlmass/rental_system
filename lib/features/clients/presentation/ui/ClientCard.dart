@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
 import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 
 class ClientCard extends StatelessWidget {
   const ClientCard({required this.client, super.key});
@@ -12,6 +14,9 @@ class ClientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<ClientsBloc>();
+    final pstate = context.read<ProfileCubit>().state;
+    final canEdit = pstate.hasActionPermission('clients', 'edit');
+    final canDelete = pstate.hasActionPermission('clients', 'delete');
 
     return Card(
       elevation: 2,
@@ -43,48 +48,50 @@ class ClientCard extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              tooltip: 'تعديل',
-              icon: const Icon(Icons.edit),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed: () async {
-                final updated = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => BlocProvider.value(
-                    value: bloc,
-                    child: EditClientDialog(client: client),
-                  ),
-                );
-                if (updated == true && context.mounted) {
-                  bloc.add(ClientsRequested());
-                }
-              },
-            ),
-            IconButton(
-              tooltip: 'حذف',
-              icon: const Icon(Icons.delete),
-              color: Colors.red,
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('تأكيد الحذف'),
-                    content: Text('هل أنت متأكد من حذف العميل "${client.name}"؟'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('إلغاء')),
-                      ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('حذف')),
-                    ],
-                  ),
-                );
-                if (confirm == true && context.mounted) {
-                  bloc.add(ClientDeleted(id: client.id));
-                }
-              },
-            ),
+            if (canEdit)
+              IconButton(
+                tooltip: 'تعديل',
+                icon: const Icon(Icons.edit),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: () async {
+                  final updated = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => BlocProvider.value(
+                      value: bloc,
+                      child: EditClientDialog(client: client),
+                    ),
+                  );
+                  if (updated == true && context.mounted) {
+                    bloc.add(ClientsRequested());
+                  }
+                },
+              ),
+            if (canDelete)
+              IconButton(
+                tooltip: 'حذف',
+                icon: const Icon(Icons.delete),
+                color: Colors.red,
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('تأكيد الحذف'),
+                      content: Text('هل أنت متأكد من حذف العميل "${client.name}"؟'),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('إلغاء')),
+                        ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('حذف')),
+                      ],
+                    ),
+                  );
+                  if (confirm == true && context.mounted) {
+                    bloc.add(ClientDeleted(id: client.id));
+                  }
+                },
+              ),
           ],
         ),
       ),

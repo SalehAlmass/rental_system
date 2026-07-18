@@ -4,10 +4,9 @@ import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/equipment_search_delegate.dart';
 import 'package:rental_app/features/equipment/data/repositories/equipment_repository_impl.dart';
-import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
-import 'package:rental_app/features/equipment/presentation/ui/equipment_details_page.dart';
+import 'package:rental_app/features/equipment/presentation/ui/EquipmentCard.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 
 // Import validation functions
@@ -118,13 +117,11 @@ class _EquipmentView extends StatelessWidget {
               }
             : null,
         icon: () async {
-          final items = context
-              .read<EquipmentBloc>()
-              .state
-              .items; // أو state.equipment حسب عندك
+          final bloc = context.read<EquipmentBloc>();
+          final items = bloc.state.items;
           await showSearch(
             context: context,
-            delegate: EquipmentSearchDelegate(items, context.read<EquipmentRepository>()),
+            delegate: EquipmentSearchDelegate(items, context.read<EquipmentRepository>(), bloc),
           );
         },
       ),
@@ -159,7 +156,10 @@ class _EquipmentView extends StatelessWidget {
                           itemCount: state.items.length,
                           itemBuilder: (context, index) {
                             final equipment = state.items[index];
-                            return _EquipmentCard(equipment: equipment);
+                            return EquipmentCard(
+                              equipment: equipment,
+                              onEdit: (e) => _openDialog(context, edit: e),
+                            );
                           },
                         ),
                 ),
@@ -233,116 +233,6 @@ class _EquipmentView extends StatelessWidget {
 
     if (ok == true && context.mounted) {
       context.read<EquipmentBloc>().add(EquipmentRequested());
-    }
-  }
-}
-
-/* -------------------- CARD -------------------- */
-class _EquipmentCard extends StatelessWidget {
-  const _EquipmentCard({required this.equipment});
-
-  final Equipment equipment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: _statusColor(equipment.status),
-            child: const Icon(
-              Icons.precision_manufacturing,
-              color: Colors.white,
-            ),
-          ),
-          title: Text(
-            equipment.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('الرقم التسلسلي: ${equipment.serialNo ?? '-'}'),
-                Text(
-                  'السعر: ${equipment.dailyRate.toStringAsFixed(0)} ${AppConfig.currencySymbol} / يوم',
-                ),
-              ],
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: 'تعديل',
-                icon: const Icon(Icons.edit),
-                color: Theme.of(context).colorScheme.primary,
-                onPressed: () {
-                  context
-                      .findAncestorWidgetOfExactType<_EquipmentView>()!
-                      ._openDialog(context, edit: equipment);
-                },
-              ),
-              IconButton(
-                tooltip: 'حذف',
-                icon: const Icon(Icons.delete),
-                color: Colors.red,
-                onPressed: () => _confirmDelete(context),
-              ),
-            ],
-          ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    EquipmentDetailsPage(equipment: equipment),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل تريد حذف "${equipment.name}"؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true && context.mounted) {
-      context.read<EquipmentBloc>().add(EquipmentDeleted(equipment.id));
-    }
-  }
-
-  Color _statusColor(String? status) {
-    switch (status) {
-      case 'rented':
-        return Colors.orange;
-      case 'maintenance':
-        return Colors.red;
-      default:
-        return Colors.green;
     }
   }
 }

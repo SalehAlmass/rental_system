@@ -30,11 +30,11 @@ class ClientsView extends StatelessWidget {
           Navigator.pop(context);
         } : null,
         icon: (){
-          final clients =
-              context.read<ClientsBloc>().state.items;
+          final bloc = context.read<ClientsBloc>();
+          final clients = bloc.state.items;
           showSearch<Client?>(
             context: context,
-            delegate: ClientSearchDelegate(clients, context.read<ClientsRepository>()),
+            delegate: ClientSearchDelegate(clients, context.read<ClientsRepository>(), bloc),
           );
         },
       ),

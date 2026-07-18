@@ -1,13 +1,16 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/utils/debouncer.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
+import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
+import 'package:rental_app/features/clients/presentation/ui/ClientCard.dart';
 
 class ClientSearchDelegate extends SearchDelegate<Client?> {
-  ClientSearchDelegate(this.clients, this.repo);
+  ClientSearchDelegate(this.clients, this.repo, this.bloc);
   final List<Client> clients;
   final ClientsRepository repo;
+  final ClientsBloc bloc;
 
   @override
   String get searchFieldLabel => 'ابحث عن عميل';
@@ -42,11 +45,13 @@ class ClientSearchDelegate extends SearchDelegate<Client?> {
   }
 
   Widget _buildSearchWidget(BuildContext context) {
-    return _ClientSearchSuggestions(
-      query: query,
-      localClients: clients,
-      repo: repo,
-      onTap: (client) => close(context, client),
+    return BlocProvider<ClientsBloc>.value(
+      value: bloc,
+      child: _ClientSearchSuggestions(
+        query: query,
+        localClients: clients,
+        repo: repo,
+      ),
     );
   }
 }
@@ -56,13 +61,11 @@ class _ClientSearchSuggestions extends StatefulWidget {
     required this.query,
     required this.localClients,
     required this.repo,
-    required this.onTap,
   });
 
   final String query;
   final List<Client> localClients;
   final ClientsRepository repo;
-  final Function(Client) onTap;
 
   @override
   State<_ClientSearchSuggestions> createState() => _ClientSearchSuggestionsState();
@@ -154,22 +157,9 @@ class _ClientSearchSuggestionsState extends State<_ClientSearchSuggestions> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(12),
       itemCount: _results.length,
-      itemBuilder: (context, i) {
-        final client = _results[i];
-        return ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.person)),
-          title: Text(client.name),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (client.phone != null && client.phone!.isNotEmpty) Text('📞 ${client.phone}'),
-              if (client.nationalId != null && client.nationalId!.isNotEmpty) Text('🆔 ${client.nationalId}'),
-            ],
-          ),
-          onTap: () => widget.onTap(client),
-        );
-      },
+      itemBuilder: (context, i) => ClientCard(client: _results[i]),
     );
   }
 }

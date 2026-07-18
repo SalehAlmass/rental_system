@@ -23,7 +23,7 @@ class DateTimeUtils {
       final clean = str.replaceAll('/', '-').trim();
       
       // Parse 12-hour datetime (e.g. "2026-07-11 - 06:30 PM" or "2026-07-11 06:30 PM")
-      final normalized = clean.replaceAll(RegExp(r'\s*-\s*'), ' '); // replace " - " with " "
+      final normalized = clean.replaceAll(RegExp(r'\s+-\s+'), ' '); // replace " - " with " " (at least one space each side to avoid breaking YYYY-MM-DD)
       final parts = normalized.split(RegExp(r'\s+'));
       if (parts.length >= 3) {
         // parts[0] is date (e.g. "2026-07-11")
