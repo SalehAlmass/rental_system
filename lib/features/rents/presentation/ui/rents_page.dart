@@ -405,7 +405,7 @@ class _RentsViewState extends State<_RentsView> {
             }
           },
           builder: (context, state) {
-            if (state.status == RentsStatus.loading) {
+            if (state.status == RentsStatus.loading && state.items.isEmpty && _query.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -504,6 +504,11 @@ class _RentsViewState extends State<_RentsView> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  if (state.status == RentsStatus.loading)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 14),
+                      child: LinearProgressIndicator(),
+                    ),
                   if (stats.overdue > 0 || stats.deferredCount > 0)
                     () {
                       final isOverdue = stats.overdue > 0;
