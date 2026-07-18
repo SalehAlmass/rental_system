@@ -30,6 +30,23 @@ class ClientsRepository {
     }
   }
 
+  Future<Client> getById(int id) async {
+    try {
+      final res = await _api.dio.get('clients/$id');
+      dynamic raw = res.data;
+      if (raw is Map) {
+        final data = raw['data'] ?? raw;
+        return Client.fromJson((data as Map).cast<String, dynamic>());
+      }
+      throw ApiFailure('Unexpected response: ${res.data}');
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to load client');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+
   Future<int> create({
     required String name,
     String? nationalId,

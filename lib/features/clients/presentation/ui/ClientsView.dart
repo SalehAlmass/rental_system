@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
 import 'package:rental_app/features/clients/presentation/bloc/clients_bloc.dart';
+import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientCard.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientSearchDelegate.dart';
@@ -33,7 +34,7 @@ class ClientsView extends StatelessWidget {
               context.read<ClientsBloc>().state.items;
           showSearch<Client?>(
             context: context,
-            delegate: ClientSearchDelegate(clients),
+            delegate: ClientSearchDelegate(clients, context.read<ClientsRepository>()),
           );
         },
       ),

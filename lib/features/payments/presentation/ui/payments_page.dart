@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:rental_app/core/utils/debouncer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -1094,10 +1095,57 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     _load();
   }
 
+  final _clientSearchDebouncer = Debouncer(milliseconds: 300);
+  String _lastClientSearchQuery = '';
+  List<Client> _lastClientSearchResults = [];
+
+  Future<List<Client>> _fetchClients(String filter) async {
+    final q = filter.trim();
+    if (q.isEmpty) return _clients;
+
+    final completer = Completer<List<Client>>();
+    _clientSearchDebouncer.cancel();
+    _clientSearchDebouncer.run(() async {
+      _lastClientSearchQuery = q;
+      try {
+        final results = await widget.clientsRepo.list(query: q);
+        if (!mounted) return;
+        if (_lastClientSearchQuery == q) {
+          _lastClientSearchResults = results;
+          completer.complete(results);
+        } else {
+          completer.complete([]);
+        }
+      } catch (_) {
+        completer.complete(_lastClientSearchResults);
+      }
+    });
+
+    final res = await completer.future;
+    if (_lastClientSearchQuery != q) {
+      return _lastClientSearchResults;
+    }
+    return res;
+  }
+
   Future<void> _load() async {
     final c = await widget.clientsRepo.list();
     final r = await widget.rentsRepo.list();
     final e = await widget.equipmentRepo.list();
+
+    if (_clientId != null && !c.any((client) => client.id == _clientId)) {
+      try {
+        final selectedClient = await widget.clientsRepo.getById(_clientId!);
+        c.insert(0, selectedClient);
+      } catch (_) {}
+    }
+
+    if (_equipmentId != null && !e.any((eq) => eq.id == _equipmentId)) {
+      try {
+        final selectedEq = await widget.equipmentRepo.getById(_equipmentId!);
+        e.add(selectedEq);
+      } catch (_) {}
+    }
 
     if (!mounted) return;
     setState(() {
@@ -1127,6 +1175,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
 
   @override
   void dispose() {
+    _clientSearchDebouncer.cancel();
     _amount.dispose();
     _ref.dispose();
     _notes.dispose();
@@ -1235,13 +1284,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           isVisible: true,
                         ),
                       ),
-                      items: (filter, _) => _clients.where((c) {
-                        final q = filter.toLowerCase();
-                        return c.name.toLowerCase().contains(q) ||
-                            (c.phone != null && c.phone!.contains(q)) ||
-                            (c.nationalId != null && c.nationalId!.contains(q)) ||
-                            '${c.id}'.contains(q);
-                      }).toList(),
+                      items: (filter, _) => _fetchClients(filter),
                       compareFn: (a, b) => a.id == b.id,
                       selectedItem: _clientId == null
                           ? null

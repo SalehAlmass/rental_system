@@ -1423,9 +1423,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
   Future<void> _replaceEquipment(BuildContext context, RentItem item) async {
     final equipmentRepo = EquipmentRepository(context.read<ApiClient>());
-    final available = (await equipmentRepo.list())
-        .where((e) => e.status != 'rented')
-        .toList();
+    final available = await equipmentRepo.list(status: 'available');
 
     if (!mounted) return;
     if (available.isEmpty) {

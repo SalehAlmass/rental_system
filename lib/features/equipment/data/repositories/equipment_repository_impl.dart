@@ -31,6 +31,22 @@ class EquipmentRepository {
     }
   }
 
+  Future<Equipment> getById(int id) async {
+    try {
+      final res = await _api.dio.get('equipment/$id');
+      dynamic raw = res.data;
+      if (raw is Map) {
+        final data = raw['data'] ?? raw;
+        return Equipment.fromJson((data as Map).cast<String, dynamic>());
+      }
+      throw ApiFailure('Unexpected response: ${res.data}');
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
+      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
   Future<int> create({
     required String name,
     String? model,

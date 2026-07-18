@@ -7,7 +7,8 @@ import 'package:dio/dio.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
-import 'package:rental_app/features/clients/clients/presentation/ui/client_details_page.dart';
+import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
+import 'package:rental_app/core/utils/debouncer.dart';
 
 import 'package:rental_app/features/clients/data/repositories/clients_repository_impl.dart';
 import 'package:rental_app/features/clients/domain/entities/models.dart';
@@ -1773,6 +1774,38 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
   final _formKey = GlobalKey<FormState>();
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
+  final _clientSearchDebouncer = Debouncer(milliseconds: 300);
+  String _lastClientSearchQuery = '';
+  List<Client> _lastClientSearchResults = [];
+
+  Future<List<Client>> _fetchClients(String filter) async {
+    final q = filter.trim();
+    if (q.isEmpty) return _clients;
+
+    final completer = Completer<List<Client>>();
+    _clientSearchDebouncer.cancel();
+    _clientSearchDebouncer.run(() async {
+      _lastClientSearchQuery = q;
+      try {
+        final results = await widget.clientsRepo.list(query: q);
+        if (!mounted) return;
+        if (_lastClientSearchQuery == q) {
+          _lastClientSearchResults = results;
+          completer.complete(results);
+        } else {
+          completer.complete([]);
+        }
+      } catch (_) {
+        completer.complete(_lastClientSearchResults);
+      }
+    });
+
+    final res = await completer.future;
+    if (_lastClientSearchQuery != q) {
+      return _lastClientSearchResults;
+    }
+    return res;
+  }
 
   bool _loading = true;
   bool _submitted = false;
@@ -1803,6 +1836,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
   @override
   void dispose() {
+    _clientSearchDebouncer.cancel();
     _searchCtrl.dispose();
     for (final c in _rateControllers.values) {
       c.dispose();
@@ -2025,24 +2059,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
                   children: [
                     // ── Client picker ──
                     DropdownSearch<Client>(
-                      items: (filter, _) async {
-                        if (filter.isEmpty) {
-                          return _clients;
-                        }
-                        try {
-                          return await widget.clientsRepo.list(query: filter);
-                        } catch (_) {
-                          return _clients
-                              .where((c) =>
-                                  c.name
-                                      .toLowerCase()
-                                      .contains(filter.toLowerCase()) ||
-                                  (c.phone != null && c.phone!.contains(filter)) ||
-                                  (c.nationalId != null &&
-                                      c.nationalId!.contains(filter)))
-                              .toList();
-                        }
-                      },
+                      items: (filter, _) => _fetchClients(filter),
                       compareFn: (i, s) => i.id == s.id,
                       itemAsString: (Client c) => '${c.id} - ${c.name}',
                       selectedItem: _clients.isNotEmpty

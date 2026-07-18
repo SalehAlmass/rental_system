@@ -124,7 +124,7 @@ class _EquipmentView extends StatelessWidget {
               .items; // أو state.equipment حسب عندك
           await showSearch(
             context: context,
-            delegate: EquipmentSearchDelegate(items),
+            delegate: EquipmentSearchDelegate(items, context.read<EquipmentRepository>()),
           );
         },
       ),
