@@ -486,10 +486,10 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
 
     valid.sort((a, b) {
       final ad =
-          DateTime.tryParse((a.createdAt ?? '').replaceFirst(' ', 'T')) ??
+          DateTimeUtils.parse(a.createdAt) ??
           DateTime.fromMillisecondsSinceEpoch(0);
       final bd =
-          DateTime.tryParse((b.createdAt ?? '').replaceFirst(' ', 'T')) ??
+          DateTimeUtils.parse(b.createdAt) ??
           DateTime.fromMillisecondsSinceEpoch(0);
       return bd.compareTo(ad);
     });
@@ -595,9 +595,7 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     final status = (_rent?.status ?? '').toLowerCase();
     if (status != 'closed') return false;
 
-    final closedAt = DateTime.tryParse(
-      (_rent?.closedAt ?? '').replaceFirst(' ', 'T'),
-    );
+    final closedAt = DateTimeUtils.parse(_rent?.closedAt);
     if (closedAt == null) return false;
 
     return DateTime.now().difference(closedAt).inDays >= 3;
