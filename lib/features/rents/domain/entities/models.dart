@@ -1,3 +1,5 @@
+import 'package:rental_app/core/utils/datetime_utils.dart';
+
 class RentItem {
   const RentItem({
     required this.id,
@@ -54,8 +56,8 @@ class RentItem {
       equipmentName: json['equipment_name']?.toString(),
       serialNo: json['serial_no']?.toString(),
       internalCode: json['internal_code']?.toString(),
-      parsedStartDatetime: startStr != null ? DateTime.tryParse(startStr.replaceFirst(' ', 'T')) : null,
-      parsedEndDatetime: endStr != null ? DateTime.tryParse(endStr.replaceFirst(' ', 'T')) : null,
+      parsedStartDatetime: DateTimeUtils.parse(startStr),
+      parsedEndDatetime: DateTimeUtils.parse(endStr),
     );
   }
 }
@@ -174,8 +176,8 @@ class Rent {
       isPaid: json['is_paid'] == null ? null : (toInt(json['is_paid']) == 1 || json['is_paid'] == true),
       discountAmount: toDouble(json['discount_amount']),
       discountNote: json['discount_note']?.toString(),
-      parsedStartDatetime: DateTime.tryParse(startStr.replaceFirst(' ', 'T')),
-      parsedEndDatetime: endStr != null ? DateTime.tryParse(endStr.replaceFirst(' ', 'T')) : null,
+      parsedStartDatetime: DateTimeUtils.parse(startStr),
+      parsedEndDatetime: DateTimeUtils.parse(endStr),
     );
   }
 

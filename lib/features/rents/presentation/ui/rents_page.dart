@@ -48,7 +48,7 @@ String? validateRate(String? value) {
 /// ===============================
 DateTime? _tryParseRentDate(String? value) {
   if (value == null || value.trim().isEmpty) return null;
-  return DateTime.tryParse(value.replaceFirst(' ', 'T'));
+  return DateTimeUtils.parse(value);
 }
 
 double safeRentPaid(Rent rent) {
@@ -58,11 +58,16 @@ double safeRentPaid(Rent rent) {
 
 double safeRentTotal(Rent rent) {
   final status = (rent.status ?? '').toLowerCase();
-  if (status == 'closed' && (rent.totalAmount ?? 0) > 0) {
-    return rent.totalAmount!;
-  }
   if (status == 'cancelled') return 0;
 
+  // ✅ Priority 1: Use total_amount from API when available (valid for ALL statuses).
+  // The backend computes this correctly — including open rents (rents.php:282).
+  // Dynamic calculation below is a fallback only when API value is absent.
+  if ((rent.totalAmount ?? 0) > 0) {
+    return rent.totalAmount!;
+  }
+
+  // ✅ Priority 2: Dynamic calculation from items (fallback when total_amount = null/0)
   final now = DateTime.now();
 
   if (rent.items.isNotEmpty) {

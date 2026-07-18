@@ -524,9 +524,16 @@ class _RentDetailsPageState extends State<RentDetailsPage> {
     if (rent == null) return 0;
 
     final status = (rent.status ?? '').toLowerCase();
-    final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
-    if (savedTotal > 0 && status != 'open') return savedTotal;
 
+    // ✅ Priority 1: Use total from API (_total set from financials endpoint,
+    // or rent.totalAmount). The backend computes this correctly for ALL statuses
+    // including open rents (rents.php:282). Removed the `status != 'open'`
+    // restriction that was incorrectly ignoring the API value for open rents.
+    final savedTotal = _total > 0 ? _total : (rent.totalAmount ?? 0);
+    if (savedTotal > 0) return savedTotal;
+
+    // ✅ Priority 2: Dynamic calculation (fallback when no API total available)
+    if (status == 'cancelled') return 0;
     if (status != 'open') return 0;
 
     final now = DateTime.now();
