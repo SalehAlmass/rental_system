@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:rental_app/core/network/api_client.dart';
+import 'package:rental_app/core/network/failure.dart';
 import 'package:rental_app/features/auth/domain/entities/user_model.dart';
 
 abstract class UserRepository {
