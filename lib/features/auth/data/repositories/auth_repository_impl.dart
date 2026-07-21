@@ -10,6 +10,8 @@ class AuthRepository {
   final ApiClient _api;
   final TokenStorage _tokenStorage;
 
+  Stream<String?> get tokenStream => _tokenStorage.tokenStream;
+
   Future<LoginResponse> login({required String username, required String password}) async {
     try {
       final res = await _api.dio.post('auth/login', data: {
@@ -23,10 +25,7 @@ class AuthRepository {
       await _tokenStorage.saveToken(lr.token);
       return lr;
     } on DioException catch (e) {
-      final msg = (e.response?.data is Map && (e.response?.data['error'] != null))
-          ? e.response?.data['error'].toString()
-          : (e.message ?? 'Login failed');
-      throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 Future<void> forgotPassword({required String username}) async {
@@ -35,11 +34,8 @@ Future<void> forgotPassword({required String username}) async {
       'username': username,
     });
   } on DioException catch (e) {
-    final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-        ? e.response?.data['error'].toString()
-        : (e.message ?? 'Request failed');
-    throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
 
   Future<void> logout() => _tokenStorage.clear();
@@ -57,11 +53,8 @@ Future<void> forgotPassword({required String username}) async {
       if (permissions != null) 'permissions': permissions,
     });
   } on DioException catch (e) {
-    final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-        ? e.response?.data['error'].toString()
-        : (e.message ?? 'Register failed');
-    throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
 Future<void> changePassword({
   required String oldPassword,
@@ -73,11 +66,8 @@ Future<void> changePassword({
       'new_password': newPassword,
     });
   } on DioException catch (e) {
-    final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-        ? e.response?.data['error'].toString()
-        : (e.message ?? 'Change password failed');
-    throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
 
 }

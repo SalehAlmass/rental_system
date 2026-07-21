@@ -24,7 +24,7 @@ class UserRepositoryImpl implements UserRepository {
       }
       return [];
     } on DioException catch (e) {
-      throw Exception('Failed to load users: ${e.message}');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -39,7 +39,7 @@ class UserRepositoryImpl implements UserRepository {
       });
       return User.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Failed to create user: ${e.message}');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -56,7 +56,7 @@ class UserRepositoryImpl implements UserRepository {
       final response = await _apiClient.dio.put('/users/$id', data: data);
       return User.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Failed to update user: ${e.message}');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -65,7 +65,7 @@ class UserRepositoryImpl implements UserRepository {
     try {
       await _apiClient.dio.delete('/users/$id');
     } on DioException catch (e) {
-      throw Exception('Failed to delete user: ${e.message}');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -77,7 +77,7 @@ class UserRepositoryImpl implements UserRepository {
       });
       return User.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Failed to change user role: ${e.message}');
+      throw ApiFailure.fromDio(e);
     }
   }
 }

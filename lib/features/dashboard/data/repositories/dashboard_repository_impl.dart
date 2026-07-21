@@ -22,10 +22,7 @@ class DashboardRepository {
 
       return DashboardStats.fromJson(payload);
     } on DioException catch (e) {
-      final msg = (e.response?.data is Map && (e.response?.data['error'] != null))
-          ? e.response?.data['error'].toString()
-          : (e.message ?? 'Failed');
-      throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -40,10 +37,7 @@ class DashboardRepository {
           .map((e) => Rent.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     } on DioException catch (e) {
-      final msg = (e.response?.data is Map && (e.response?.data['error'] != null))
-          ? e.response?.data['error'].toString()
-          : (e.message ?? 'Failed');
-      throw ApiFailure(msg ?? 'Failed', statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

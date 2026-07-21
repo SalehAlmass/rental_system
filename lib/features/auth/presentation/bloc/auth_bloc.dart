@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rental_app/features/auth/data/repositories/auth_repository_impl.dart';
@@ -6,15 +7,30 @@ part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  late final StreamSubscription<String?> _tokenSubscription;
+
   AuthBloc(this._repo) : super(const AuthState.initial()) {
     on<LoginSubmitted>(_onLoginSubmitted);
     on<LogoutRequested>(_onLogoutRequested);
     on<RegisterSubmitted>(_onRegisterSubmitted);
     on<ForgotPasswordSubmitted>(_onForgotPasswordSubmitted);
     on<ChangePasswordSubmitted>(_onChangePasswordSubmitted);
+
+    _tokenSubscription = _repo.tokenStream.listen((token) {
+      // إذا استقبلنا null، فهذا يعني أن الجلسة قد مسحت من ApiClient (401)
+      if (token == null && state.status == AuthStatus.authenticated) {
+        add(LogoutRequested());
+      }
+    });
   }
 
   final AuthRepository _repo;
+
+  @override
+  Future<void> close() {
+    _tokenSubscription.cancel();
+    return super.close();
+  }
 
   Future<void> _onLoginSubmitted(
     LoginSubmitted event,

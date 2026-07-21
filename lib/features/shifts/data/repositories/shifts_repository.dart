@@ -23,11 +23,7 @@ class ShiftsRepository {
           .map((e) => ShiftClosing.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -52,11 +48,7 @@ class ShiftsRepository {
       if (raw is! Map) throw ApiFailure('Unexpected response: ${res.data}');
       return ShiftClosing.fromJson(raw.cast<String, dynamic>());
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

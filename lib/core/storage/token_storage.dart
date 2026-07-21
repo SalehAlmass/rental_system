@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
@@ -5,11 +6,15 @@ class TokenStorage {
   String? _cachedToken;
   bool _isLoaded = false;
 
+  final _tokenStreamController = StreamController<String?>.broadcast();
+  Stream<String?> get tokenStream => _tokenStreamController.stream;
+
   Future<void> saveToken(String token) async {
     _cachedToken = token;
     _isLoaded = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kTokenKey, token);
+    _tokenStreamController.add(token);
   }
 
   Future<String?> getToken() async {
@@ -25,5 +30,6 @@ class TokenStorage {
     _isLoaded = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kTokenKey);
+    _tokenStreamController.add(null);
   }
 }

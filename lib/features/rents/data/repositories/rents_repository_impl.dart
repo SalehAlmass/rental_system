@@ -28,11 +28,8 @@ class RentsRepository {
 
     return Rent.fromJson(data.cast<String, dynamic>());
   } on DioException catch (e) {
-    final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-        ? e.response!.data['error'].toString()
-        : (e.message ?? 'فشل جلب العقد');
-    throw ApiFailure(msg, statusCode: e.response?.statusCode);
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
 
   Future<List<Rent>> list({int? clientId, String? status, int? limit, bool archivedOnly = false}) async {
@@ -55,11 +52,7 @@ class RentsRepository {
           .map((e) => Rent.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to load rents');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -108,11 +101,7 @@ class RentsRepository {
 
       return (items: items, total: total);
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to load rents');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -157,12 +146,8 @@ class RentsRepository {
 
     return id;
   } on DioException catch (e) {
-    final data = e.response?.data;
-    final msg = (data is Map && data['error'] != null)
-        ? data['error'].toString()
-        : (e.message ?? 'فشل فتح العقد');
-    throw ApiFailure(msg, statusCode: e.response?.statusCode);
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
   
   
@@ -170,11 +155,7 @@ class RentsRepository {
     try {
       await _api.dio.put('rents/$rentId', data: {'notes': notes});
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to update rent');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -191,11 +172,7 @@ class RentsRepository {
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       });
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to replace equipment');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -208,11 +185,7 @@ class RentsRepository {
         'equipment_id': equipmentId,
       });
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to return equipment');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -245,11 +218,7 @@ class RentsRepository {
       final payload = (data['data'] is Map) ? (data['data'] as Map).cast<String, dynamic>() : <String, dynamic>{};
       return payload;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to close rent');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -257,11 +226,7 @@ class RentsRepository {
     try {
       await _api.dio.post('rents/$rentId/cancel', data: {'reason': reason});
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to cancel rent');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -274,11 +239,7 @@ class RentsRepository {
       final payload = (data['data'] is Map) ? data['data'] as Map : data;
       return (payload['archived_count'] as num?)?.toInt() ?? 0;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'فشل أرشفة العقود');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

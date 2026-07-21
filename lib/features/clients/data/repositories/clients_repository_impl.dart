@@ -24,9 +24,7 @@ class ClientsRepository {
       if (raw is! List) throw ApiFailure('Unexpected response: ${res.data}');
       return raw.map((e) => Client.fromJson((e as Map).cast<String, dynamic>())).toList();
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to load clients');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -40,9 +38,7 @@ class ClientsRepository {
       }
       throw ApiFailure('Unexpected response: ${res.data}');
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to load client');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -70,9 +66,7 @@ class ClientsRepository {
       if (id <= 0) throw ApiFailure('Invalid id returned: $rawId');
       return id;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to create client');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -95,9 +89,7 @@ class ClientsRepository {
         'is_frozen': isFrozen,
       });
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to update client');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -105,9 +97,7 @@ class ClientsRepository {
     try {
       await _api.dio.delete('clients/$id');
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed to delete client');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

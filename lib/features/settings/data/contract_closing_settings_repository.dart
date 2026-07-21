@@ -33,10 +33,7 @@ class ContractClosingSettingsRepository {
       final data = (res.data is Map ? res.data as Map : <String, dynamic>{}).cast<String, dynamic>();
       return ContractClosingSettings.fromJson(data);
     } on DioException catch (e) {
-      final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-          ? e.response!.data['error'].toString()
-          : (e.message ?? 'فشل تحميل إعدادات إغلاق العقود');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -53,10 +50,7 @@ class ContractClosingSettingsRepository {
       final data = (raw['data'] is Map ? raw['data'] as Map : raw).cast<String, dynamic>();
       return ContractClosingSettings.fromJson(data);
     } on DioException catch (e) {
-      final msg = (e.response?.data is Map && e.response?.data['error'] != null)
-          ? e.response!.data['error'].toString()
-          : (e.message ?? 'فشل حفظ إعدادات إغلاق العقود');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

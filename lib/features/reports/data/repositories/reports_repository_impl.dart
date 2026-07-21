@@ -45,7 +45,7 @@ class ReportsRepository {
       final data = _asMap(res.data);
       return ReportDashboard.fromJson(data);
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load dashboard');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -76,7 +76,7 @@ class ReportsRepository {
       }
       return PaymentsReport.fromJson(m);
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load payments report');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -93,7 +93,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(EquipmentProfitRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load equipment profit');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -110,7 +110,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(EquipmentProfitRowV2.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load equipment profit');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -128,7 +128,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(TopEquipmentRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load top equipment');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -146,7 +146,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(TopClientRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load top clients');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -164,7 +164,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(LateClientRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load late clients');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -182,7 +182,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(RevenueRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load revenue');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -199,7 +199,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items']);
       return list.map(RevenueByUserRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load revenue by user');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -221,7 +221,7 @@ class ReportsRepository {
       );
       return FinancialSummary.fromJson(_asMap(res.data));
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load financial summary');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -236,7 +236,7 @@ class ReportsRepository {
       );
       return ProfitLoss.fromJson(_asMap(res.data));
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load profit & loss');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -251,7 +251,7 @@ class ReportsRepository {
       );
       return CashFlow.fromJson(_asMap(res.data));
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load cash flow');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -268,7 +268,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items'] ?? []);
       return list.map(EmployeePerformanceRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load employee performance');
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -285,7 +285,7 @@ class ReportsRepository {
       final list = _asListOfMap(m['data'] ?? m['rows'] ?? m['items'] ?? []);
       return list.map(RevenueByUserSummaryRow.fromJson).toList();
     } on DioException catch (e) {
-      throw _dioFailure(e, 'Failed to load revenue by user summary');
+      throw ApiFailure.fromDio(e);
     }
   }
 }

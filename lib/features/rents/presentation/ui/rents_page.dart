@@ -194,6 +194,12 @@ class _RentsViewState extends State<_RentsView> {
     _fetchCollectionAgenda();
   }
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   Future<void> _fetchCollectionAgenda() async {
     setState(() => _loadingAgenda = true);
     try {
@@ -1784,9 +1790,6 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
   final _formKey = GlobalKey<FormState>();
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
-  final _clientSearchDebouncer = Debouncer(milliseconds: 300);
-  String _lastClientSearchQuery = '';
-  List<Client> _lastClientSearchResults = [];
 
   Future<List<Client>> _fetchClients(String filter) async {
     final q = filter.trim();
@@ -1830,7 +1833,7 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
 
   @override
   void dispose() {
-    _clientSearchDebouncer.cancel();
+    _debounce?.cancel();
     _searchCtrl.dispose();
     for (final c in _rateControllers.values) {
       c.dispose();

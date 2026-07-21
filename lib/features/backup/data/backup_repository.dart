@@ -46,11 +46,7 @@ class BackupRepository {
           .map((e) => BackupItem.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup list failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -67,11 +63,7 @@ class BackupRepository {
 
       return BackupItem.fromJson(raw.cast<String, dynamic>());
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup create failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -85,11 +77,7 @@ class BackupRepository {
 
       return res.data ?? <int>[];
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup download failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -98,11 +86,7 @@ class BackupRepository {
       // API عندك يتوقع key اسمها "name"
       await _api.dio.post('backup/restore', data: {'name': file});
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup restore failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -130,11 +114,7 @@ class BackupRepository {
       // 2. Restore it
       await restore(file: savedName);
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Upload and restore failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -143,11 +123,7 @@ class BackupRepository {
     try {
       await _api.dio.delete('backup/delete', queryParameters: {'name': file});
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup delete failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -156,11 +132,7 @@ class BackupRepository {
     try {
       await _api.dio.delete('backup/clear');
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Backup clear failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -179,11 +151,7 @@ class BackupRepository {
         'backup_custom_path_2': payload['backup_custom_path_2']?.toString() ?? '',
       };
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to load backup settings');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -198,11 +166,7 @@ class BackupRepository {
         'backup_custom_path_2': path2,
       });
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to save backup settings');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

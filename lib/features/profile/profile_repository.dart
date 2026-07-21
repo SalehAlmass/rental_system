@@ -12,15 +12,8 @@ class ProfileRepository {
     final res = await dio.get('auth/profile');
     return (res.data as Map).cast<String, dynamic>();
   } on DioException catch (e) {
-    final msg =
-        (e.response?.data is Map && (e.response?.data['error'] != null))
-            ? e.response?.data['error'].toString()
-            : (e.message ?? 'Failed to load profile');
-    throw ApiFailure(
-      msg?? 'Failed to load profile',
-      statusCode: e.response?.statusCode,
-    );
-  }
+      throw ApiFailure.fromDio(e);
+    }
 }
 
 }

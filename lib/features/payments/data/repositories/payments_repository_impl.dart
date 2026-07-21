@@ -51,11 +51,7 @@ class PaymentsRepository {
 
       return (items: items, summary: summary, total: total);
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to load payments');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -99,11 +95,7 @@ class PaymentsRepository {
       }
       return id;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to create payment');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -131,11 +123,7 @@ class PaymentsRepository {
         },
       );
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to update payment');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -143,11 +131,7 @@ class PaymentsRepository {
     try {
       await _api.dio.post('payments/$id/void', data: {'reason': reason});
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null)
-          ? data['error'].toString()
-          : (e.message ?? 'Failed to void payment');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }

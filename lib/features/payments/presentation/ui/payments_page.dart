@@ -1095,37 +1095,17 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     _load();
   }
 
-  final _clientSearchDebouncer = Debouncer(milliseconds: 300);
-  String _lastClientSearchQuery = '';
-  List<Client> _lastClientSearchResults = [];
-
   Future<List<Client>> _fetchClients(String filter) async {
     final q = filter.trim();
     if (q.isEmpty) return _clients;
 
-    final completer = Completer<List<Client>>();
-    _clientSearchDebouncer.cancel();
-    _clientSearchDebouncer.run(() async {
-      _lastClientSearchQuery = q;
-      try {
-        final results = await widget.clientsRepo.list(query: q);
-        if (!mounted) return;
-        if (_lastClientSearchQuery == q) {
-          _lastClientSearchResults = results;
-          completer.complete(results);
-        } else {
-          completer.complete([]);
-        }
-      } catch (_) {
-        completer.complete(_lastClientSearchResults);
-      }
-    });
-
-    final res = await completer.future;
-    if (_lastClientSearchQuery != q) {
-      return _lastClientSearchResults;
+    try {
+      // DropdownSearch has its own native searchDelay, avoiding the need for
+      // custom debouncers with uncompleted Futures that hang the UI in Release Web Mode.
+      return await widget.clientsRepo.list(query: q);
+    } catch (_) {
+      return [];
     }
-    return res;
   }
 
   Future<void> _load() async {
@@ -1175,7 +1155,6 @@ class _PaymentDialogState extends State<_PaymentDialog> {
 
   @override
   void dispose() {
-    _clientSearchDebouncer.cancel();
     _amount.dispose();
     _ref.dispose();
     _notes.dispose();
@@ -1303,6 +1282,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                       ),
                       popupProps: PopupProps.menu(
                         showSearchBox: true,
+                        searchDelay: const Duration(milliseconds: 400),
                         searchFieldProps: const TextFieldProps(
                           decoration: InputDecoration(
                             hintText: 'ابحث بالاسم، الجوال، الهوية أو الكود...',

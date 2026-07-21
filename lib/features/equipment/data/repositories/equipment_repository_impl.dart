@@ -25,9 +25,7 @@ class EquipmentRepository {
       if (raw is! List) throw ApiFailure('Unexpected response: ${res.data}');
       return raw.map((e) => Equipment.fromJson((e as Map).cast<String, dynamic>())).toList();
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -41,9 +39,7 @@ class EquipmentRepository {
       }
       throw ApiFailure('Unexpected response: ${res.data}');
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -87,9 +83,7 @@ class EquipmentRepository {
       if (id <= 0) throw ApiFailure('Invalid id returned: $rawId');
       return id;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -128,9 +122,7 @@ class EquipmentRepository {
         'estimated_usage_days': estimatedUsageDays,
       });
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 
@@ -138,9 +130,7 @@ class EquipmentRepository {
     try {
       await _api.dio.delete('equipment/$id');
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = (data is Map && data['error'] != null) ? data['error'].toString() : (e.message ?? 'Failed');
-      throw ApiFailure(msg, statusCode: e.response?.statusCode);
+      throw ApiFailure.fromDio(e);
     }
   }
 }
