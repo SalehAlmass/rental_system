@@ -109,9 +109,9 @@ class LateClientRow {
   final int clientId;
   final String name;
   final String? phone;
-
-  // الاسم الأساسي الموجود
   final int lateContractsCount;
+  final double totalDebt;
+  final String? lastPaymentDate;
 
   /// Backward-compatible alias used by some UI widgets.
   int get lateCount => lateContractsCount;
@@ -121,16 +121,21 @@ class LateClientRow {
     required this.name,
     this.phone,
     required this.lateContractsCount,
+    this.totalDebt = 0.0,
+    this.lastPaymentDate,
   });
 
   factory LateClientRow.fromJson(Map<String, dynamic> json) {
     int toI(dynamic v) => v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
+    double toD(dynamic v) => v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
 
     return LateClientRow(
       clientId: toI(json['client_id'] ?? json['id']),
       name: (json['name'] ?? '').toString(),
       phone: json['phone']?.toString(),
       lateContractsCount: toI(json['late_contracts_count'] ?? json['late_count']),
+      totalDebt: toD(json['total_debt']),
+      lastPaymentDate: json['last_payment_date']?.toString(),
     );
   }
 }

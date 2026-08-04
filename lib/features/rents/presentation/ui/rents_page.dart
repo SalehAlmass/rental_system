@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
 import 'package:rental_app/core/utils/debouncer.dart';
@@ -400,11 +401,14 @@ class _RentsViewState extends State<_RentsView> {
             ? () => Navigator.pop(context)
             : null,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'rents_fab',
-        icon: const Icon(Icons.add),
-        label: const Text('فتح عقد'),
-        onPressed: () => _openDialog(context),
+      floatingActionButton: PermissionGuard(
+        permissionKey: 'rents',
+        child: FloatingActionButton.extended(
+          heroTag: 'rents_fab',
+          icon: const Icon(Icons.add),
+          label: const Text('فتح عقد'),
+          onPressed: () => _openDialog(context),
+        ),
       ),
       body: PageEntrance(
         child: BlocConsumer<RentsBloc, RentsState>(
@@ -1951,12 +1955,8 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
       }
     }
 
-    // Sort: selected first → available → rest
+    // Sort: available first → name
     list.sort((a, b) {
-      final aSelected = _selectedIds.contains(a.id) ? 0 : 1;
-      final bSelected = _selectedIds.contains(b.id) ? 0 : 1;
-      if (aSelected != bSelected) return aSelected.compareTo(bSelected);
-
       final aAvail = _isSelectable(a) ? 0 : 1;
       final bAvail = _isSelectable(b) ? 0 : 1;
       if (aAvail != bAvail) return aAvail.compareTo(bAvail);
@@ -1999,6 +1999,10 @@ class _OpenRentDialogState extends State<_OpenRentDialog> {
         _selectedEquipmentMap.remove(id);
         _rateControllers.remove(id)?.dispose();
         _notesControllers.remove(id)?.dispose();
+      }
+      if (_searchCtrl.text.isNotEmpty) {
+        _searchCtrl.clear();
+        _onSearchChanged('');
       }
     });
   }

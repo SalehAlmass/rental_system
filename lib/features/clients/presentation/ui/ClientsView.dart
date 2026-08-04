@@ -7,6 +7,7 @@ import 'package:rental_app/features/clients/data/repositories/clients_repository
 import 'package:rental_app/features/clients/presentation/ui/ClientCard.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientDialogs.dart';
 import 'package:rental_app/features/clients/presentation/ui/ClientSearchDelegate.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 
 class ClientsView extends StatelessWidget {
@@ -38,11 +39,14 @@ class ClientsView extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'clients_fab', // Unique hero tag to avoid conflicts
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة عميل'),
-        onPressed: () => _openCreateDialog(context),
+      floatingActionButton: PermissionGuard(
+        permissionKey: 'clients',
+        child: FloatingActionButton.extended(
+          heroTag: 'clients_fab', // Unique hero tag to avoid conflicts
+          icon: const Icon(Icons.add),
+          label: const Text('إضافة عميل'),
+          onPressed: () => _openCreateDialog(context),
+        ),
       ),
       body: PageEntrance(
         child: BlocConsumer<ClientsBloc, ClientsState>(

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
+import 'package:rental_app/features/dashboard/domain/entities/models.dart';
 import 'package:rental_app/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rental_app/features/dashboard/presentation/ui/StatCard.dart';
 import 'package:rental_app/features/rents/domain/entities/models.dart';
@@ -249,7 +250,10 @@ class _AdminExecutiveDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summary = _AdminDashboardSummary.fromRents(rents);
+    final summary = _AdminDashboardSummary.fromRents(
+      rents,
+      stats: stats is DashboardStats ? stats : null,
+    );
     final money = NumberFormat.decimalPattern('ar');
 
     return Column(
@@ -1456,7 +1460,10 @@ class _AdminDashboardSummary {
     return diff > 0.009 ? diff : 0;
   }
 
-  factory _AdminDashboardSummary.fromRents(List<Rent> rents) {
+  factory _AdminDashboardSummary.fromRents(
+    List<Rent> rents, {
+    DashboardStats? stats,
+  }) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final yesterdayStart = todayStart.subtract(const Duration(days: 1));
@@ -1538,15 +1545,20 @@ class _AdminDashboardSummary {
       }
     }
 
+    final finalTodayRev = stats?.todayRevenue ?? todayRevenue;
+    final finalYesterdayRev = stats?.yesterdayRevenue ?? yesterdayRevenue;
+    final finalThisWeekRev = stats?.thisWeekRevenue ?? thisWeekRevenue;
+    final finalLastWeekRev = stats?.lastWeekRevenue ?? lastWeekRevenue;
+
     return _AdminDashboardSummary(
       openCount: openCount,
       overdueCount: overdueCount,
       deferredCount: deferredCount,
       deferredAmount: deferredAmount,
-      todayRevenue: todayRevenue,
-      yesterdayRevenue: yesterdayRevenue,
-      thisWeekRevenue: thisWeekRevenue,
-      lastWeekRevenue: lastWeekRevenue,
+      todayRevenue: finalTodayRev,
+      yesterdayRevenue: finalYesterdayRev,
+      thisWeekRevenue: finalThisWeekRev,
+      lastWeekRevenue: finalLastWeekRev,
       closedTodayCount: closedTodayCount,
       last7Days: last7Keys.map((d) => revenueMap[DateFormat('yyyy-MM-dd').format(d)] ?? 0).toList(),
       topEquipment: topFromMap(equipmentTotals),

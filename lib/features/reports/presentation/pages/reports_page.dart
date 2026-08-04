@@ -43,10 +43,10 @@ class _R {
   static EdgeInsets pagePad = const EdgeInsets.all(16);
 }
 
-final _numFmt = NumberFormat('#,##0.00', 'ar');
-String _fmtAmt(double v) => '${_numFmt.format(v)} ${AppConfig.currencySymbol}';
-String _fmtN(double v) => _numFmt.format(v);
-String _fmtPct(double? v) => v == null ? '—' : '${v.toStringAsFixed(1)}%';
+final _numFmt = NumberFormat('#,##0', 'ar');
+String _fmtAmt(num v) => AppConfig.formatCurrency(v);
+String _fmtN(num v) => AppConfig.formatNumber(v);
+String _fmtPct(num? v) => v == null ? '—' : '${v.round()}%';
 
 Color _profitColor(double v) => v >= 0 ? _R.success : _R.error;
 
@@ -1667,8 +1667,8 @@ class _LateClientsTab extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('العملاء المتأخرون', style: const TextStyle(color: _R.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('العقود المتأخرة التي تحتاج متابعة', style: TextStyle(color: _R.textSecondary, fontSize: 12)),
+                      Text('العملاء المتأخرون عن السداد', style: const TextStyle(color: _R.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('قائمة ديون العملاء والعقود المتبقية المستحقة للسداد', style: TextStyle(color: _R.textSecondary, fontSize: 12)),
                     ],
                   ),
                 ],
@@ -1679,11 +1679,18 @@ class _LateClientsTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: _card(
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   leading: CircleAvatar(backgroundColor: _R.errorLight, child: const Icon(Icons.warning_amber, color: _R.error, size: 18)),
-                  title: Text(r.name, style: const TextStyle(color: _R.textPrimary)),
-                  subtitle: Text(r.phone ?? '—', style: const TextStyle(color: _R.textSecondary, fontSize: 11)),
-                  trailing: Text('${r.lateContractsCount} عقد', style: const TextStyle(color: _R.error, fontWeight: FontWeight.bold)),
+                  title: Text(r.name, style: const TextStyle(color: _R.textPrimary, fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    '${r.phone?.isNotEmpty == true ? '📞 ${r.phone} • ' : ''}${r.lateContractsCount} عقد متبقي'
+                    '${r.lastPaymentDate != null && r.lastPaymentDate!.isNotEmpty ? ' • آخر دفعة: ${r.lastPaymentDate}' : ''}',
+                    style: const TextStyle(color: _R.textSecondary, fontSize: 11),
+                  ),
+                  trailing: Text(
+                    AppConfig.formatCurrency(r.totalDebt),
+                    style: const TextStyle(color: _R.error, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
               ),
             )).toList(),

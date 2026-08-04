@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import 'package:rental_app/core/config/app_config.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/features/shifts/data/repositories/shifts_repository.dart';
 import 'package:rental_app/features/shifts/domain/entities/shift_closing.dart';
@@ -290,7 +291,7 @@ class _ShiftCard extends StatelessWidget {
     final diffColor = diff == 0
         ? Theme.of(context).colorScheme.outline
         : (diff > 0 ? Colors.green : Colors.red);
-    final currency = NumberFormat('#,##0.00');
+    final currency = NumberFormat('#,##0');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -372,11 +373,22 @@ class _ShiftCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text('ملاحظة: ${shift.notes}'),
+              child: Text('ملاحظة: ${_formatNote(shift.notes!)}'),
             ),
           ],
         ],
       ),
+    );
+  }
+
+  String _formatNote(String note) {
+    return note.replaceAllMapped(
+      RegExp(r'\[cash_total=([\d\.]+),\s*transfer_total=([\d\.]+)\]'),
+      (m) {
+        final cash = double.tryParse(m.group(1) ?? '') ?? 0;
+        final transfer = double.tryParse(m.group(2) ?? '') ?? 0;
+        return '[إجمالي النقد = ${AppConfig.formatNumber(cash)} ، إجمالي التحويل = ${AppConfig.formatNumber(transfer)}]';
+      },
     );
   }
 }

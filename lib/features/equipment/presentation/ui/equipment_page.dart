@@ -7,6 +7,7 @@ import 'package:rental_app/features/equipment/data/repositories/equipment_reposi
 import 'package:rental_app/features/equipment/domain/entities/models.dart';
 import 'package:rental_app/features/equipment/presentation/bloc/equipment_bloc.dart';
 import 'package:rental_app/features/equipment/presentation/ui/EquipmentCard.dart';
+import 'package:rental_app/core/widgets/permission_guard.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 
 // Import validation functions
@@ -125,11 +126,14 @@ class _EquipmentView extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'equipment_fab', // Unique hero tag to avoid conflicts
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة معدة'),
-        onPressed: () => _openDialog(context),
+      floatingActionButton: PermissionGuard(
+        permissionKey: 'equipment',
+        child: FloatingActionButton.extended(
+          heroTag: 'equipment_fab', // Unique hero tag to avoid conflicts
+          icon: const Icon(Icons.add),
+          label: const Text('إضافة معدة'),
+          onPressed: () => _openDialog(context),
+        ),
       ),
       body: PageEntrance(
         child: BlocConsumer<EquipmentBloc, EquipmentState>(
