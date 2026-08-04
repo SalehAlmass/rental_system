@@ -61,7 +61,10 @@ class _DashboardHomeState extends State<DashboardHome> {
           return const Center(child: Text('لا توجد بيانات'));
         }
 
-        final summary = _EmployeeRentSummary.fromRents(state.recentRents);
+        final summary = _EmployeeRentSummary.fromRents(
+          state.recentRents,
+          stats: stats,
+        );
 
         return PageEntrance(
           child: RefreshIndicator(
@@ -1445,7 +1448,11 @@ class _AdminDashboardSummary {
 
   static bool _isOverdue(Rent rent, DateTime now) {
     if ((rent.status ?? '').toLowerCase() != 'open') return false;
-    final start = _parse(rent.startDatetime?.toString());
+    final expectedEnd = rent.parsedEndDatetime ?? _parse(rent.endDatetime);
+    if (expectedEnd != null) {
+      return now.isAfter(expectedEnd);
+    }
+    final start = rent.parsedStartDatetime ?? _parse(rent.startDatetime.toString());
     if (start == null) return false;
     return now.difference(start).inHours >= 24;
   }
@@ -1597,9 +1604,14 @@ class _EmployeeRentSummary {
   static bool _isOverdue(Rent rent) {
     final status = (rent.status ?? '').toString().toLowerCase();
     if (status != 'open') return false;
-    final start = _parse(rent.startDatetime.toString());
+    final now = DateTime.now();
+    final expectedEnd = rent.parsedEndDatetime ?? _parse(rent.endDatetime);
+    if (expectedEnd != null) {
+      return now.isAfter(expectedEnd);
+    }
+    final start = rent.parsedStartDatetime ?? _parse(rent.startDatetime.toString());
     if (start == null) return false;
-    return DateTime.now().difference(start).inHours >= 24;
+    return now.difference(start).inHours >= 24;
   }
 
   static double _remaining(Rent rent) {
@@ -1624,7 +1636,10 @@ class _EmployeeRentSummary {
     return 0;
   }
 
-  factory _EmployeeRentSummary.fromRents(List<Rent> rents) {
+  factory _EmployeeRentSummary.fromRents(
+    List<Rent> rents, {
+    DashboardStats? stats,
+  }) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
@@ -1654,12 +1669,14 @@ class _EmployeeRentSummary {
       }
     }
 
+    final finalTodayRev = stats?.todayRevenue ?? todayRevenue;
+
     return _EmployeeRentSummary(
       openCount: openCount,
       overdueCount: overdueCount,
       deferredCount: deferredCount,
       deferredAmount: deferredAmount,
-      todayRevenue: todayRevenue,
+      todayRevenue: finalTodayRev,
     );
   }
 }

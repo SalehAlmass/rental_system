@@ -694,7 +694,9 @@ class _PaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pstate = context.watch<ProfileCubit>().state;
-    final canPrint = pstate is ProfileLoaded && pstate.hasScreenPermission('print');
+    final canPrint = pstate.hasScreenPermission('print');
+    final canEdit = pstate.hasActionPermission('payments', 'edit');
+    final canVoid = pstate.hasActionPermission('payments', 'void');
     final isIn = payment.type.toLowerCase() == 'in';
     final cs = Theme.of(context).colorScheme;
     final stateColor = payment.isVoid
@@ -821,52 +823,56 @@ class _PaymentCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'طباعة السند',
-                    icon: const Icon(Icons.print_outlined),
-                    onPressed: canPrint ? () async {
-                      try {
-                        await PdfService().printPaymentVoucher(
-                          payment: payment,
-                        );
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('فشل الطباعة: $e')),
+                  if (canPrint) ...[
+                    IconButton(
+                      tooltip: 'طباعة السند',
+                      icon: const Icon(Icons.print_outlined),
+                      onPressed: () async {
+                        try {
+                          await PdfService().printPaymentVoucher(
+                            payment: payment,
                           );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل الطباعة: $e')),
+                            );
+                          }
                         }
-                      }
-                    } : null,
-                  ),
-                  IconButton(
-                    tooltip: 'مشاركة PDF',
-                    icon: const Icon(Icons.share_outlined),
-                    onPressed: canPrint ? () async {
-                      try {
-                        await PdfService().sharePaymentVoucher(
-                          payment: payment,
-                        );
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('فشل المشاركة: $e')),
+                      },
+                    ),
+                    IconButton(
+                      tooltip: 'مشاركة PDF',
+                      icon: const Icon(Icons.share_outlined),
+                      onPressed: () async {
+                        try {
+                          await PdfService().sharePaymentVoucher(
+                            payment: payment,
                           );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل المشاركة: $e')),
+                            );
+                          }
                         }
-                      }
-                    } : null,
-                  ),
+                      },
+                    ),
+                  ],
                   if (!payment.isVoid) ...[
-                    IconButton(
-                      tooltip: 'تعديل',
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => onEdit(payment),
-                    ),
-                    IconButton(
-                      tooltip: 'إلغاء السند',
-                      icon: const Icon(Icons.block_outlined),
-                      color: Colors.red,
-                      onPressed: () => onVoid(payment),
-                    ),
+                    if (canEdit)
+                      IconButton(
+                        tooltip: 'تعديل',
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => onEdit(payment),
+                      ),
+                    if (canVoid)
+                      IconButton(
+                        tooltip: 'إلغاء السند',
+                        icon: const Icon(Icons.block_outlined),
+                        color: Colors.red,
+                        onPressed: () => onVoid(payment),
+                      ),
                   ],
                 ],
               ),

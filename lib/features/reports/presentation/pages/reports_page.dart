@@ -225,12 +225,16 @@ class _ExportBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pstate = context.watch<ProfileCubit>().state;
-    final canExport = pstate is ProfileLoaded && pstate.hasScreenPermission('export');
+    final canExport = pstate.hasScreenPermission('export');
+
+    if (!canExport) {
+      return const SizedBox.shrink();
+    }
 
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: canExport ? onTap : null,
+        onPressed: onTap,
         icon: const Icon(Icons.picture_as_pdf, size: 18),
         label: Text(label),
         style: ElevatedButton.styleFrom(

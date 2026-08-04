@@ -102,7 +102,8 @@ class ClientDetailsPage extends StatelessWidget {
   /// Action buttons: Back, Edit, Print, Share
   Widget _buildActionButtons(BuildContext context) {
     final pstate = context.watch<ProfileCubit>().state;
-    final canPrint = pstate is ProfileLoaded && pstate.hasScreenPermission('print');
+    final canPrint = pstate.hasScreenPermission('print');
+    final canEdit = pstate.hasActionPermission('clients', 'edit');
 
     return Column(
       children: [
@@ -115,38 +116,42 @@ class ClientDetailsPage extends StatelessWidget {
                 label: const Text('عودة'),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: Add edit functionality if needed
-                },
-                icon: const Icon(Icons.edit),
-                label: const Text('تعديل'),
+            if (canEdit) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // TODO: Add edit functionality if needed
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('تعديل'),
+                ),
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: canPrint ? () => _printClientStatement(context) : null,
-                icon: const Icon(Icons.print),
-                label: const Text('طباعة كشف الحساب'),
+        if (canPrint) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _printClientStatement(context),
+                  icon: const Icon(Icons.print),
+                  label: const Text('طباعة كشف الحساب'),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: canPrint ? () => _shareClientStatement(context) : null,
-                icon: const Icon(Icons.share),
-                label: const Text('مشاركة PDF'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _shareClientStatement(context),
+                  icon: const Icon(Icons.share),
+                  label: const Text('مشاركة PDF'),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }

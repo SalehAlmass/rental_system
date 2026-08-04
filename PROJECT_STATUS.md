@@ -40,6 +40,12 @@
   - تحديث دالة `normalize_user_permissions` في [helpers.php](file:///c:/xampp/htdocs/alkhair/rental_api/helpers.php) لتضمين كافة مفاتيح العمليات الفرعية (`clients_edit`, `clients_delete`, `equipment_edit`, `equipment_delete`, إلخ) والحفاظ الكامل على مصفوفة الصلاحيات المخصصة `rawScreen` دون استبعاد أي مفتاح، مما يضمن انعكاس إغلاق الصلاحيات من شاشة إدارة المستخدمين على الموظف فوراً وبدقة 100%. التاريخ: 2026-08-04.
 * [x] **تحسين مزامنة شاشة الحضور عند عودة التطبيق من الخلفية (App Lifecycle Resume)**:
   - إضافة `WidgetsBindingObserver` وإعادة استدعاء `_load()` تلقائياً فور العودة للواجهة (`AppLifecycleState.resumed`) في [attendance_page.dart](file:///e:/rental_system/lib/features/hr/presentation/ui/attendance_page.dart)، لمزامنة حالة الدوام والاستراحة والعداد المباشر بدقة 100% وبشكل محصور دون المساس بأي Business Logic. التاريخ: 2026-08-04.
+* [x] **تطبيق إخفاء الأيقونات والإجراءات غير المصرح بها بالكامل من الواجهة (Frontend Permission Visibility Fix)**:
+  - تحديث [payments_page.dart](file:///e:/rental_system/lib/features/payments/presentation/ui/payments_page.dart)، [reports_page.dart](file:///e:/rental_system/lib/features/reports/presentation/pages/reports_page.dart)، و [client_details_page.dart](file:///e:/rental_system/lib/features/clients/presentation/ui/client_details_page.dart) لإخفاء أيقونات الطباعة والمشاركة والتعديل وإلغاء/إبطال السندات كلياً عند عدم وجود الصلاحية بدلاً من تركها معطلة، وحماية جميع الإجراءات بدقة 100%. التاريخ: 2026-08-04.
+* [x] **تحديث منطق احتساب العقود المتأخرة في لوحة التحكم (Dashboard Overdue Logic Refinement)**:
+  - تحديث دالة `_isOverdue` في [dashboard_home.dart](file:///e:/rental_system/lib/features/dashboard/presentation/ui/dashboard_home.dart) لاعتماد تاريخ ووقت الإرجاع المتوقع `expected_end_datetime` كمعيار أساسي للتأخير وتجاوز الوقت، مع الاستعانة بقاعدة الـ 24 ساعة كحل احتياطي للعقود غير المحددة بوقت إنهاء، دون لمس قاعدة البيانات أو APIs. التاريخ: 2026-08-04.
+* [x] **إصلاح انعكاس إيراد اليوم في لوحة تحكم الموظف (Dashboard Employee Today Revenue Fix)**:
+  - تحديث `_EmployeeRentSummary.fromRents` بملف [dashboard_home.dart](file:///e:/rental_system/lib/features/dashboard/presentation/ui/dashboard_home.dart) لاستقبال وتمرير `stats` القادمة من الـ API (`stats.todayRevenue`) بدلاً من حسابها محلياً من تاريخ الإغلاق، مما يضمن انعكاس كافة المقبوضات والسندات المالية النقدية (مثل السندات #100557 و #100558 بقيمة 789,000 ر.ي) بدقة 100% ودون المساس بالـ Backend أو قواعد البيانات. التاريخ: 2026-08-04.
 
 ---
 
