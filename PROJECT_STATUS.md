@@ -38,6 +38,8 @@
   - بناء وتفعيل تقرير العملاء المتأخرين عن السداد بالكامل بدون التعديل على قاعدة البيانات، وتجميع الرصيد المستحق `total_debt` وتاريخ آخر دفعة وعدد العقود غير المسددة وعرضها بالواجهة وتنسيق المبالغ بدون كسور عشرية في [reports.php](file:///c:/xampp/htdocs/alkhair/rental_api/reports.php) و [reports_page.dart](file:///e:/rental_system/lib/features/reports/presentation/pages/reports_page.dart). التاريخ: 2026-08-04.
 * [x] **إصلاح دورة حفظ الصلاحيات الفرعية بالكامل (Permission Pipeline Fix)**:
   - تحديث دالة `normalize_user_permissions` في [helpers.php](file:///c:/xampp/htdocs/alkhair/rental_api/helpers.php) لتضمين كافة مفاتيح العمليات الفرعية (`clients_edit`, `clients_delete`, `equipment_edit`, `equipment_delete`, إلخ) والحفاظ الكامل على مصفوفة الصلاحيات المخصصة `rawScreen` دون استبعاد أي مفتاح، مما يضمن انعكاس إغلاق الصلاحيات من شاشة إدارة المستخدمين على الموظف فوراً وبدقة 100%. التاريخ: 2026-08-04.
+* [x] **تحسين مزامنة شاشة الحضور عند عودة التطبيق من الخلفية (App Lifecycle Resume)**:
+  - إضافة `WidgetsBindingObserver` وإعادة استدعاء `_load()` تلقائياً فور العودة للواجهة (`AppLifecycleState.resumed`) في [attendance_page.dart](file:///e:/rental_system/lib/features/hr/presentation/ui/attendance_page.dart)، لمزامنة حالة الدوام والاستراحة والعداد المباشر بدقة 100% وبشكل محصور دون المساس بأي Business Logic. التاريخ: 2026-08-04.
 
 ---
 
