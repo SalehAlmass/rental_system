@@ -8,6 +8,7 @@ class DashboardStats {
     this.yesterdayRevenue,
     this.thisWeekRevenue,
     this.lastWeekRevenue,
+    this.deferredAmount,
   });
 
   final int clients;
@@ -18,6 +19,7 @@ class DashboardStats {
   final double? yesterdayRevenue;
   final double? thisWeekRevenue;
   final double? lastWeekRevenue;
+  final double? deferredAmount;
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
     double? toDouble(dynamic val) {
@@ -35,6 +37,7 @@ class DashboardStats {
       yesterdayRevenue: toDouble(json['yesterday_revenue']),
       thisWeekRevenue: toDouble(json['this_week_revenue']),
       lastWeekRevenue: toDouble(json['last_week_revenue']),
+      deferredAmount: toDouble(json['deferred_amount'] ?? json['outstanding_amount']),
     );
   }
 }

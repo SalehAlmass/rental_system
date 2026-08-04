@@ -1556,12 +1556,13 @@ class _AdminDashboardSummary {
     final finalYesterdayRev = stats?.yesterdayRevenue ?? yesterdayRevenue;
     final finalThisWeekRev = stats?.thisWeekRevenue ?? thisWeekRevenue;
     final finalLastWeekRev = stats?.lastWeekRevenue ?? lastWeekRevenue;
+    final finalDeferredAmt = stats?.deferredAmount ?? deferredAmount;
 
     return _AdminDashboardSummary(
       openCount: openCount,
       overdueCount: overdueCount,
       deferredCount: deferredCount,
-      deferredAmount: deferredAmount,
+      deferredAmount: finalDeferredAmt,
       todayRevenue: finalTodayRev,
       yesterdayRevenue: finalYesterdayRev,
       thisWeekRevenue: finalThisWeekRev,
@@ -1670,12 +1671,13 @@ class _EmployeeRentSummary {
     }
 
     final finalTodayRev = stats?.todayRevenue ?? todayRevenue;
+    final finalDeferredAmt = stats?.deferredAmount ?? deferredAmount;
 
     return _EmployeeRentSummary(
       openCount: openCount,
       overdueCount: overdueCount,
       deferredCount: deferredCount,
-      deferredAmount: deferredAmount,
+      deferredAmount: finalDeferredAmt,
       todayRevenue: finalTodayRev,
     );
   }

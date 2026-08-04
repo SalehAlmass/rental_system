@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:rental_app/core/network/api_client.dart';
 import 'package:rental_app/core/widgets/custom_app_bar.dart';
 import 'package:rental_app/core/widgets/permission_guard.dart';
+import 'package:rental_app/features/profile/profile_cubit.dart';
 import 'package:rental_app/core/widgets/page_entrance.dart';
 import 'package:rental_app/features/clients/presentation/ui/client_details_page.dart';
 import 'package:rental_app/core/utils/debouncer.dart';
@@ -1162,6 +1163,9 @@ class _RentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pstate = context.watch<ProfileCubit>().state;
+    final canCancel = pstate.hasActionPermission('rents', 'cancel') || pstate.hasActionPermission('rents', 'delete');
+
     final colorScheme = Theme.of(context).colorScheme;
     final status = (rent.status ?? '').toLowerCase();
     final isClosed = status == 'closed';
@@ -1414,7 +1418,7 @@ class _RentCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (!isClosed && !isCancelled) ...[
+                if (!isClosed && !isCancelled && canCancel) ...[
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,

@@ -46,6 +46,8 @@
   - تحديث دالة `_isOverdue` في [dashboard_home.dart](file:///e:/rental_system/lib/features/dashboard/presentation/ui/dashboard_home.dart) لاعتماد تاريخ ووقت الإرجاع المتوقع `expected_end_datetime` كمعيار أساسي للتأخير وتجاوز الوقت، مع الاستعانة بقاعدة الـ 24 ساعة كحل احتياطي للعقود غير المحددة بوقت إنهاء، دون لمس قاعدة البيانات أو APIs. التاريخ: 2026-08-04.
 * [x] **إصلاح انعكاس إيراد اليوم في لوحة تحكم الموظف (Dashboard Employee Today Revenue Fix)**:
   - تحديث `_EmployeeRentSummary.fromRents` بملف [dashboard_home.dart](file:///e:/rental_system/lib/features/dashboard/presentation/ui/dashboard_home.dart) لاستقبال وتمرير `stats` القادمة من الـ API (`stats.todayRevenue`) بدلاً من حسابها محلياً من تاريخ الإغلاق، مما يضمن انعكاس كافة المقبوضات والسندات المالية النقدية (مثل السندات #100557 و #100558 بقيمة 789,000 ر.ي) بدقة 100% ودون المساس بالـ Backend أو قواعد البيانات. التاريخ: 2026-08-04.
+* [x] **ربط كارد الذمم الحالية بالمصدر الرسمي من الـ API بالـ Backend (Dashboard Outstanding Balances Fix)**:
+  - ربط كارد الذمم الحالية (`deferredAmount`) في [dashboard_home.dart](file:///e:/rental_system/lib/features/dashboard/presentation/ui/dashboard_home.dart) و [models.dart](file:///e:/rental_system/lib/features/dashboard/domain/entities/models.dart) بالـ API الرسمي `GET reports/dashboard` في [reports.php](file:///c:/xampp/htdocs/alkhair/rental_api/reports.php) المستخرج عبر دالة `calculate_outstanding_amount($pdo)` بـ `helpers_financial.php` لحساب إجمالي الذمم المالية من كافة عقود النظام المحفوظة في الداتا بيز بدلاً من تجميع أول 200 عقد بالواجهة محلياً. التاريخ: 2026-08-04.
 
 ---
 
